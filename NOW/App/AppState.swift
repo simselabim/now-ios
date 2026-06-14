@@ -1,10 +1,13 @@
 import Foundation
 import CoreLocation
 
+@MainActor
 final class AppState: ObservableObject {
     @Published var isAuthenticated = false
     @Published var isProfileComplete = false
     @Published var isOnline = false
+    @Published var isLoading = false
+    @Published var errorMessage: String?
     @Published var todayIntent = TodayIntent(plan: .coffee, intent: .date, timeWindow: .evening)
     @Published var mapPoints: [MapPoint] = MockData.mapPoints
     @Published var selectedPoint: MapPoint?
@@ -13,6 +16,12 @@ final class AppState: ObservableObject {
     @Published var meetingProposal: MeetingProposal?
     @Published var history: [HistoryItem] = MockData.history
     @Published var showHistory = false
+
+    private let apiClient: NOWAPIClient
+
+    init(apiClient: NOWAPIClient = NOWAPIClient()) {
+        self.apiClient = apiClient
+    }
 
     var visibleMapPoints: [MapPoint] {
         mapPoints.filter { $0.state != .hiddenToday && $0.state != .blocked }
@@ -23,7 +32,9 @@ final class AppState: ObservableObject {
     }
 
     func login() {
-        isAuthenticated = true
+        Task {
+            await demoLoginAndBootstrap()
+        }
     }
 
     func completeProfile() {
@@ -31,8 +42,9 @@ final class AppState: ObservableObject {
     }
 
     func goOnline() {
-        showHistory = false
-        isOnline = true
+        Task {
+            await goOnlineWithBackend()
+        }
     }
 
     func goOffline() {
@@ -42,6 +54,10 @@ final class AppState: ObservableObject {
     func viewPoint(_ point: MapPoint) {
         selectedPoint = point
         updatePoint(point.id, state: point.state == .unseen ? .viewed : point.state)
+
+        Task {
+            await openPointWithBackend(point)
+        }
     }
 
     func closeProfilePreview() {
@@ -49,25 +65,15 @@ final class AppState: ObservableObject {
     }
 
     func markInterested(_ point: MapPoint) {
-        updatePoint(point.id, state: .interested)
-        selectedPoint = nil
-
-        if point.isMutualMock {
-            activeMatch = Match(
-                id: UUID(),
-                profile: point.profile,
-                status: .active,
-                myFirstLoopSent: false,
-                theirFirstLoopReceived: false,
-                meetingStatus: .none
-            )
-            isOnline = false
+        Task {
+            await likePointWithBackend(point)
         }
     }
 
     func notNow(_ point: MapPoint) {
-        updatePoint(point.id, state: .hiddenToday)
-        selectedPoint = nil
+        Task {
+            await passPointWithBackend(point)
+        }
     }
 
     func block(_ point: MapPoint) {
@@ -76,19 +82,20 @@ final class AppState: ObservableObject {
     }
 
     func sendFirstLoop() {
-        guard var match = activeMatch else { return }
-        match.myFirstLoopSent = true
-        match.theirFirstLoopReceived = true
-        activeMatch = match
+        guard let match = activeMatch else { return }
+
+        Task {
+            await sendMockFirstLoopWithBackend(match)
+        }
     }
 
     func sendMessage(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard chatUnlocked, !trimmed.isEmpty else { return }
 
-        messages.append(
-            Message(id: UUID(), sender: .me, text: trimmed, createdAt: Date())
-        )
+        Task {
+            await sendMessageWithBackend(trimmed)
+        }
     }
 
     func createMeetingProposal() {
@@ -149,5 +156,344 @@ final class AppState: ObservableObject {
         if selectedPoint?.id == id {
             selectedPoint?.state = state
         }
+    }
+
+    private func demoLoginAndBootstrap() async {
+        await runLoading {
+            _ = try await apiClient.login(email: "demo.ava@example.com", password: "password123")
+            isAuthenticated = true
+            try await applyBootstrap(apiClient.bootstrap())
+        }
+    }
+
+    private func applyBootstrap(_ bootstrap: BootstrapResponseDTO) async throws {
+        isProfileComplete = !(bootstrap.requirements.profileRequired)
+        isOnline = bootstrap.onlineSession != nil
+        activeMatch = bootstrap.activeMatch.map { matchDTO in
+            Match(
+                id: matchDTO.id,
+                profile: mapProfile(bootstrap.profile),
+                status: mapMatchStatus(matchDTO.status),
+                myFirstLoopSent: false,
+                theirFirstLoopReceived: false,
+                meetingStatus: .none
+            )
+        }
+
+        switch bootstrap.nextStep {
+        case .discover:
+            try await loadDiscoveryMap()
+        case .activeMatch:
+            try await loadActiveMatchDetail()
+        case .createProfile:
+            isProfileComplete = false
+        case .updateTodayIntent:
+            isProfileComplete = true
+            isOnline = false
+        case .goOnline:
+            isProfileComplete = true
+            isOnline = false
+        }
+    }
+
+    private func goOnlineWithBackend() async {
+        await runLoading {
+            _ = try await apiClient.updateTodayIntent(
+                UpdateTodayIntentRequestDTO(
+                    plan: mapPlan(todayIntent.plan),
+                    intent: mapIntent(todayIntent.intent),
+                    timeToday: mapTime(todayIntent.timeWindow)
+                )
+            )
+            _ = try await apiClient.goOnline(lat: 40.7410, lng: -73.9897, accuracyM: 25)
+            showHistory = false
+            isOnline = true
+            try await loadDiscoveryMap()
+        }
+    }
+
+    private func loadDiscoveryMap() async throws {
+        let response = try await apiClient.discoverMap()
+        mapPoints = response.points.map(mapPoint)
+        isOnline = !response.discoveryLocked
+    }
+
+    private func openPointWithBackend(_ point: MapPoint) async {
+        await runLoading {
+            let response = try await apiClient.openMapPoint(point.id)
+            selectedPoint = mapPoint(response.point, profile: response.profile)
+            updatePoint(point.id, state: .viewed)
+        }
+    }
+
+    private func likePointWithBackend(_ point: MapPoint) async {
+        await runLoading {
+            let response = try await apiClient.likeProfile(point.profile.id)
+            updatePoint(point.id, state: .interested)
+            selectedPoint = nil
+
+            if let matchDTO = response.matchItem {
+                activeMatch = Match(
+                    id: matchDTO.id,
+                    profile: point.profile,
+                    status: mapMatchStatus(matchDTO.status),
+                    myFirstLoopSent: false,
+                    theirFirstLoopReceived: false,
+                    meetingStatus: .none
+                )
+                isOnline = false
+                try await loadActiveMatchDetail()
+            }
+        }
+    }
+
+    private func passPointWithBackend(_ point: MapPoint) async {
+        await runLoading {
+            _ = try await apiClient.passProfile(point.profile.id)
+            updatePoint(point.id, state: .hiddenToday)
+            selectedPoint = nil
+        }
+    }
+
+    private func loadActiveMatchDetail() async throws {
+        let response = try await apiClient.activeMatchDetail()
+        guard let detail = response.matchItem else {
+            activeMatch = nil
+            return
+        }
+
+        let profile = mapProfile(detail.otherProfile)
+        let myLoopSent = detail.loops.contains { $0.userId != detail.matchItem.otherUserId }
+        let theirLoopReceived = detail.loops.contains { $0.userId == detail.matchItem.otherUserId }
+        activeMatch = Match(
+            id: detail.matchItem.id,
+            profile: profile,
+            status: mapMatchStatus(detail.matchItem.status),
+            myFirstLoopSent: myLoopSent,
+            theirFirstLoopReceived: theirLoopReceived,
+            meetingStatus: detail.latestMeetingStatus.map { mapMeetingStatus($0.status) } ?? .none
+        )
+        messages = detail.messages.map { message in
+            Message(
+                id: message.id,
+                sender: message.senderUserId == detail.matchItem.otherUserId ? .them : .me,
+                text: message.body,
+                createdAt: Date()
+            )
+        }
+        if let proposal = detail.latestMeetingProposal {
+            meetingProposal = MeetingProposal(
+                id: proposal.id,
+                matchId: proposal.matchId,
+                placeName: proposal.placeName,
+                coordinate: CLLocationCoordinate2D(
+                    latitude: proposal.placeLat ?? 40.7410,
+                    longitude: proposal.placeLng ?? -73.9897
+                ),
+                time: proposal.proposedTime,
+                status: proposal.status == "accepted" ? .accepted : .pending
+            )
+        }
+    }
+
+    private func sendMockFirstLoopWithBackend(_ match: Match) async {
+        await runLoading {
+            let data = Data("mock-loop".utf8)
+            let intent = try await apiClient.createUploadIntent(
+                kind: .firstLoop,
+                contentType: "video/mp4",
+                fileSizeBytes: data.count
+            )
+            _ = try await MediaUploadService().upload(data: data, intent: intent)
+            _ = try await apiClient.sendFirstLoop(
+                matchId: match.id,
+                storageKey: intent.storageKey,
+                durationMs: 2_900
+            )
+            try await loadActiveMatchDetail()
+        }
+    }
+
+    private func sendMessageWithBackend(_ text: String) async {
+        guard let match = activeMatch else { return }
+
+        await runLoading {
+            let response = try await apiClient.sendMessage(matchId: match.id, body: text)
+            messages.append(
+                Message(id: response.message.id, sender: .me, text: response.message.body, createdAt: Date())
+            )
+        }
+    }
+
+    private func runLoading(_ operation: @escaping () async throws -> Void) async {
+        isLoading = true
+        errorMessage = nil
+        do {
+            try await operation()
+        } catch {
+            errorMessage = String(describing: error)
+        }
+        isLoading = false
+    }
+
+    private func mapPoint(_ dto: MapPointDTO) -> MapPoint {
+        mapPoint(dto, profile: nil)
+    }
+
+    private func mapPoint(_ dto: MapPointDTO, profile: ProfileDTO?) -> MapPoint {
+        MapPoint(
+            id: dto.pointId,
+            profile: mapProfile(profile, fallback: dto),
+            approximateCoordinate: CLLocationCoordinate2D(latitude: dto.lat, longitude: dto.lng),
+            state: mapPointState(dto.state),
+            isMutualMock: false
+        )
+    }
+
+    private func mapProfile(_ dto: ProfileDTO?, fallback: MapPointDTO? = nil) -> UserProfile {
+        if let dto {
+            return UserProfile(
+                id: dto.id,
+                name: dto.displayName,
+                age: age(from: dto.birthDate),
+                distance: fallback.map { "\($0.distanceM) m" } ?? "nearby",
+                plan: fallback.map { mapPlan($0.plan) } ?? .coffee,
+                intent: fallback.map { mapIntent($0.intent) } ?? .date,
+                occupation: dto.gender.capitalized,
+                languages: [],
+                interests: dto.interests,
+                sharedInterests: Array(dto.interests.prefix(3)),
+                prompt: dto.bio
+            )
+        }
+
+        return UserProfile(
+            id: fallback?.profileId ?? UUID(),
+            name: fallback?.displayName ?? "NOW",
+            age: 29,
+            distance: fallback.map { "\($0.distanceM) m" } ?? "nearby",
+            plan: fallback.map { mapPlan($0.plan) } ?? .coffee,
+            intent: fallback.map { mapIntent($0.intent) } ?? .date,
+            occupation: "Nearby",
+            languages: [],
+            interests: [],
+            sharedInterests: [],
+            prompt: "Open to meet today."
+        )
+    }
+
+    private func mapPointState(_ state: MapPointStateDTO) -> MapPointState {
+        switch state {
+        case .unseen:
+            return .unseen
+        case .viewed:
+            return .viewed
+        case .likedToday:
+            return .interested
+        case .cancelledMatchBefore:
+            return .viewed
+        }
+    }
+
+    private func mapPlan(_ plan: PlanDTO) -> Plan {
+        switch plan {
+        case .coffee:
+            return .coffee
+        case .walk:
+            return .walk
+        case .lunch:
+            return .lunch
+        case .dinner:
+            return .dinner
+        case .activity:
+            return .activity
+        }
+    }
+
+    private func mapPlan(_ plan: Plan) -> PlanDTO {
+        switch plan {
+        case .coffee:
+            return .coffee
+        case .walk:
+            return .walk
+        case .lunch:
+            return .lunch
+        case .dinner:
+            return .dinner
+        case .activity:
+            return .activity
+        }
+    }
+
+    private func mapIntent(_ intent: IntentDTO) -> Intent {
+        switch intent {
+        case .friendly:
+            return .friendly
+        case .date:
+            return .date
+        case .romantic:
+            return .romantic
+        case .openMinded:
+            return .openMinded
+        }
+    }
+
+    private func mapIntent(_ intent: Intent) -> IntentDTO {
+        switch intent {
+        case .friendly:
+            return .friendly
+        case .date:
+            return .date
+        case .romantic:
+            return .romantic
+        case .openMinded:
+            return .openMinded
+        }
+    }
+
+    private func mapTime(_ time: TimeWindow) -> TimeTodayDTO {
+        switch time {
+        case .now:
+            return .now
+        case .lunch:
+            return .lunch
+        case .afternoon:
+            return .afternoon
+        case .evening:
+            return .evening
+        }
+    }
+
+    private func mapMatchStatus(_ status: MatchStatusDTO) -> MatchStatus {
+        switch status {
+        case .active:
+            return .active
+        case .cancelled, .blocked:
+            return .cancelled
+        case .completed:
+            return .met
+        case .expired:
+            return .expired
+        }
+    }
+
+    private func mapMeetingStatus(_ status: MeetingStatusValueDTO) -> MeetingStatus {
+        switch status {
+        case .onMyWay:
+            return .onMyWay
+        case .arrived:
+            return .arrived
+        case .delayed:
+            return .delayed
+        }
+    }
+
+    private func age(from birthDate: String) -> Int {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let date = formatter.date(from: birthDate) else {
+            return 29
+        }
+        return Calendar.current.dateComponents([.year], from: date, to: Date()).year ?? 29
     }
 }

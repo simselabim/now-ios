@@ -21,9 +21,24 @@ struct WelcomeScreen: View {
 
             Spacer()
 
-            Button("Register / Login") {
+            if appState.isLoading {
+                ProgressView()
+                    .tint(NOWColor.teal)
+            }
+
+            if let error = appState.errorMessage {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(NOWColor.coral)
+                    .padding(10)
+                    .background(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+
+            Button(appState.isLoading ? "Connecting..." : "Demo Login") {
                 appState.login()
             }
+            .disabled(appState.isLoading)
             .buttonStyle(PrimaryButtonStyle())
         }
         .padding(24)

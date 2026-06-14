@@ -47,10 +47,26 @@ let map = try await client.discoverMap()
 let detail = try await client.activeMatchDetail()
 ```
 
+## Current AppState Integration
+
+`AppState` now uses `NOWAPIClient` for the first backend-driven path:
+
+```text
+Welcome
+ -> Demo Login
+ -> /app/bootstrap
+ -> /discover/map
+ -> /discover/points/{point_id}
+ -> like/pass
+ -> /matches/active/detail when a match exists
+```
+
+The temporary chat, meeting proposal, meeting mode, and history screens still keep
+their mock-first behavior until their UI flows are wired to `NOWAPIClient`.
+
 ## Backend Docs
 
 The backend source of truth lives in:
 
 - `now_back/docs/openapi.yaml`
 - `now_back/docs/mobile-dev-notes.md`
-

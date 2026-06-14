@@ -15,15 +15,28 @@ struct DiscoveryMapScreen: View {
                     VStack(alignment: .leading) {
                         Text("Ready today nearby")
                             .font(.title3.weight(.bold))
-                        Text("Choose carefully. One live match.")
+                        Text(appState.isLoading ? "Syncing with NOW..." : "Choose carefully. One live match.")
                             .font(.subheadline)
                             .foregroundStyle(NOWColor.inkSoft)
                     }
                     Spacer()
+                    if appState.isLoading {
+                        ProgressView()
+                            .tint(NOWColor.teal)
+                    }
                     Button("Go Offline") {
                         appState.goOffline()
                     }
                     .font(.subheadline.weight(.semibold))
+                }
+
+                if let error = appState.errorMessage {
+                    Text(error)
+                        .font(.footnote)
+                        .foregroundStyle(NOWColor.coral)
+                        .padding(10)
+                        .background(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
 
                 Text("Tap a point to open profile. Not Now disappears until tomorrow. Block disappears permanently.")

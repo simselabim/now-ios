@@ -123,3 +123,7 @@ Demo login:
 ```text
 demo.ava@example.com / password123
 ```
+
+`AppState` already uses this API layer for demo login, bootstrap, discovery map,
+profile preview open, like/pass, first loop upload, temporary message sending,
+and active match detail refresh.
