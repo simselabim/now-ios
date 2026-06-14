@@ -40,3 +40,4 @@ struct MockAPIClient: APIClient {
         proposal
     }
 }
+

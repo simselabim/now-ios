@@ -10,6 +10,20 @@ POST /auth/forgot-password
 GET  /me
 ```
 
+## App Bootstrap
+
+```text
+GET /app/bootstrap
+```
+
+## Media
+
+```text
+POST /media/upload-intent
+PUT  /dev/uploads/{storage_key}
+GET  /dev/uploads/{storage_key}
+```
+
 ## Profile
 
 ```text
@@ -44,6 +58,7 @@ POST /discover/profiles/{profile_id}/pass
 
 ```text
 GET  /matches/active
+GET  /matches/active/detail
 GET  /matches/{match_id}
 POST /matches/{match_id}/cancel
 POST /matches/{match_id}/we-met

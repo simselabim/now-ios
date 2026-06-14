@@ -104,3 +104,22 @@ Welcome
 ```
 
 Do not port the web prototype. Use it only as product reference.
+
+## Backend Integration Layer
+
+The first real API layer lives in:
+
+```text
+NOW/Core/API/
+NOW/Core/Storage/
+NOW/Core/Media/
+```
+
+Start with `NOWAPIClient`, `APIEnvironment`, `AuthTokenStore`, backend DTOs, and
+`MediaUploadService`. The local simulator default is `http://127.0.0.1:8080`.
+
+Demo login:
+
+```text
+demo.ava@example.com / password123
+```
