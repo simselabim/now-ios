@@ -83,27 +83,65 @@ NOW/
     Moderation/
 ```
 
+## Xcode Project
+
+Open the native app target:
+
+```bash
+open NOW.xcodeproj
+```
+
+Target:
+
+```text
+NOW
+```
+
+Local simulator backend URL:
+
+```text
+http://127.0.0.1:8080
+```
+
+Before running the app, start the backend:
+
+```bash
+cd /Users/Sim_1/Documents/now/now_back
+make db-up
+make migrate
+make seed-demo
+make run
+```
+
+If command-line builds fail with Command Line Tools selected, switch to full Xcode:
+
+```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+```
+
+Then a simulator build should be:
+
+```bash
+xcodebuild -project NOW.xcodeproj -scheme NOW -destination 'platform=iOS Simulator,name=iPhone 15' build
+```
+
 ## First Build Target
 
-Build a mock-driven navigation prototype first:
+The current target is a backend-driven navigation prototype:
 
 ```text
 Welcome
- -> Login/Register
- -> Create Profile
- -> Go Online
- -> Today Intent
+ -> Demo Login
+ -> Bootstrap
  -> Discovery Map
  -> Profile Preview
  -> Active Match
  -> First Loops
  -> Temporary Chat
- -> Meeting Proposal
- -> Meeting Mode
- -> History
 ```
 
-Do not port the web prototype. Use it only as product reference.
+Meeting proposal, meeting mode, and history screens still exist and are ready to
+be wired to the backend next.
 
 ## Backend Integration Layer
 
