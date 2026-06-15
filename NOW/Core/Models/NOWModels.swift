@@ -33,6 +33,7 @@ enum MapPointState: String {
     case unseen
     case viewed
     case interested
+    case triedBefore
     case hiddenToday
     case blocked
 }

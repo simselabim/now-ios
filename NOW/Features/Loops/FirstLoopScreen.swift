@@ -6,45 +6,80 @@ struct FirstLoopScreen: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             if let match = appState.activeMatch {
-                Text("One live match")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(NOWColor.teal)
-
-                Text("Send first loop.")
-                    .font(.largeTitle.weight(.bold))
-
-                Text("Discovery is paused. Both people send a short loop before chat unlocks.")
-                    .foregroundStyle(NOWColor.inkSoft)
-
-                HStack {
-                    Circle()
-                        .fill(NOWColor.coral)
-                        .frame(width: 54, height: 54)
-                        .overlay(Text(String(match.profile.name.prefix(1))).foregroundStyle(.white).font(.headline))
-                    VStack(alignment: .leading) {
-                        Text("\(match.profile.name), \(match.profile.age)")
-                            .font(.headline)
-                        Text("\(match.profile.plan.rawValue) · \(match.profile.intent.rawValue) · ready today")
-                            .font(.subheadline)
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("You matched.")
+                            .font(.system(size: 34, weight: .black))
+                            .foregroundStyle(NOWColor.ink)
+                        Text("Start with a silent loop. Then chat opens until tonight.")
+                            .font(.subheadline.weight(.semibold))
                             .foregroundStyle(NOWColor.inkSoft)
                     }
+                    Spacer()
+                    NOWLogo(compact: true)
                 }
-                .padding()
-                .background(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
 
-                Button("Record mock first loop") {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 26, style: .continuous)
+                        .fill(NOWColor.ink)
+
+                    HStack(spacing: 34) {
+                        LoopAvatar(imageName: NOWPhoto.streetCoffee, name: "You")
+                        ZStack {
+                            Circle()
+                                .fill(NOWColor.lime)
+                                .frame(width: 52, height: 52)
+                            Image(systemName: "checkmark")
+                                .font(.headline.weight(.black))
+                                .foregroundStyle(NOWColor.ink)
+                        }
+                        LoopAvatar(imageName: NOWPhoto.person, name: match.profile.name)
+                    }
+                }
+                .frame(height: 285)
+
+                Text("Both of you chose \(match.profile.plan.rawValue.lowercased()) today. Stay with this one for now.")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(NOWColor.slate)
+
+                Button(match.myFirstLoopSent ? "Waiting for their loop" : "Send silent loop") {
                     appState.sendFirstLoop()
                 }
+                .disabled(match.myFirstLoopSent)
                 .buttonStyle(PrimaryButtonStyle())
 
-                Button("Cancel match") {
+                Button("Close kindly") {
                     appState.cancelMatch()
                 }
                 .buttonStyle(DangerButtonStyle())
             }
             Spacer()
         }
-        .padding(20)
+        .padding(22)
+    }
+}
+
+private struct LoopAvatar: View {
+    let imageName: String
+    let name: String
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ZStack(alignment: .bottomTrailing) {
+                BundlePhoto(name: imageName)
+                    .frame(width: 108, height: 108)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(NOWColor.surface, lineWidth: 5))
+                Circle()
+                    .fill(NOWColor.lime)
+                    .frame(width: 26, height: 26)
+                    .overlay(Circle().stroke(NOWColor.surface, lineWidth: 3))
+            }
+
+            Text(name)
+                .font(.caption.weight(.black))
+                .foregroundStyle(.white.opacity(0.92))
+                .lineLimit(1)
+        }
     }
 }

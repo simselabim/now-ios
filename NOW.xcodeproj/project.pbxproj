@@ -30,6 +30,11 @@
 		100000000000000000000116 /* CreateProfileScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000216 /* CreateProfileScreen.swift */; };
 		100000000000000000000117 /* ProfilePreviewScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000217 /* ProfilePreviewScreen.swift */; };
 		100000000000000000000118 /* GoOnlineScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000218 /* GoOnlineScreen.swift */; };
+		100000000000000000000119 /* human-city-person-woman.png in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021B /* human-city-person-woman.png */; };
+		10000000000000000000011A /* human-city-cafe-meet.png in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021C /* human-city-cafe-meet.png */; };
+		10000000000000000000011B /* human-city-street-coffee.png in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021D /* human-city-street-coffee.png */; };
+		10000000000000000000011C /* human-city-park-walk-blur.png in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021E /* human-city-park-walk-blur.png */; };
+		10000000000000000000011D /* human-city-cafe-table-blur.png in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021F /* human-city-cafe-table-blur.png */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -59,6 +64,11 @@
 		100000000000000000000218 /* GoOnlineScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoOnlineScreen.swift; sourceTree = "<group>"; };
 		100000000000000000000219 /* NOW.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NOW.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		10000000000000000000021A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		10000000000000000000021B /* human-city-person-woman.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "human-city-person-woman.png"; sourceTree = "<group>"; };
+		10000000000000000000021C /* human-city-cafe-meet.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "human-city-cafe-meet.png"; sourceTree = "<group>"; };
+		10000000000000000000021D /* human-city-street-coffee.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "human-city-street-coffee.png"; sourceTree = "<group>"; };
+		10000000000000000000021E /* human-city-park-walk-blur.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "human-city-park-walk-blur.png"; sourceTree = "<group>"; };
+		10000000000000000000021F /* human-city-cafe-table-blur.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "human-city-cafe-table-blur.png"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -181,7 +191,27 @@
 		100000000000000000000414 /* Onboarding */ = {isa = PBXGroup; children = (100000000000000000000216 /* CreateProfileScreen.swift */); path = Onboarding; sourceTree = "<group>"; };
 		100000000000000000000415 /* ProfilePreview */ = {isa = PBXGroup; children = (100000000000000000000217 /* ProfilePreviewScreen.swift */); path = ProfilePreview; sourceTree = "<group>"; };
 		100000000000000000000416 /* TodayIntent */ = {isa = PBXGroup; children = (100000000000000000000218 /* GoOnlineScreen.swift */); path = TodayIntent; sourceTree = "<group>"; };
-		100000000000000000000417 /* Resources */ = {isa = PBXGroup; children = (10000000000000000000021A /* Info.plist */); path = Resources; sourceTree = "<group>"; };
+		100000000000000000000417 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				10000000000000000000021A /* Info.plist */,
+				100000000000000000000418 /* Images */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		100000000000000000000418 /* Images */ = {
+			isa = PBXGroup;
+			children = (
+				10000000000000000000021B /* human-city-person-woman.png */,
+				10000000000000000000021C /* human-city-cafe-meet.png */,
+				10000000000000000000021D /* human-city-street-coffee.png */,
+				10000000000000000000021E /* human-city-park-walk-blur.png */,
+				10000000000000000000021F /* human-city-cafe-table-blur.png */,
+			);
+			path = Images;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -227,7 +257,18 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		100000000000000000000602 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		100000000000000000000602 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				100000000000000000000119,
+				10000000000000000000011A,
+				10000000000000000000011B,
+				10000000000000000000011C,
+				10000000000000000000011D,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */

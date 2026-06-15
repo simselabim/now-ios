@@ -7,83 +7,93 @@ struct ProfilePreviewScreen: View {
         if let point = appState.selectedPoint {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Button("Back to map") {
-                        appState.closeProfilePreview()
-                    }
-                    .font(.subheadline.weight(.semibold))
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack(alignment: .center, spacing: 14) {
-                            Circle()
-                                .fill(NOWColor.coral)
-                                .frame(width: 84, height: 84)
-                                .overlay(Text(String(point.profile.name.prefix(1))).font(.title.bold()).foregroundStyle(.white))
-
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("\(point.profile.name), \(point.profile.age)")
-                                    .font(.title.weight(.bold))
-                                Text("\(point.profile.distance) away")
-                                    .foregroundStyle(NOWColor.inkSoft)
-                                HStack {
-                                    Tag(point.profile.plan.rawValue, active: true)
-                                    Tag(point.profile.intent.rawValue, active: false)
-                                }
-                            }
+                    HStack {
+                        Button {
+                            appState.closeProfilePreview()
+                        } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.headline.weight(.black))
+                                .foregroundStyle(NOWColor.ink)
+                                .frame(width: 42, height: 42)
+                                .background(NOWColor.surface)
+                                .clipShape(Circle())
                         }
-
-                        Text(point.profile.prompt)
-                            .font(.body)
-
-                        Text("You share \(point.profile.sharedInterests.count) interests")
-                            .font(.headline)
-                        Text(point.profile.sharedInterests.joined(separator: " · "))
-                            .foregroundStyle(NOWColor.inkSoft)
-
-                        Text("Contact details stay off profiles. Meet through NOW first.")
-                            .font(.footnote)
-                            .foregroundStyle(NOWColor.inkSoft)
+                        Spacer()
+                        NOWLogo(compact: true)
+                        Spacer()
+                        NOWChip(text: point.profile.distance, active: true)
                     }
-                    .padding()
-                    .background(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
 
-                    Button("Interested today") {
-                        appState.markInterested(point)
+                    ZStack(alignment: .bottomLeading) {
+                        PhotoSurface(name: NOWPhoto.person, height: 430, blur: 0, cornerRadius: 24)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("\(point.profile.name), \(point.profile.age)")
+                                .font(.system(size: 34, weight: .black))
+                                .foregroundStyle(.white)
+                            Text("\(point.profile.plan.rawValue), small streets, maybe a gallery if the conversation is good.")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.9))
+                                .lineLimit(3)
+                        }
+                        .padding(18)
                     }
-                    .buttonStyle(PrimaryButtonStyle())
 
-                    Button("Not Now") {
-                        appState.notNow(point)
+                    NOWInfoCard {
+                        Text("\"\(point.profile.prompt)\"")
+                            .font(.headline.weight(.bold))
+                            .foregroundStyle(NOWColor.slate)
                     }
-                    .buttonStyle(SecondaryButtonStyle())
 
-                    Button("Block") {
-                        appState.block(point)
+                    HStack(spacing: 8) {
+                        NOWChip(text: point.profile.plan.rawValue, active: true)
+                        NOWChip(text: point.profile.intent.rawValue)
+                        ForEach(point.profile.sharedInterests.prefix(2), id: \.self) { interest in
+                            NOWChip(text: interest)
+                        }
                     }
-                    .buttonStyle(DangerButtonStyle())
+
+                    Text("No contact details in profiles. If it feels right, confirm place and time through NOW.")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(NOWColor.inkSoft)
+
+                    HStack(spacing: 12) {
+                        Button {
+                            appState.notNow(point)
+                        } label: {
+                            Image(systemName: "xmark")
+                        }
+                        .buttonStyle(ProfileIconButtonStyle())
+
+                        Button("Like today") {
+                            appState.markInterested(point)
+                        }
+                        .buttonStyle(PrimaryButtonStyle())
+
+                        Button {
+                            appState.block(point)
+                        } label: {
+                            Image(systemName: "heart.slash")
+                        }
+                        .buttonStyle(ProfileIconButtonStyle())
+                    }
                 }
-                .padding(20)
+                .padding(22)
             }
         }
     }
 }
 
-private struct Tag: View {
-    let text: String
-    let active: Bool
-
-    init(_ text: String, active: Bool) {
-        self.text = text
-        self.active = active
-    }
-
-    var body: some View {
-        Text(text)
-            .font(.caption.weight(.bold))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .foregroundStyle(active ? NOWColor.teal : NOWColor.inkSoft)
-            .background(active ? NOWColor.tealPale : NOWColor.paper)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+private struct ProfileIconButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline.weight(.black))
+            .foregroundStyle(NOWColor.ink)
+            .frame(width: 58, height: 52)
+            .background(NOWColor.surface.opacity(configuration.isPressed ? 0.72 : 1))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(NOWColor.line, lineWidth: 1)
+            )
     }
 }

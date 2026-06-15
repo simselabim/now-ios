@@ -392,7 +392,7 @@ final class AppState: ObservableObject {
         case .likedToday:
             return .interested
         case .cancelledMatchBefore:
-            return .viewed
+            return .triedBefore
         }
     }
 

@@ -5,35 +5,46 @@ struct MeetingModeScreen: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("On the way")
-                .font(.largeTitle.weight(.bold))
-
-            ZStack {
-                NOWColor.tealPale
-                Circle()
-                    .fill(NOWColor.teal)
-                    .frame(width: 26, height: 26)
-                    .offset(x: -90, y: 70)
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(.white)
-                    .frame(width: 136, height: 42)
-                    .overlay(Text(appState.meetingProposal?.placeName ?? "Meeting point").font(.caption.weight(.bold)))
-                    .offset(x: 54, y: -84)
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(appState.meetingProposal?.placeName ?? "Cafe Luna")
+                        .font(.system(size: 34, weight: .black))
+                    Text("\(appState.activeMatch?.profile.name ?? "They") approved · \(appState.meetingProposal?.time ?? "today")")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(NOWColor.inkSoft)
+                }
+                Spacer()
+                NOWLogo(compact: true)
             }
-            .frame(height: 280)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
 
-            HStack(spacing: 8) {
-                ForEach([MeetingStatus.onMyWay, .arrived, .delayed]) { status in
-                    Button(status.rawValue) {
-                        appState.updateMeetingStatus(status)
+            ZStack(alignment: .bottomLeading) {
+                PhotoSurface(name: NOWPhoto.cafeTableBlur, height: 320, blur: 0.6, cornerRadius: 24)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Meet in a public place.")
+                        .font(.system(size: 32, weight: .black))
+                        .foregroundStyle(.white)
+                    Text("Share only what you need. You can leave or report anytime.")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.9))
+                }
+                .padding(18)
+            }
+
+            NOWInfoCard {
+                Text("On the way?")
+                    .font(.headline.weight(.black))
+                HStack(spacing: 8) {
+                    ForEach([MeetingStatus.onMyWay, .arrived, .delayed]) { status in
+                        Button(status == .onMyWay ? "I'm going" : status == .arrived ? "I'm here" : "Running late") {
+                            appState.updateMeetingStatus(status)
+                        }
+                        .font(.caption.weight(.black))
+                        .foregroundStyle(appState.activeMatch?.meetingStatus == status ? NOWColor.ink : NOWColor.inkSoft)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(appState.activeMatch?.meetingStatus == status ? NOWColor.lime : NOWColor.paper)
+                        .clipShape(Capsule())
                     }
-                    .font(.caption.weight(.bold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .foregroundStyle(appState.activeMatch?.meetingStatus == status ? NOWColor.teal : NOWColor.inkSoft)
-                    .background(appState.activeMatch?.meetingStatus == status ? NOWColor.tealPale : .white)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
 
@@ -42,9 +53,11 @@ struct MeetingModeScreen: View {
             }
             .buttonStyle(PrimaryButtonStyle())
 
-            Button("Emergency") {}
+            Button("Something's wrong") {}
                 .buttonStyle(DangerButtonStyle())
+
+            Spacer()
         }
-        .padding(20)
+        .padding(22)
     }
 }

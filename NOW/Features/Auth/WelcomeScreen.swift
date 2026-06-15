@@ -4,43 +4,71 @@ struct WelcomeScreen: View {
     @EnvironmentObject private var appState: AppState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            Spacer()
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        NOWLogo()
+                        Text("Eat · Walk ♥ Love")
+                            .font(.caption.weight(.black))
+                            .foregroundStyle(NOWColor.slate)
+                    }
+                    Spacer()
+                    NOWChip(text: "Today", active: true)
+                }
 
-            Text("NOW")
-                .font(.system(size: 56, weight: .black))
-                .foregroundStyle(NOWColor.ink)
+                ZStack(alignment: .bottomLeading) {
+                    PhotoSurface(name: NOWPhoto.parkWalkBlur, height: 310, blur: 1.2)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("One person, today.")
+                            .font(.system(size: 30, weight: .black))
+                            .foregroundStyle(.white)
+                        Text("Find someone nearby for coffee, a walk, dinner, or a small city plan.")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.88))
+                    }
+                    .padding(18)
+                }
 
-            Text("Meet one real person nearby today.")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(NOWColor.ink)
+                NOWInfoCard {
+                    Text("What feels right now?")
+                        .font(.headline.weight(.black))
+                    HStack(spacing: 8) {
+                        NOWChip(text: "Coffee", active: true)
+                        NOWChip(text: "Walk")
+                        NOWChip(text: "Dinner")
+                        NOWChip(text: "Just talk")
+                    }
+                }
 
-            Text("No swipe deck. No backlog. One active match, one day, one decision.")
-                .font(.body)
-                .foregroundStyle(NOWColor.inkSoft)
+                if appState.isLoading {
+                    ProgressView()
+                        .tint(NOWColor.lime)
+                        .frame(maxWidth: .infinity)
+                }
 
-            Spacer()
+                if let error = appState.errorMessage {
+                    Text(error)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(NOWColor.coral)
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(NOWColor.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
 
-            if appState.isLoading {
-                ProgressView()
-                    .tint(NOWColor.teal)
+                Button(appState.isLoading ? "Connecting..." : "Demo Login") {
+                    appState.login()
+                }
+                .disabled(appState.isLoading)
+                .buttonStyle(PrimaryButtonStyle())
+
+                Text("You will be visible while you are here. Tonight everything resets.")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(NOWColor.inkSoft)
+                    .padding(.top, 4)
             }
-
-            if let error = appState.errorMessage {
-                Text(error)
-                    .font(.footnote)
-                    .foregroundStyle(NOWColor.coral)
-                    .padding(10)
-                    .background(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-
-            Button(appState.isLoading ? "Connecting..." : "Demo Login") {
-                appState.login()
-            }
-            .disabled(appState.isLoading)
-            .buttonStyle(PrimaryButtonStyle())
+            .padding(22)
         }
-        .padding(24)
     }
 }

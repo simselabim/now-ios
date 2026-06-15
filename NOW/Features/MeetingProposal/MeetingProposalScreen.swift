@@ -5,25 +5,40 @@ struct MeetingProposalScreen: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("Meeting proposal")
-                .font(.largeTitle.weight(.bold))
-
-            Text("For safety, confirm place and time through NOW.")
-                .foregroundStyle(NOWColor.inkSoft)
-
-            if let proposal = appState.meetingProposal {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(proposal.placeName)
-                        .font(.title2.weight(.bold))
-                    Text("Today · \(proposal.time)")
-                        .foregroundStyle(NOWColor.inkSoft)
-                    Text("Public place · mock proposal")
-                        .font(.footnote)
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Confirm the place.")
+                        .font(.system(size: 34, weight: .black))
+                    Text("Both of you should approve it here.")
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(NOWColor.inkSoft)
                 }
-                .padding()
-                .background(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                Spacer()
+                NOWLogo(compact: true)
+            }
+
+            ZStack(alignment: .bottomLeading) {
+                PhotoSurface(name: NOWPhoto.cafeMeet, height: 320, blur: 0, cornerRadius: 24)
+                if let proposal = appState.meetingProposal {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(proposal.placeName)
+                            .font(.system(size: 32, weight: .black))
+                            .foregroundStyle(.white)
+                        Text("Today · \(proposal.time) · public place")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.9))
+                    }
+                    .padding(18)
+                }
+            }
+
+            NOWInfoCard {
+                Text("Use NOW confirmation for place and time.")
+                    .font(.headline.weight(.black))
+                    .foregroundStyle(NOWColor.ink)
+                Text("It keeps the plan visible, clear, and easier to leave if anything feels off.")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(NOWColor.inkSoft)
             }
 
             Button("Accept meeting") {
@@ -31,13 +46,13 @@ struct MeetingProposalScreen: View {
             }
             .buttonStyle(PrimaryButtonStyle())
 
-            Button("Cancel match") {
+            Button("Close kindly") {
                 appState.cancelMatch()
             }
             .buttonStyle(DangerButtonStyle())
 
             Spacer()
         }
-        .padding(20)
+        .padding(22)
     }
 }
