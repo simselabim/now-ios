@@ -160,9 +160,9 @@ final class AppState: ObservableObject {
 
     private func demoLoginAndBootstrap() async {
         await runLoading {
-            _ = try await apiClient.login(email: "demo.ava@example.com", password: "password123")
-            isAuthenticated = true
-            try await applyBootstrap(apiClient.bootstrap())
+            _ = try await self.apiClient.login(email: "demo.ava@example.com", password: "password123")
+            self.isAuthenticated = true
+            try await self.applyBootstrap(self.apiClient.bootstrap())
         }
     }
 
@@ -197,18 +197,19 @@ final class AppState: ObservableObject {
     }
 
     private func goOnlineWithBackend() async {
+        let selectedIntent = todayIntent
         await runLoading {
-            _ = try await apiClient.updateTodayIntent(
+            _ = try await self.apiClient.updateTodayIntent(
                 UpdateTodayIntentRequestDTO(
-                    plan: mapPlan(todayIntent.plan),
-                    intent: mapIntent(todayIntent.intent),
-                    timeToday: mapTime(todayIntent.timeWindow)
+                    plan: self.mapPlan(selectedIntent.plan),
+                    intent: self.mapIntent(selectedIntent.intent),
+                    timeToday: self.mapTime(selectedIntent.timeWindow)
                 )
             )
-            _ = try await apiClient.goOnline(lat: 40.7410, lng: -73.9897, accuracyM: 25)
-            showHistory = false
-            isOnline = true
-            try await loadDiscoveryMap()
+            _ = try await self.apiClient.goOnline(lat: 40.7410, lng: -73.9897, accuracyM: 25)
+            self.showHistory = false
+            self.isOnline = true
+            try await self.loadDiscoveryMap()
         }
     }
 
@@ -220,38 +221,38 @@ final class AppState: ObservableObject {
 
     private func openPointWithBackend(_ point: MapPoint) async {
         await runLoading {
-            let response = try await apiClient.openMapPoint(point.id)
-            selectedPoint = mapPoint(response.point, profile: response.profile)
-            updatePoint(point.id, state: .viewed)
+            let response = try await self.apiClient.openMapPoint(point.id)
+            self.selectedPoint = self.mapPoint(response.point, profile: response.profile)
+            self.updatePoint(point.id, state: .viewed)
         }
     }
 
     private func likePointWithBackend(_ point: MapPoint) async {
         await runLoading {
-            let response = try await apiClient.likeProfile(point.profile.id)
-            updatePoint(point.id, state: .interested)
-            selectedPoint = nil
+            let response = try await self.apiClient.likeProfile(point.profile.id)
+            self.updatePoint(point.id, state: .interested)
+            self.selectedPoint = nil
 
             if let matchDTO = response.matchItem {
-                activeMatch = Match(
+                self.activeMatch = Match(
                     id: matchDTO.id,
                     profile: point.profile,
-                    status: mapMatchStatus(matchDTO.status),
+                    status: self.mapMatchStatus(matchDTO.status),
                     myFirstLoopSent: false,
                     theirFirstLoopReceived: false,
                     meetingStatus: .none
                 )
-                isOnline = false
-                try await loadActiveMatchDetail()
+                self.isOnline = false
+                try await self.loadActiveMatchDetail()
             }
         }
     }
 
     private func passPointWithBackend(_ point: MapPoint) async {
         await runLoading {
-            _ = try await apiClient.passProfile(point.profile.id)
-            updatePoint(point.id, state: .hiddenToday)
-            selectedPoint = nil
+            _ = try await self.apiClient.passProfile(point.profile.id)
+            self.updatePoint(point.id, state: .hiddenToday)
+            self.selectedPoint = nil
         }
     }
 
@@ -299,18 +300,18 @@ final class AppState: ObservableObject {
     private func sendMockFirstLoopWithBackend(_ match: Match) async {
         await runLoading {
             let data = Data("mock-loop".utf8)
-            let intent = try await apiClient.createUploadIntent(
+            let intent = try await self.apiClient.createUploadIntent(
                 kind: .firstLoop,
                 contentType: "video/mp4",
                 fileSizeBytes: data.count
             )
             _ = try await MediaUploadService().upload(data: data, intent: intent)
-            _ = try await apiClient.sendFirstLoop(
+            _ = try await self.apiClient.sendFirstLoop(
                 matchId: match.id,
                 storageKey: intent.storageKey,
                 durationMs: 2_900
             )
-            try await loadActiveMatchDetail()
+            try await self.loadActiveMatchDetail()
         }
     }
 
@@ -318,8 +319,8 @@ final class AppState: ObservableObject {
         guard let match = activeMatch else { return }
 
         await runLoading {
-            let response = try await apiClient.sendMessage(matchId: match.id, body: text)
-            messages.append(
+            let response = try await self.apiClient.sendMessage(matchId: match.id, body: text)
+            self.messages.append(
                 Message(id: response.message.id, sender: .me, text: response.message.body, createdAt: Date())
             )
         }
