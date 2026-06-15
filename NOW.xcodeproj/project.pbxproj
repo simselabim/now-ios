@@ -58,6 +58,7 @@
 		100000000000000000000217 /* ProfilePreviewScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilePreviewScreen.swift; sourceTree = "<group>"; };
 		100000000000000000000218 /* GoOnlineScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoOnlineScreen.swift; sourceTree = "<group>"; };
 		100000000000000000000219 /* NOW.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NOW.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		10000000000000000000021A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -79,6 +80,7 @@
 				100000000000000000000404 /* App */,
 				100000000000000000000405 /* Core */,
 				100000000000000000000406 /* Features */,
+				100000000000000000000417 /* Resources */,
 			);
 			path = NOW;
 			sourceTree = "<group>";
@@ -179,6 +181,7 @@
 		100000000000000000000414 /* Onboarding */ = {isa = PBXGroup; children = (100000000000000000000216 /* CreateProfileScreen.swift */); path = Onboarding; sourceTree = "<group>"; };
 		100000000000000000000415 /* ProfilePreview */ = {isa = PBXGroup; children = (100000000000000000000217 /* ProfilePreviewScreen.swift */); path = ProfilePreview; sourceTree = "<group>"; };
 		100000000000000000000416 /* TodayIntent */ = {isa = PBXGroup; children = (100000000000000000000218 /* GoOnlineScreen.swift */); path = TodayIntent; sourceTree = "<group>"; };
+		100000000000000000000417 /* Resources */ = {isa = PBXGroup; children = (10000000000000000000021A /* Info.plist */); path = Resources; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -364,11 +367,8 @@
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = NOW;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
-				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = YES;
-				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDefault;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NOW/Resources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sim.now;
@@ -390,11 +390,8 @@
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = NOW;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
-				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = YES;
-				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDefault;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NOW/Resources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sim.now;

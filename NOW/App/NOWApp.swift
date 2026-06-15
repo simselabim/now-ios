@@ -8,6 +8,14 @@ struct NOWApp: App {
         WindowGroup {
             AppRouter()
                 .environmentObject(appState)
+                .task {
+                    #if DEBUG
+                    if ProcessInfo.processInfo.arguments.contains("--auto-demo-login"),
+                       !appState.isAuthenticated {
+                        appState.login()
+                    }
+                    #endif
+                }
         }
     }
 }
