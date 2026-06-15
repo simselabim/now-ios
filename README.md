@@ -119,10 +119,30 @@ If command-line builds fail with Command Line Tools selected, switch to full Xco
 sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 ```
 
-Then a simulator build should be:
+Current verified simulator:
+
+```text
+iPhone 17 / iOS 26.5
+```
+
+Build:
 
 ```bash
-xcodebuild -project NOW.xcodeproj -scheme NOW -destination 'platform=iOS Simulator,name=iPhone 15' build
+xcodebuild -project NOW.xcodeproj -scheme NOW -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' build
+```
+
+Install and run the latest debug build:
+
+```bash
+APP_PATH="$(find ~/Library/Developer/Xcode/DerivedData -path '*/Build/Products/Debug-iphonesimulator/NOW.app' | sort | tail -n 1)"
+xcrun simctl install booted "$APP_PATH"
+xcrun simctl launch booted com.sim.now
+```
+
+Debug smoke launch with automatic demo login:
+
+```bash
+xcrun simctl launch booted com.sim.now --auto-demo-login
 ```
 
 ## First Build Target
@@ -165,3 +185,7 @@ demo.ava@example.com / password123
 `AppState` already uses this API layer for demo login, bootstrap, discovery map,
 profile preview open, like/pass, first loop upload, temporary message sending,
 and active match detail refresh.
+
+`--auto-demo-login` is a Debug-only launch argument. It lets us verify the live
+backend path from app launch to the discovery map without relying on macOS
+Accessibility permissions for Simulator clicks.
