@@ -168,7 +168,7 @@ final class AppState: ObservableObject {
 
     private func applyBootstrap(_ bootstrap: BootstrapResponseDTO) async throws {
         isProfileComplete = !(bootstrap.requirements.profileRequired)
-        isOnline = bootstrap.onlineSession != nil
+        isOnline = false
         activeMatch = bootstrap.activeMatch.map { matchDTO in
             Match(
                 id: matchDTO.id,
@@ -182,7 +182,8 @@ final class AppState: ObservableObject {
 
         switch bootstrap.nextStep {
         case .discover:
-            try await loadDiscoveryMap()
+            isProfileComplete = true
+            isOnline = false
         case .activeMatch:
             try await loadActiveMatchDetail()
         case .createProfile:

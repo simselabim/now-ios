@@ -31,7 +31,11 @@ struct DiscoveryMapScreen: View {
                         .padding(.bottom, 10)
                 }
 
-                MapPersonCard(point: appState.visibleMapPoints.first)
+                MapPersonCard(point: appState.visibleMapPoints.first) {
+                    if let point = appState.visibleMapPoints.first {
+                        appState.viewPoint(point)
+                    }
+                }
                     .padding(.horizontal, 18)
                     .padding(.bottom, 18)
             }
@@ -220,33 +224,39 @@ private struct MapPointView: View {
 
 private struct MapPersonCard: View {
     let point: MapPoint?
+    let open: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            BundlePhoto(name: NOWPhoto.person)
-                .frame(width: 78, height: 78)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        Button {
+            open()
+        } label: {
+            HStack(spacing: 12) {
+                BundlePhoto(name: NOWPhoto.person)
+                    .frame(width: 78, height: 78)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
-            VStack(alignment: .leading, spacing: 5) {
-                Text(point?.profile.name ?? "Someone nearby")
-                    .font(.title3.weight(.black))
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(point?.profile.name ?? "Someone nearby")
+                        .font(.title3.weight(.black))
+                        .foregroundStyle(NOWColor.ink)
+                    Text(cardCopy)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(NOWColor.inkSoft)
+                        .lineLimit(2)
+                }
+
+                Spacer()
+
+                Text("Open")
+                    .font(.caption.weight(.black))
                     .foregroundStyle(NOWColor.ink)
-                Text(cardCopy)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(NOWColor.inkSoft)
-                    .lineLimit(2)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .background(NOWColor.lime)
+                    .clipShape(Capsule())
             }
-
-            Spacer()
-
-            Text("Open")
-                .font(.caption.weight(.black))
-                .foregroundStyle(NOWColor.ink)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 12)
-                .background(NOWColor.lime)
-                .clipShape(Capsule())
         }
+        .buttonStyle(.plain)
         .padding(12)
         .background(NOWColor.surface.opacity(0.96))
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))

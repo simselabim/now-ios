@@ -35,6 +35,7 @@
 		10000000000000000000011B /* human-city-street-coffee.png in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021D /* human-city-street-coffee.png */; };
 		10000000000000000000011C /* human-city-park-walk-blur.png in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021E /* human-city-park-walk-blur.png */; };
 		10000000000000000000011D /* human-city-cafe-table-blur.png in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021F /* human-city-cafe-table-blur.png */; };
+		10000000000000000000011E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000220 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -69,6 +70,7 @@
 		10000000000000000000021D /* human-city-street-coffee.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "human-city-street-coffee.png"; sourceTree = "<group>"; };
 		10000000000000000000021E /* human-city-park-walk-blur.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "human-city-park-walk-blur.png"; sourceTree = "<group>"; };
 		10000000000000000000021F /* human-city-cafe-table-blur.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "human-city-cafe-table-blur.png"; sourceTree = "<group>"; };
+		100000000000000000000220 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -195,6 +197,7 @@
 			isa = PBXGroup;
 			children = (
 				10000000000000000000021A /* Info.plist */,
+				100000000000000000000220 /* Assets.xcassets */,
 				100000000000000000000418 /* Images */,
 			);
 			path = Resources;
@@ -266,6 +269,7 @@
 				10000000000000000000011B,
 				10000000000000000000011C,
 				10000000000000000000011D,
+				10000000000000000000011E,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -402,7 +406,7 @@
 		100000000000000000000803 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
@@ -418,14 +422,14 @@
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
 		100000000000000000000804 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
@@ -441,7 +445,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};

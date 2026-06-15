@@ -18,7 +18,7 @@ struct GoOnlineScreen: View {
                 }
 
                 ZStack(alignment: .bottomLeading) {
-                    PhotoSurface(name: NOWPhoto.streetCoffee, height: 230, blur: 0.8)
+                    PhotoSurface(name: NOWPhoto.streetCoffee, height: 172, blur: 0.8)
                     VStack(alignment: .leading, spacing: 8) {
                         Text("What feels right now?")
                             .font(.system(size: 32, weight: .black))
@@ -40,13 +40,19 @@ struct GoOnlineScreen: View {
                     .padding(14)
                     .background(NOWColor.surface)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-
-                Button("Go online") {
-                    appState.goOnline()
-                }
-                .buttonStyle(PrimaryButtonStyle())
             }
             .padding(22)
+            .padding(.bottom, 76)
+        }
+        .safeAreaInset(edge: .bottom) {
+            Button("Go online") {
+                appState.goOnline()
+            }
+            .buttonStyle(PrimaryButtonStyle())
+            .padding(.horizontal, 22)
+            .padding(.top, 10)
+            .padding(.bottom, 10)
+            .background(NOWColor.paper.opacity(0.96))
         }
     }
 }
