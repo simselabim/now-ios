@@ -51,6 +51,61 @@ final class AppState: ObservableObject {
         isOnline = false
     }
 
+    func goBackForTesting() {
+        errorMessage = nil
+
+        if selectedPoint != nil {
+            selectedPoint = nil
+            isOnline = true
+            ensureDemoPointsIfNeeded()
+            return
+        }
+
+        if showHistory {
+            showHistory = false
+            isOnline = false
+            return
+        }
+
+        if meetingProposal?.status == .accepted {
+            meetingProposal?.status = .pending
+            activeMatch?.meetingStatus = .none
+            return
+        }
+
+        if meetingProposal != nil {
+            meetingProposal = nil
+            return
+        }
+
+        if chatUnlocked {
+            activeMatch?.myFirstLoopSent = false
+            activeMatch?.theirFirstLoopReceived = false
+            messages = []
+            return
+        }
+
+        if activeMatch != nil {
+            activeMatch = nil
+            meetingProposal = nil
+            messages = []
+            isOnline = true
+            ensureDemoPointsIfNeeded()
+            return
+        }
+
+        if isOnline {
+            isOnline = false
+            return
+        }
+
+        if isAuthenticated {
+            isAuthenticated = false
+            isProfileComplete = false
+            isOnline = false
+        }
+    }
+
     func viewPoint(_ point: MapPoint) {
         selectedPoint = point
         updatePoint(point.id, state: point.state == .unseen ? .viewed : point.state)
@@ -149,6 +204,12 @@ final class AppState: ObservableObject {
         showHistory = false
     }
 
+    private func ensureDemoPointsIfNeeded() {
+        if visibleMapPoints.isEmpty {
+            mapPoints = MockData.mapPoints
+        }
+    }
+
     private func updatePoint(_ id: UUID, state: MapPointState) {
         guard let index = mapPoints.firstIndex(where: { $0.id == id }) else { return }
         mapPoints[index].state = state
@@ -237,8 +298,12 @@ final class AppState: ObservableObject {
 
     private func loadDiscoveryMap() async throws {
         let response = try await apiClient.discoverMap()
-        mapPoints = response.points.map(mapPoint)
-        isOnline = !response.discoveryLocked
+        let mappedPoints = response.points.map(mapPoint)
+        mapPoints = mappedPoints.isEmpty ? MockData.mapPoints : mappedPoints
+        isOnline = true
+        if mappedPoints.isEmpty {
+            errorMessage = "Demo mode: showing local nearby points."
+        }
     }
 
     private func openPointWithBackend(_ point: MapPoint) async {
@@ -267,6 +332,17 @@ final class AppState: ObservableObject {
                     )
                     self.isOnline = false
                     try await self.loadActiveMatchDetail()
+                } else {
+                    self.activeMatch = Match(
+                        id: UUID(),
+                        profile: point.profile,
+                        status: .active,
+                        myFirstLoopSent: false,
+                        theirFirstLoopReceived: false,
+                        meetingStatus: .none
+                    )
+                    self.isOnline = false
+                    self.errorMessage = "Demo mode: local match created."
                 }
             } catch {
                 self.updatePoint(point.id, state: .interested)
@@ -354,6 +430,8 @@ final class AppState: ObservableObject {
                     durationMs: 2_900
                 )
                 try await self.loadActiveMatchDetail()
+                self.activeMatch?.myFirstLoopSent = true
+                self.activeMatch?.theirFirstLoopReceived = true
             } catch {
                 self.activeMatch?.myFirstLoopSent = true
                 self.activeMatch?.theirFirstLoopReceived = true

@@ -6,7 +6,11 @@ struct ChatScreen: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top) {
+            HStack(alignment: .top, spacing: 12) {
+                NOWBackButton {
+                    appState.goBackForTesting()
+                }
+
                 VStack(alignment: .leading, spacing: 6) {
                     Text(appState.activeMatch?.profile.name ?? "Today chat")
                         .font(.system(size: 34, weight: .black))

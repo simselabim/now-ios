@@ -6,7 +6,11 @@ struct FirstLoopScreen: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             if let match = appState.activeMatch {
-                HStack(alignment: .top) {
+                HStack(alignment: .top, spacing: 12) {
+                    NOWBackButton {
+                        appState.goBackForTesting()
+                    }
+
                     VStack(alignment: .leading, spacing: 8) {
                         Text("You matched.")
                             .font(.system(size: 34, weight: .black))

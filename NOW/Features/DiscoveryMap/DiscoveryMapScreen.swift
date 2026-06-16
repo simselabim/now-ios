@@ -4,21 +4,21 @@ struct DiscoveryMapScreen: View {
     @EnvironmentObject private var appState: AppState
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            CityMap(points: appState.visibleMapPoints) { point in
-                appState.viewPoint(point)
-            }
-            .ignoresSafeArea(edges: .top)
-
-            VStack(spacing: 0) {
-                MapHeader(isLoading: appState.isLoading) {
-                    appState.goOffline()
-                }
-                .padding(.horizontal, 18)
-                .padding(.top, 14)
-
-                Spacer()
-
+        CityMap(points: appState.visibleMapPoints) { point in
+            appState.viewPoint(point)
+        }
+        .ignoresSafeArea(edges: .top)
+        .overlay(alignment: .top) {
+            MapHeader(isLoading: appState.isLoading, back: {
+                appState.goBackForTesting()
+            }, goOffline: {
+                appState.goOffline()
+            })
+            .padding(.horizontal, 18)
+            .padding(.top, 14)
+        }
+        .overlay(alignment: .bottom) {
+            VStack(spacing: 10) {
                 if let error = appState.errorMessage {
                     Text(error)
                         .font(.footnote.weight(.semibold))
@@ -27,8 +27,6 @@ struct DiscoveryMapScreen: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(NOWColor.surface)
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .padding(.horizontal, 18)
-                        .padding(.bottom, 10)
                 }
 
                 MapPersonCard(point: appState.visibleMapPoints.first) {
@@ -36,19 +34,22 @@ struct DiscoveryMapScreen: View {
                         appState.viewPoint(point)
                     }
                 }
-                    .padding(.horizontal, 18)
-                    .padding(.bottom, 18)
             }
+            .padding(.horizontal, 18)
+            .padding(.bottom, 18)
         }
     }
 }
 
 private struct MapHeader: View {
     let isLoading: Bool
+    let back: () -> Void
     let goOffline: () -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
+            NOWBackButton(action: back)
+
             VStack(alignment: .leading, spacing: 4) {
                 NOWLogo(compact: true)
                 Text(isLoading ? "Syncing nearby" : "Nearby for today")

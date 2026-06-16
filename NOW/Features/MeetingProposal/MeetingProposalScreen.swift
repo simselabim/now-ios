@@ -5,7 +5,11 @@ struct MeetingProposalScreen: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top) {
+            HStack(alignment: .top, spacing: 12) {
+                NOWBackButton {
+                    appState.goBackForTesting()
+                }
+
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Confirm the place.")
                         .font(.system(size: 34, weight: .black))

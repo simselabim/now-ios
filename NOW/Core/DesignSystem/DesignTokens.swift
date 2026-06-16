@@ -90,6 +90,24 @@ struct BundlePhoto: View {
     }
 }
 
+struct NOWBackButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "chevron.left")
+                .font(.headline.weight(.black))
+                .foregroundStyle(NOWColor.ink)
+                .frame(width: 42, height: 42)
+                .background(NOWColor.surface.opacity(0.96))
+                .clipShape(Circle())
+                .overlay(Circle().stroke(NOWColor.line.opacity(0.85), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Back")
+    }
+}
+
 struct NOWChip: View {
     let text: String
     var active = false

@@ -6,7 +6,11 @@ struct GoOnlineScreen: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .top) {
+                HStack(alignment: .top, spacing: 12) {
+                    NOWBackButton {
+                        appState.goBackForTesting()
+                    }
+
                     VStack(alignment: .leading, spacing: 6) {
                         NOWLogo(compact: true)
                         Text("Nearby for today")

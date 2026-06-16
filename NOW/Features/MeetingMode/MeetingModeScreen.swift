@@ -5,7 +5,11 @@ struct MeetingModeScreen: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top) {
+            HStack(alignment: .top, spacing: 12) {
+                NOWBackButton {
+                    appState.goBackForTesting()
+                }
+
                 VStack(alignment: .leading, spacing: 6) {
                     Text(appState.meetingProposal?.placeName ?? "Cafe Luna")
                         .font(.system(size: 34, weight: .black))
@@ -53,8 +57,10 @@ struct MeetingModeScreen: View {
             }
             .buttonStyle(PrimaryButtonStyle())
 
-            Button("Something's wrong") {}
-                .buttonStyle(DangerButtonStyle())
+            Button("Something's wrong") {
+                appState.cancelMatch()
+            }
+            .buttonStyle(DangerButtonStyle())
 
             Spacer()
         }
