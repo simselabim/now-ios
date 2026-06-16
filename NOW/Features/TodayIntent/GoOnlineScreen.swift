@@ -40,15 +40,33 @@ struct GoOnlineScreen: View {
                     .padding(14)
                     .background(NOWColor.surface)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                if let error = appState.errorMessage {
+                    Text(error)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(NOWColor.coral)
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(NOWColor.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
             }
             .padding(22)
             .padding(.bottom, 76)
         }
         .safeAreaInset(edge: .bottom) {
-            Button("Go online") {
+            Button(appState.isLoading ? "Going online..." : "Go online") {
                 appState.goOnline()
             }
+            .disabled(appState.isLoading)
             .buttonStyle(PrimaryButtonStyle())
+            .overlay {
+                if appState.isLoading {
+                    ProgressView()
+                        .tint(NOWColor.ink)
+                        .offset(x: -120)
+                }
+            }
             .padding(.horizontal, 22)
             .padding(.top, 10)
             .padding(.bottom, 10)

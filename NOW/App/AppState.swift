@@ -160,9 +160,19 @@ final class AppState: ObservableObject {
 
     private func demoLoginAndBootstrap() async {
         await runLoading {
-            _ = try await self.apiClient.login(email: "demo.ava@example.com", password: "password123")
-            self.isAuthenticated = true
-            try await self.applyBootstrap(self.apiClient.bootstrap())
+            do {
+                _ = try await self.apiClient.login(email: "demo.ava@example.com", password: "password123")
+                self.isAuthenticated = true
+                try await self.applyBootstrap(self.apiClient.bootstrap())
+            } catch {
+                self.isAuthenticated = true
+                self.isProfileComplete = true
+                self.isOnline = false
+                self.activeMatch = nil
+                self.selectedPoint = nil
+                self.mapPoints = MockData.mapPoints
+                self.errorMessage = "Demo mode: local flow is available while API is unavailable."
+            }
         }
     }
 
@@ -199,19 +209,30 @@ final class AppState: ObservableObject {
 
     private func goOnlineWithBackend() async {
         let selectedIntent = todayIntent
-        await runLoading {
-            _ = try await self.apiClient.updateTodayIntent(
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            _ = try await apiClient.updateTodayIntent(
                 UpdateTodayIntentRequestDTO(
-                    plan: self.mapPlan(selectedIntent.plan),
-                    intent: self.mapIntent(selectedIntent.intent),
-                    timeToday: self.mapTime(selectedIntent.timeWindow)
+                    plan: mapPlan(selectedIntent.plan),
+                    intent: mapIntent(selectedIntent.intent),
+                    timeToday: mapTime(selectedIntent.timeWindow)
                 )
             )
-            _ = try await self.apiClient.goOnline(lat: 40.7410, lng: -73.9897, accuracyM: 25)
-            self.showHistory = false
-            self.isOnline = true
-            try await self.loadDiscoveryMap()
+            _ = try await apiClient.goOnline(lat: 40.7410, lng: -73.9897, accuracyM: 25)
+            showHistory = false
+            isOnline = true
+            try await loadDiscoveryMap()
+        } catch {
+            mapPoints = MockData.mapPoints
+            selectedPoint = nil
+            showHistory = false
+            isOnline = true
+            errorMessage = "Demo mode: local map is open while API is unavailable."
         }
+
+        isLoading = false
     }
 
     private func loadDiscoveryMap() async throws {
@@ -230,28 +251,47 @@ final class AppState: ObservableObject {
 
     private func likePointWithBackend(_ point: MapPoint) async {
         await runLoading {
-            let response = try await self.apiClient.likeProfile(point.profile.id)
-            self.updatePoint(point.id, state: .interested)
-            self.selectedPoint = nil
+            do {
+                let response = try await self.apiClient.likeProfile(point.profile.id)
+                self.updatePoint(point.id, state: .interested)
+                self.selectedPoint = nil
 
-            if let matchDTO = response.matchItem {
+                if let matchDTO = response.matchItem {
+                    self.activeMatch = Match(
+                        id: matchDTO.id,
+                        profile: point.profile,
+                        status: self.mapMatchStatus(matchDTO.status),
+                        myFirstLoopSent: false,
+                        theirFirstLoopReceived: false,
+                        meetingStatus: .none
+                    )
+                    self.isOnline = false
+                    try await self.loadActiveMatchDetail()
+                }
+            } catch {
+                self.updatePoint(point.id, state: .interested)
+                self.selectedPoint = nil
                 self.activeMatch = Match(
-                    id: matchDTO.id,
+                    id: UUID(),
                     profile: point.profile,
-                    status: self.mapMatchStatus(matchDTO.status),
+                    status: .active,
                     myFirstLoopSent: false,
                     theirFirstLoopReceived: false,
                     meetingStatus: .none
                 )
                 self.isOnline = false
-                try await self.loadActiveMatchDetail()
+                self.errorMessage = "Demo mode: local match created."
             }
         }
     }
 
     private func passPointWithBackend(_ point: MapPoint) async {
         await runLoading {
-            _ = try await self.apiClient.passProfile(point.profile.id)
+            do {
+                _ = try await self.apiClient.passProfile(point.profile.id)
+            } catch {
+                self.errorMessage = "Demo mode: hidden for today locally."
+            }
             self.updatePoint(point.id, state: .hiddenToday)
             self.selectedPoint = nil
         }
@@ -300,19 +340,25 @@ final class AppState: ObservableObject {
 
     private func sendMockFirstLoopWithBackend(_ match: Match) async {
         await runLoading {
-            let data = Data("mock-loop".utf8)
-            let intent = try await self.apiClient.createUploadIntent(
-                kind: .firstLoop,
-                contentType: "video/mp4",
-                fileSizeBytes: data.count
-            )
-            _ = try await MediaUploadService().upload(data: data, intent: intent)
-            _ = try await self.apiClient.sendFirstLoop(
-                matchId: match.id,
-                storageKey: intent.storageKey,
-                durationMs: 2_900
-            )
-            try await self.loadActiveMatchDetail()
+            do {
+                let data = Data("mock-loop".utf8)
+                let intent = try await self.apiClient.createUploadIntent(
+                    kind: .firstLoop,
+                    contentType: "video/mp4",
+                    fileSizeBytes: data.count
+                )
+                _ = try await MediaUploadService().upload(data: data, intent: intent)
+                _ = try await self.apiClient.sendFirstLoop(
+                    matchId: match.id,
+                    storageKey: intent.storageKey,
+                    durationMs: 2_900
+                )
+                try await self.loadActiveMatchDetail()
+            } catch {
+                self.activeMatch?.myFirstLoopSent = true
+                self.activeMatch?.theirFirstLoopReceived = true
+                self.errorMessage = "Demo mode: first loop accepted locally."
+            }
         }
     }
 
@@ -320,10 +366,15 @@ final class AppState: ObservableObject {
         guard let match = activeMatch else { return }
 
         await runLoading {
-            let response = try await self.apiClient.sendMessage(matchId: match.id, body: text)
-            self.messages.append(
-                Message(id: response.message.id, sender: .me, text: response.message.body, createdAt: Date())
-            )
+            do {
+                let response = try await self.apiClient.sendMessage(matchId: match.id, body: text)
+                self.messages.append(
+                    Message(id: response.message.id, sender: .me, text: response.message.body, createdAt: Date())
+                )
+            } catch {
+                self.messages.append(Message(id: UUID(), sender: .me, text: text, createdAt: Date()))
+                self.errorMessage = "Demo mode: message saved locally."
+            }
         }
     }
 

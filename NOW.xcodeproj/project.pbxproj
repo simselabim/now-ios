@@ -36,6 +36,8 @@
 		10000000000000000000011C /* human-city-park-walk-blur.png in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021E /* human-city-park-walk-blur.png */; };
 		10000000000000000000011D /* human-city-cafe-table-blur.png in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021F /* human-city-cafe-table-blur.png */; };
 		10000000000000000000011E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000220 /* Assets.xcassets */; };
+		10000000000000000000011F /* now-logo-live-signal.png in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000221 /* now-logo-live-signal.png */; };
+		100000000000000000000120 /* now-logo-o-variants.png in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000222 /* now-logo-o-variants.png */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -71,6 +73,8 @@
 		10000000000000000000021E /* human-city-park-walk-blur.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "human-city-park-walk-blur.png"; sourceTree = "<group>"; };
 		10000000000000000000021F /* human-city-cafe-table-blur.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "human-city-cafe-table-blur.png"; sourceTree = "<group>"; };
 		100000000000000000000220 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		100000000000000000000221 /* now-logo-live-signal.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "now-logo-live-signal.png"; sourceTree = "<group>"; };
+		100000000000000000000222 /* now-logo-o-variants.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "now-logo-o-variants.png"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -211,6 +215,8 @@
 				10000000000000000000021D /* human-city-street-coffee.png */,
 				10000000000000000000021E /* human-city-park-walk-blur.png */,
 				10000000000000000000021F /* human-city-cafe-table-blur.png */,
+				100000000000000000000221 /* now-logo-live-signal.png */,
+				100000000000000000000222 /* now-logo-o-variants.png */,
 			);
 			path = Images;
 			sourceTree = "<group>";
@@ -270,6 +276,8 @@
 				10000000000000000000011C,
 				10000000000000000000011D,
 				10000000000000000000011E,
+				10000000000000000000011F,
+				100000000000000000000120,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
