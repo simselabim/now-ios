@@ -64,7 +64,7 @@ struct ProfilePreviewScreen: View {
                         }
                         .buttonStyle(ProfileIconButtonStyle())
 
-                        Button("Like today") {
+                        Button(likeButtonTitle(for: point.profile)) {
                             appState.markInterested(point)
                         }
                         .buttonStyle(PrimaryButtonStyle())
@@ -81,6 +81,17 @@ struct ProfilePreviewScreen: View {
             }
         }
     }
+}
+
+private func likeButtonTitle(for profile: UserProfile) -> String {
+    let gender = profile.occupation.lowercased()
+    if ["female", "woman", "women"].contains(gender) {
+        return "Like her"
+    }
+    if ["male", "man", "men"].contains(gender) {
+        return "Like him"
+    }
+    return "Like \(profile.name)"
 }
 
 private struct ProfileIconButtonStyle: ButtonStyle {

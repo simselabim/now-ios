@@ -50,6 +50,16 @@ struct MeetingProposalScreen: View {
             }
             .buttonStyle(PrimaryButtonStyle())
 
+            Button("Suggest another place") {
+                appState.suggestAnotherMeetingPlace()
+            }
+            .buttonStyle(SecondaryButtonStyle())
+
+            Button("Decline place") {
+                appState.declineMeetingPlace()
+            }
+            .buttonStyle(SecondaryButtonStyle())
+
             Button("Close kindly") {
                 appState.cancelMatch()
             }

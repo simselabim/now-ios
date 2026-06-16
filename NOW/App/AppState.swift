@@ -170,6 +170,27 @@ final class AppState: ObservableObject {
         activeMatch?.meetingStatus = .onMyWay
     }
 
+    func suggestAnotherMeetingPlace() {
+        guard var proposal = meetingProposal else { return }
+        let nextPlace = proposal.placeName == "Cafe Luna" ? "Garden Bar" : "Cafe Luna"
+        proposal.placeName = nextPlace
+        proposal.time = proposal.time == "13:30" ? "14:15" : "13:30"
+        proposal.status = .pending
+        meetingProposal = proposal
+    }
+
+    func declineMeetingPlace() {
+        meetingProposal = nil
+        messages.append(
+            Message(
+                id: UUID(),
+                sender: .me,
+                text: "Let's choose another place.",
+                createdAt: Date()
+            )
+        )
+    }
+
     func updateMeetingStatus(_ status: MeetingStatus) {
         activeMatch?.meetingStatus = status
     }
