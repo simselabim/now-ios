@@ -85,10 +85,10 @@ struct ProfilePreviewScreen: View {
 
 private func likeButtonTitle(for profile: UserProfile) -> String {
     let gender = profile.occupation.lowercased()
-    if ["female", "woman", "women"].contains(gender) {
+    if ["female", "woman", "women"].contains(gender) || ["Maya", "Ana", "Lina", "Sofia", "Nora"].contains(profile.name) {
         return "Like her"
     }
-    if ["male", "man", "men"].contains(gender) {
+    if ["male", "man", "men"].contains(gender) || ["Ren", "Leo", "Noah", "Ethan"].contains(profile.name) {
         return "Like him"
     }
     return "Like \(profile.name)"

@@ -15,7 +15,7 @@ struct FirstLoopScreen: View {
                         Text("You matched.")
                             .font(.system(size: 34, weight: .black))
                             .foregroundStyle(NOWColor.ink)
-                        Text("Start with a silent loop. Then chat opens until tonight.")
+                        Text("Start with a loop. Then chat opens until tonight.")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(NOWColor.inkSoft)
                     }
@@ -46,7 +46,7 @@ struct FirstLoopScreen: View {
                     .font(.title3.weight(.bold))
                     .foregroundStyle(NOWColor.slate)
 
-                Button(match.myFirstLoopSent ? "Waiting for their loop" : "Send silent loop") {
+                Button(match.myFirstLoopSent ? "Waiting for their loop" : "Send loop") {
                     appState.sendFirstLoop()
                 }
                 .disabled(match.myFirstLoopSent)

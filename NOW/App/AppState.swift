@@ -158,9 +158,9 @@ final class AppState: ObservableObject {
         meetingProposal = MeetingProposal(
             id: UUID(),
             matchId: match.id,
-            placeName: "Zest Coffee",
+            placeName: "Cafe Luna",
             coordinate: CLLocationCoordinate2D(latitude: -8.6504, longitude: 115.1387),
-            time: "18:30",
+            time: "13:30",
             status: .pending
         )
     }
@@ -353,7 +353,7 @@ final class AppState: ObservableObject {
                     )
                     self.isOnline = false
                     try await self.loadActiveMatchDetail()
-                } else {
+                } else if point.isMutualMock {
                     self.activeMatch = Match(
                         id: UUID(),
                         profile: point.profile,
@@ -364,20 +364,29 @@ final class AppState: ObservableObject {
                     )
                     self.isOnline = false
                     self.errorMessage = "Demo mode: local match created."
+                } else {
+                    self.isOnline = true
+                    self.errorMessage = "Liked for today. No match yet."
                 }
             } catch {
                 self.updatePoint(point.id, state: .interested)
                 self.selectedPoint = nil
-                self.activeMatch = Match(
-                    id: UUID(),
-                    profile: point.profile,
-                    status: .active,
-                    myFirstLoopSent: false,
-                    theirFirstLoopReceived: false,
-                    meetingStatus: .none
-                )
-                self.isOnline = false
-                self.errorMessage = "Demo mode: local match created."
+
+                if point.isMutualMock {
+                    self.activeMatch = Match(
+                        id: UUID(),
+                        profile: point.profile,
+                        status: .active,
+                        myFirstLoopSent: false,
+                        theirFirstLoopReceived: false,
+                        meetingStatus: .none
+                    )
+                    self.isOnline = false
+                    self.errorMessage = "Demo mode: local match created."
+                } else {
+                    self.isOnline = true
+                    self.errorMessage = "Liked for today. No match yet."
+                }
             }
         }
     }

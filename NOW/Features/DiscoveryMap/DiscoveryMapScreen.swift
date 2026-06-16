@@ -133,11 +133,15 @@ private struct CityMap: View {
 
     private func offset(for index: Int) -> CGSize {
         let offsets = [
-            CGSize(width: -128, height: -92),
-            CGSize(width: 118, height: -30),
-            CGSize(width: -66, height: 112),
-            CGSize(width: 126, height: 148),
-            CGSize(width: -18, height: -8)
+            CGSize(width: -132, height: -118),
+            CGSize(width: 116, height: -72),
+            CGSize(width: -84, height: 96),
+            CGSize(width: 126, height: 142),
+            CGSize(width: -8, height: -10),
+            CGSize(width: 52, height: -156),
+            CGSize(width: -148, height: 156),
+            CGSize(width: 164, height: 42),
+            CGSize(width: -22, height: 176)
         ]
         return offsets[index % offsets.count]
     }
