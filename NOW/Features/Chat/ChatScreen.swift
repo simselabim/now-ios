@@ -4,6 +4,9 @@ struct ChatScreen: View {
     @EnvironmentObject private var appState: AppState
     @State private var draft = ""
 
+    private var activePlan: Plan { appState.activeMatch?.profile.plan ?? .coffee }
+    private var suggestion: MeetingSuggestion { activePlan.primaryMeetingSuggestion }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 12) {
@@ -14,7 +17,7 @@ struct ChatScreen: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(appState.activeMatch?.profile.name ?? "Today chat")
                         .font(.system(size: 34, weight: .black))
-                    Text("Coffee today · chat closes tonight")
+                    Text("\(activePlan.rawValue) today · chat closes tonight")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(NOWColor.inkSoft)
                 }
@@ -25,15 +28,15 @@ struct ChatScreen: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
                     if appState.messages.isEmpty {
-                        Bubble(text: "Still good for coffee around 13:30?", sender: .them)
-                        Bubble(text: "Yes. Somewhere near the park?", sender: .me)
+                        Bubble(text: "Still good for \(activePlan.rawValue.lowercased()) around \(suggestion.time)?", sender: .them)
+                        Bubble(text: "Yes. Somewhere public and nearby?", sender: .me)
                     }
 
                     ForEach(appState.messages) { message in
                         Bubble(text: message.text, sender: message.sender)
                     }
 
-                    PlaceSuggestionCard {
+                    PlaceSuggestionCard(suggestion: suggestion) {
                         appState.createMeetingProposal()
                     }
 
@@ -88,6 +91,7 @@ private struct Bubble: View {
 }
 
 private struct PlaceSuggestionCard: View {
+    let suggestion: MeetingSuggestion
     let confirm: () -> Void
 
     var body: some View {
@@ -97,10 +101,10 @@ private struct PlaceSuggestionCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
             VStack(alignment: .leading, spacing: 5) {
-                Text("Cafe Luna")
+                Text(suggestion.placeName)
                     .font(.headline.weight(.black))
                     .foregroundStyle(NOWColor.ink)
-                Text("13:30 today · public place · both need to approve.")
+                Text("\(suggestion.time) today · \(suggestion.descriptor) · both need to approve.")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(NOWColor.inkSoft)
                     .lineLimit(2)

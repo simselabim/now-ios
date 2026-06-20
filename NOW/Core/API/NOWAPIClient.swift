@@ -8,7 +8,7 @@ final class NOWAPIClient {
     private let decoder: JSONDecoder
 
     init(
-        environment: APIEnvironment = .iOSSimulator,
+        environment: APIEnvironment = .appDefault,
         session: URLSession = .shared,
         tokenStore: AuthTokenStoring = UserDefaultsAuthTokenStore()
     ) {
@@ -246,4 +246,3 @@ final class NOWAPIClient {
 }
 
 private struct EmptyRequest: Encodable {}
-

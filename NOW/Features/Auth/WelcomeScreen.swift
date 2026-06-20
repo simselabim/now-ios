@@ -57,6 +57,8 @@ struct WelcomeScreen: View {
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
 
+                DemoAccountPicker()
+
                 Button(appState.isLoading ? "Connecting..." : "Demo Login") {
                     appState.login()
                 }
@@ -70,5 +72,41 @@ struct WelcomeScreen: View {
             }
             .padding(22)
         }
+    }
+}
+
+private struct DemoAccountPicker: View {
+    @EnvironmentObject private var appState: AppState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Demo account")
+                .font(.caption.weight(.black))
+                .foregroundStyle(NOWColor.inkSoft)
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 86), spacing: 8)], spacing: 8) {
+                ForEach(DemoAccount.all) { account in
+                    Button {
+                        appState.selectDemoAccount(account)
+                    } label: {
+                        Text(account.displayName)
+                            .font(.caption.weight(.black))
+                            .foregroundStyle(appState.selectedDemoAccount == account ? NOWColor.ink : NOWColor.inkSoft)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 36)
+                            .background(appState.selectedDemoAccount == account ? NOWColor.lime : NOWColor.paper)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(14)
+        .background(NOWColor.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(NOWColor.line, lineWidth: 1)
+        )
     }
 }

@@ -8,6 +8,7 @@ final class AppState: ObservableObject {
     @Published var isOnline = false
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var selectedDemoAccount = DemoAccount.defaultAccount
     @Published var todayIntent = TodayIntent(plan: .coffee, intent: .date, timeWindow: .evening)
     @Published var mapPoints: [MapPoint] = MockData.mapPoints
     @Published var selectedPoint: MapPoint?
@@ -32,9 +33,14 @@ final class AppState: ObservableObject {
     }
 
     func login() {
+        let account = selectedDemoAccount
         Task {
-            await demoLoginAndBootstrap()
+            await demoLoginAndBootstrap(email: account.email)
         }
+    }
+
+    func selectDemoAccount(_ account: DemoAccount) {
+        selectedDemoAccount = account
     }
 
     func completeProfile() {
@@ -49,6 +55,17 @@ final class AppState: ObservableObject {
 
     func goOffline() {
         isOnline = false
+    }
+
+    func refreshActiveMatch() {
+        Task {
+            await runLoading {
+                try await self.loadActiveMatchDetail()
+                if self.activeMatch == nil {
+                    try await self.loadDiscoveryMap()
+                }
+            }
+        }
     }
 
     func goBackForTesting() {
@@ -155,12 +172,13 @@ final class AppState: ObservableObject {
 
     func createMeetingProposal() {
         guard let match = activeMatch else { return }
+        let suggestion = match.profile.plan.primaryMeetingSuggestion
         meetingProposal = MeetingProposal(
             id: UUID(),
             matchId: match.id,
-            placeName: "Cafe Luna",
-            coordinate: CLLocationCoordinate2D(latitude: -8.6504, longitude: 115.1387),
-            time: "13:30",
+            placeName: suggestion.placeName,
+            coordinate: suggestion.coordinate,
+            time: suggestion.time,
             status: .pending
         )
     }
@@ -172,9 +190,11 @@ final class AppState: ObservableObject {
 
     func suggestAnotherMeetingPlace() {
         guard var proposal = meetingProposal else { return }
-        let nextPlace = proposal.placeName == "Cafe Luna" ? "Garden Bar" : "Cafe Luna"
-        proposal.placeName = nextPlace
-        proposal.time = proposal.time == "13:30" ? "14:15" : "13:30"
+        let plan = activeMatch?.profile.plan ?? .coffee
+        let nextSuggestion = proposal.placeName == plan.primaryMeetingSuggestion.placeName ? plan.alternateMeetingSuggestion : plan.primaryMeetingSuggestion
+        proposal.placeName = nextSuggestion.placeName
+        proposal.coordinate = nextSuggestion.coordinate
+        proposal.time = nextSuggestion.time
         proposal.status = .pending
         meetingProposal = proposal
     }
@@ -240,10 +260,10 @@ final class AppState: ObservableObject {
         }
     }
 
-    private func demoLoginAndBootstrap() async {
+    private func demoLoginAndBootstrap(email: String) async {
         await runLoading {
             do {
-                _ = try await self.apiClient.login(email: "demo.ava@example.com", password: "password123")
+                _ = try await self.apiClient.login(email: email, password: "password123")
                 self.isAuthenticated = true
                 try await self.applyBootstrap(self.apiClient.bootstrap())
             } catch {

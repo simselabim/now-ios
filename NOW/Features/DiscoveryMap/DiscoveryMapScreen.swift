@@ -11,6 +11,8 @@ struct DiscoveryMapScreen: View {
         .overlay(alignment: .top) {
             MapHeader(isLoading: appState.isLoading, back: {
                 appState.goBackForTesting()
+            }, refresh: {
+                appState.refreshActiveMatch()
             }, goOffline: {
                 appState.goOffline()
             })
@@ -44,6 +46,7 @@ struct DiscoveryMapScreen: View {
 private struct MapHeader: View {
     let isLoading: Bool
     let back: () -> Void
+    let refresh: () -> Void
     let goOffline: () -> Void
 
     var body: some View {
@@ -63,6 +66,17 @@ private struct MapHeader: View {
                 ProgressView()
                     .tint(NOWColor.lime)
                     .padding(10)
+                    .background(NOWColor.surface.opacity(0.92))
+                    .clipShape(Circle())
+            }
+
+            Button {
+                refresh()
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(NOWColor.ink)
+                    .frame(width: 38, height: 38)
                     .background(NOWColor.surface.opacity(0.92))
                     .clipShape(Circle())
             }
