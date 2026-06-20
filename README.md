@@ -106,7 +106,7 @@ http://127.0.0.1:8080
 Before running the app, start the backend:
 
 ```bash
-cd /Users/Sim_1/Documents/now/now_back
+cd /Users/dim4egster/Projects/now_back
 make db-up
 make migrate
 make seed-demo
@@ -144,6 +144,55 @@ Debug smoke launch with automatic demo login:
 ```bash
 xcrun simctl launch booted com.sim.now --auto-demo-login
 ```
+
+## Physical iPhone Staging Build
+
+The app can be built for a real iPhone against a public staging backend, for
+example:
+
+```text
+http://<server-ip>:8080
+```
+
+Prerequisites on the Mac:
+
+```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+xcodebuild -version
+```
+
+Open Xcode once, sign in with an Apple ID, select a development team, and trust
+the iPhone. On the phone, enable Developer Mode if iOS asks for it.
+
+List connected devices:
+
+```bash
+./scripts/build-device.sh devices
+```
+
+Build a phone app:
+
+```bash
+NOW_API_BASE_URL=http://<server-ip>:8080 \
+DEVELOPMENT_TEAM=<APPLE_TEAM_ID> \
+BUNDLE_ID=com.example.now.staging \
+./scripts/build-device.sh build
+```
+
+Install and launch on a connected iPhone:
+
+```bash
+DEVICE_ID=<IPHONE_DEVICE_ID> \
+NOW_API_BASE_URL=http://<server-ip>:8080 \
+DEVELOPMENT_TEAM=<APPLE_TEAM_ID> \
+BUNDLE_ID=com.example.now.staging \
+RUN_AFTER_INSTALL=1 \
+./scripts/build-device.sh install
+```
+
+`NOW_API_BASE_URL` is written into `Info.plist` at build time and read by
+`NOWAPIClient`, so the same source build can target the local simulator,
+LAN backend, or staging VPS.
 
 ## First Build Target
 
