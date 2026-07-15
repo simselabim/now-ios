@@ -19,6 +19,7 @@
 		10000000000000000000010B /* MockData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020B /* MockData.swift */; };
 		10000000000000000000010C /* NOWModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020C /* NOWModels.swift */; };
 		10000000000000000000010D /* AuthTokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020D /* AuthTokenStore.swift */; };
+		100000000000000000000121 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000223 /* LocationService.swift */; };
 		10000000000000000000010E /* WelcomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020E /* WelcomeScreen.swift */; };
 		10000000000000000000010F /* ChatScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020F /* ChatScreen.swift */; };
 		100000000000000000000110 /* DiscoveryMapScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000210 /* DiscoveryMapScreen.swift */; };
@@ -54,6 +55,7 @@
 		10000000000000000000020B /* MockData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockData.swift; sourceTree = "<group>"; };
 		10000000000000000000020C /* NOWModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NOWModels.swift; sourceTree = "<group>"; };
 		10000000000000000000020D /* AuthTokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthTokenStore.swift; sourceTree = "<group>"; };
+		100000000000000000000223 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
 		10000000000000000000020E /* WelcomeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeScreen.swift; sourceTree = "<group>"; };
 		10000000000000000000020F /* ChatScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatScreen.swift; sourceTree = "<group>"; };
 		100000000000000000000210 /* DiscoveryMapScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoveryMapScreen.swift; sourceTree = "<group>"; };
@@ -122,6 +124,7 @@
 			children = (
 				100000000000000000000407 /* API */,
 				100000000000000000000408 /* DesignSystem */,
+				100000000000000000000419 /* Location */,
 				100000000000000000000409 /* Media */,
 				10000000000000000000040A /* Models */,
 				10000000000000000000040B /* Storage */,
@@ -145,6 +148,12 @@
 			isa = PBXGroup;
 			children = (100000000000000000000209 /* DesignTokens.swift */);
 			path = DesignSystem;
+			sourceTree = "<group>";
+		};
+		100000000000000000000419 /* Location */ = {
+			isa = PBXGroup;
+			children = (100000000000000000000223 /* LocationService.swift */);
+			path = Location;
 			sourceTree = "<group>";
 		};
 		100000000000000000000409 /* Media */ = {
@@ -292,7 +301,7 @@
 				100000000000000000000104, 100000000000000000000105, 100000000000000000000106,
 				100000000000000000000107, 100000000000000000000108, 100000000000000000000109,
 				10000000000000000000010A, 10000000000000000000010B, 10000000000000000000010C,
-				10000000000000000000010D, 10000000000000000000010E, 10000000000000000000010F,
+				10000000000000000000010D, 100000000000000000000121, 10000000000000000000010E, 10000000000000000000010F,
 				100000000000000000000110, 100000000000000000000111, 100000000000000000000112,
 				100000000000000000000113, 100000000000000000000114, 100000000000000000000115,
 				100000000000000000000116, 100000000000000000000117, 100000000000000000000118,

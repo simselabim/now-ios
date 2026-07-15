@@ -1,10 +1,11 @@
+import MapKit
 import SwiftUI
 
 struct DiscoveryMapScreen: View {
     @EnvironmentObject private var appState: AppState
 
     var body: some View {
-        CityMap(points: appState.visibleMapPoints) { point in
+        CityMap(points: appState.visibleMapPoints, userCoordinate: appState.currentCoordinate) { point in
             appState.viewPoint(point)
         }
         .ignoresSafeArea(edges: .top)
@@ -96,100 +97,154 @@ private struct MapHeader: View {
 
 private struct CityMap: View {
     let points: [MapPoint]
+    let userCoordinate: CLLocationCoordinate2D?
     let onTap: (MapPoint) -> Void
 
+    @State private var cameraPosition: MapCameraPosition = .region(.nowFallback)
+
     var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                NOWColor.mapMist
-
-                MapGrid()
-                    .stroke(NOWColor.mapLine, lineWidth: 1.2)
-
-                Street(width: proxy.size.width * 1.45, height: 34, rotation: -28)
-                    .offset(x: -10, y: -80)
-                Street(width: proxy.size.width * 1.55, height: 42, rotation: 34)
-                    .offset(x: 20, y: 86)
-                Street(width: proxy.size.width * 1.25, height: 26, rotation: -62)
-                    .offset(x: 44, y: -10)
-
-                placeLabel("Cafe", x: -88, y: -42)
-                placeLabel("Park", x: 116, y: 98)
-
-                Circle()
-                    .stroke(NOWColor.lime.opacity(0.72), lineWidth: 2)
-                    .frame(width: 330, height: 330)
-                    .blur(radius: 0.2)
-
-                ForEach(Array(points.enumerated()), id: \.element.id) { index, point in
-                    Button {
-                        onTap(point)
-                    } label: {
-                        MapPointView(state: point.state)
+        ZStack {
+            Map(position: $cameraPosition, interactionModes: [.pan, .zoom]) {
+                if let userCoordinate {
+                    Annotation("You", coordinate: userCoordinate, anchor: .center) {
+                        UserLocationMarker()
                     }
-                    .buttonStyle(.plain)
-                    .offset(offset(for: index))
+                }
+
+                ForEach(points) { point in
+                    Annotation(point.profile.name, coordinate: point.approximateCoordinate, anchor: .center) {
+                        Button {
+                            onTap(point)
+                        } label: {
+                            MapPointView(state: point.state)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
+            .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
+            .mapControls {
+                MapCompass()
+                MapScaleView()
+            }
+
+            Circle()
+                .stroke(NOWColor.lime.opacity(0.68), lineWidth: 2)
+                .frame(width: 330, height: 330)
+                .allowsHitTesting(false)
+
+            if points.isEmpty {
+                EmptyMapState()
+                    .padding(.horizontal, 24)
+                    .allowsHitTesting(false)
+            }
+        }
+        .onAppear {
+            updateCamera(animated: false)
+        }
+        .onChange(of: cameraKey) { _, _ in
+            updateCamera(animated: true)
         }
     }
 
-    private func placeLabel(_ text: String, x: CGFloat, y: CGFloat) -> some View {
-        Text(text)
-            .font(.caption2.weight(.black))
-            .foregroundStyle(NOWColor.slate)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(NOWColor.surface.opacity(0.92))
-            .clipShape(Capsule())
-            .offset(x: x, y: y)
+    private var cameraKey: String {
+        let pointKey = points
+            .map { "\($0.id.uuidString):\(rounded($0.approximateCoordinate.latitude)):\(rounded($0.approximateCoordinate.longitude))" }
+            .joined(separator: "|")
+        let userKey = userCoordinate.map { "\(rounded($0.latitude)):\(rounded($0.longitude))" } ?? "none"
+        return "\(userKey)#\(pointKey)"
     }
 
-    private func offset(for index: Int) -> CGSize {
-        let offsets = [
-            CGSize(width: -132, height: -118),
-            CGSize(width: 116, height: -72),
-            CGSize(width: -84, height: 96),
-            CGSize(width: 126, height: 142),
-            CGSize(width: -8, height: -10),
-            CGSize(width: 52, height: -156),
-            CGSize(width: -148, height: 156),
-            CGSize(width: 164, height: 42),
-            CGSize(width: -22, height: 176)
-        ]
-        return offsets[index % offsets.count]
+    private func rounded(_ value: CLLocationDegrees) -> String {
+        String(format: "%.5f", value)
+    }
+
+    private func updateCamera(animated: Bool) {
+        let nextPosition = MapCameraPosition.region(.fitting(points: points, userCoordinate: userCoordinate))
+
+        if animated {
+            withAnimation(.easeInOut(duration: 0.35)) {
+                cameraPosition = nextPosition
+            }
+        } else {
+            cameraPosition = nextPosition
+        }
     }
 }
 
-private struct MapGrid: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let step: CGFloat = 38
+private extension MKCoordinateRegion {
+    static let nowFallback = MKCoordinateRegion(
+        center: CLLocationCoordinate2D(latitude: 40.7410, longitude: -73.9897),
+        span: MKCoordinateSpan(latitudeDelta: 0.025, longitudeDelta: 0.025)
+    )
 
-        stride(from: rect.minX, through: rect.maxX, by: step).forEach { x in
-            path.move(to: CGPoint(x: x, y: rect.minY))
-            path.addLine(to: CGPoint(x: x, y: rect.maxY))
+    static func fitting(points: [MapPoint], userCoordinate: CLLocationCoordinate2D?) -> MKCoordinateRegion {
+        let coordinates = ([userCoordinate].compactMap { $0 }) + points.map(\.approximateCoordinate)
+
+        guard !coordinates.isEmpty else {
+            return .nowFallback
         }
 
-        stride(from: rect.minY, through: rect.maxY, by: step).forEach { y in
-            path.move(to: CGPoint(x: rect.minX, y: y))
-            path.addLine(to: CGPoint(x: rect.maxX, y: y))
+        guard coordinates.count > 1 else {
+            return MKCoordinateRegion(
+                center: coordinates[0],
+                span: MKCoordinateSpan(latitudeDelta: 0.018, longitudeDelta: 0.018)
+            )
         }
 
-        return path
+        let minLat = coordinates.map(\.latitude).min() ?? coordinates[0].latitude
+        let maxLat = coordinates.map(\.latitude).max() ?? coordinates[0].latitude
+        let minLng = coordinates.map(\.longitude).min() ?? coordinates[0].longitude
+        let maxLng = coordinates.map(\.longitude).max() ?? coordinates[0].longitude
+
+        let center = CLLocationCoordinate2D(
+            latitude: (minLat + maxLat) / 2,
+            longitude: (minLng + maxLng) / 2
+        )
+        let latDelta = max(0.01, (maxLat - minLat) * 1.9)
+        let lngDelta = max(0.01, (maxLng - minLng) * 1.9)
+
+        return MKCoordinateRegion(
+            center: center,
+            span: MKCoordinateSpan(latitudeDelta: latDelta, longitudeDelta: lngDelta)
+        )
     }
 }
 
-private struct Street: View {
-    let width: CGFloat
-    let height: CGFloat
-    let rotation: Double
-
+private struct UserLocationMarker: View {
     var body: some View {
-        RoundedRectangle(cornerRadius: height / 2, style: .continuous)
-            .fill(Color.white.opacity(0.62))
-            .frame(width: width, height: height)
-            .rotationEffect(.degrees(rotation))
+        ZStack {
+            Circle()
+                .fill(NOWColor.ink.opacity(0.18))
+                .frame(width: 44, height: 44)
+            Circle()
+                .fill(NOWColor.ink)
+                .frame(width: 20, height: 20)
+                .overlay(Circle().stroke(NOWColor.surface, lineWidth: 5))
+        }
+        .shadow(color: NOWColor.ink.opacity(0.18), radius: 10, x: 0, y: 5)
+        .accessibilityLabel("Your location")
+    }
+}
+
+private struct EmptyMapState: View {
+    var body: some View {
+        VStack(spacing: 8) {
+            Text("No one live nearby yet")
+                .font(.headline.weight(.black))
+                .foregroundStyle(NOWColor.ink)
+            Text("You're online. New live points will appear here.")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(NOWColor.inkSoft)
+                .multilineTextAlignment(.center)
+        }
+        .padding(16)
+        .background(NOWColor.surface.opacity(0.94))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(NOWColor.line.opacity(0.8), lineWidth: 1)
+        )
     }
 }
 

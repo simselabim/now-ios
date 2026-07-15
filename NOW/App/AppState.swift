@@ -11,6 +11,8 @@ final class AppState: ObservableObject {
     @Published var selectedDemoAccount = DemoAccount.defaultAccount
     @Published var todayIntent = TodayIntent(plan: .coffee, intent: .date, timeWindow: .evening)
     @Published var mapPoints: [MapPoint] = MockData.mapPoints
+    @Published var currentCoordinate: CLLocationCoordinate2D?
+    @Published var currentLocationAccuracyM: Int?
     @Published var selectedPoint: MapPoint?
     @Published var activeMatch: Match?
     @Published var messages: [Message] = []
@@ -19,9 +21,11 @@ final class AppState: ObservableObject {
     @Published var showHistory = false
 
     private let apiClient: NOWAPIClient
+    private let locationService: LocationService
 
     init(apiClient: NOWAPIClient = NOWAPIClient()) {
         self.apiClient = apiClient
+        self.locationService = LocationService()
     }
 
     var visibleMapPoints: [MapPoint] {
@@ -314,6 +318,20 @@ final class AppState: ObservableObject {
         isLoading = true
         errorMessage = nil
 
+        let deviceLocation: DeviceLocation
+        do {
+            deviceLocation = try await locationService.currentLocation()
+            currentCoordinate = deviceLocation.coordinate
+            currentLocationAccuracyM = deviceLocation.accuracyM
+        } catch {
+            isOnline = false
+            selectedPoint = nil
+            mapPoints = []
+            errorMessage = locationMessage(for: error)
+            isLoading = false
+            return
+        }
+
         do {
             _ = try await apiClient.updateTodayIntent(
                 UpdateTodayIntentRequestDTO(
@@ -322,16 +340,20 @@ final class AppState: ObservableObject {
                     timeToday: mapTime(selectedIntent.timeWindow)
                 )
             )
-            _ = try await apiClient.goOnline(lat: 40.7410, lng: -73.9897, accuracyM: 25)
+            _ = try await apiClient.goOnline(
+                lat: deviceLocation.coordinate.latitude,
+                lng: deviceLocation.coordinate.longitude,
+                accuracyM: deviceLocation.accuracyM
+            )
             showHistory = false
             isOnline = true
             try await loadDiscoveryMap()
         } catch {
-            mapPoints = MockData.mapPoints
+            mapPoints = []
             selectedPoint = nil
             showHistory = false
-            isOnline = true
-            errorMessage = "Demo mode: local map is open while API is unavailable."
+            isOnline = false
+            errorMessage = "Could not sync with the staging API. Check backend URL and connection."
         }
 
         isLoading = false
@@ -340,10 +362,12 @@ final class AppState: ObservableObject {
     private func loadDiscoveryMap() async throws {
         let response = try await apiClient.discoverMap()
         let mappedPoints = response.points.map(mapPoint)
-        mapPoints = mappedPoints.isEmpty ? MockData.mapPoints : mappedPoints
+        mapPoints = mappedPoints
         isOnline = true
-        if mappedPoints.isEmpty {
-            errorMessage = "Demo mode: showing local nearby points."
+        if response.discoveryLocked {
+            errorMessage = "Discovery is locked while an active match is open."
+        } else if mappedPoints.isEmpty {
+            errorMessage = "No live nearby points yet. Keep both phones online and refresh."
         }
     }
 
@@ -515,6 +539,15 @@ final class AppState: ObservableObject {
             errorMessage = String(describing: error)
         }
         isLoading = false
+    }
+
+    private func locationMessage(for error: Error) -> String {
+        if let localizedError = error as? LocalizedError,
+           let description = localizedError.errorDescription {
+            return description
+        }
+
+        return "Location is required to go online."
     }
 
     private func mapPoint(_ dto: MapPointDTO) -> MapPoint {

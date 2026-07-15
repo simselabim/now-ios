@@ -125,7 +125,7 @@ struct DemoAccount: Identifiable, Equatable {
     var id: String { email }
 
     static let all: [DemoAccount] = [
-        DemoAccount(email: "demo.ava@example.com", displayName: "Ava"),
+        DemoAccount(email: "demo.ava@example.com", displayName: "Dima"),
         DemoAccount(email: "demo.maya@example.com", displayName: "Maya"),
         DemoAccount(email: "demo.nina@example.com", displayName: "Nina"),
         DemoAccount(email: "demo.ethan@example.com", displayName: "Ethan"),

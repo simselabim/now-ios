@@ -16,6 +16,9 @@ struct GoOnlineScreen: View {
                         Text("Nearby for today")
                             .font(.caption.weight(.black))
                             .foregroundStyle(NOWColor.inkSoft)
+                        Text("Signed in as \(appState.selectedDemoAccount.displayName)")
+                            .font(.caption.weight(.black))
+                            .foregroundStyle(NOWColor.ink)
                     }
                     Spacer()
                     NOWChip(text: "Today", active: true)
