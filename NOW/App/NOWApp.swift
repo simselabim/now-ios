@@ -10,8 +10,12 @@ struct NOWApp: App {
                 .environmentObject(appState)
                 .task {
                     #if DEBUG
-                    if ProcessInfo.processInfo.arguments.contains("--auto-demo-login"),
-                       !appState.isAuthenticated {
+                    let arguments = ProcessInfo.processInfo.arguments
+                    if let laScreen = arguments.first(where: { $0.hasPrefix("--la-screen=") }) {
+                        appState.openLAStateForTesting(String(laScreen.dropFirst("--la-screen=".count)))
+                    } else if arguments.contains("--auto-open-map"), !appState.isAuthenticated {
+                        appState.loginAndOpenMapForTesting()
+                    } else if arguments.contains("--auto-demo-login"), !appState.isAuthenticated {
                         appState.login()
                     }
                     #endif

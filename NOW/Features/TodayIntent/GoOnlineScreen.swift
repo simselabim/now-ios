@@ -4,62 +4,69 @@ struct GoOnlineScreen: View {
     @EnvironmentObject private var appState: AppState
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .top, spacing: 12) {
-                    NOWBackButton {
-                        appState.goBackForTesting()
+        ZStack(alignment: .top) {
+            NOWColor.laCream.ignoresSafeArea()
+            LATopStripe()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(alignment: .top, spacing: 12) {
+                        NOWBackButton {
+                            appState.goBackForTesting()
+                        }
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            NOWLogo(compact: true)
+                            Text("Nearby for today")
+                                .font(.caption.weight(.black))
+                                .foregroundStyle(NOWColor.inkSoft)
+                        }
+                        Spacer()
+                        NOWChip(text: "Today", active: true)
                     }
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        NOWLogo(compact: true)
-                        Text("Nearby for today")
-                            .font(.caption.weight(.black))
-                            .foregroundStyle(NOWColor.inkSoft)
-                        Text("Signed in as \(appState.selectedDemoAccount.displayName)")
-                            .font(.caption.weight(.black))
-                            .foregroundStyle(NOWColor.ink)
+                    ZStack(alignment: .bottomLeading) {
+                        PhotoSurface(name: NOWPhoto.streetCoffee, height: 172, blur: 0.8)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("What feels right now?")
+                                .font(.system(size: 32, weight: .heavy, design: .rounded))
+                                .foregroundStyle(.white)
+                            Text("Pick the plan you would actually say yes to today.")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.9))
+                        }
+                        .padding(18)
                     }
-                    Spacer()
-                    NOWChip(text: "Today", active: true)
-                }
 
-                ZStack(alignment: .bottomLeading) {
-                    PhotoSurface(name: NOWPhoto.streetCoffee, height: 172, blur: 0.8)
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("What feels right now?")
-                            .font(.system(size: 32, weight: .black))
-                            .foregroundStyle(.white)
-                        Text("Pick the plan you would actually say yes to today.")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.9))
-                    }
-                    .padding(18)
-                }
+                    Text("Signed in as \(appState.selectedDemoAccount.displayName)")
+                        .font(.caption.weight(.black))
+                        .foregroundStyle(NOWColor.ink)
 
-                IntentPicker(title: "Plan", selection: $appState.todayIntent.plan, values: Plan.allCases)
-                IntentPicker(title: "Connection", selection: $appState.todayIntent.intent, values: Intent.allCases)
-                IntentPicker(title: "When today", selection: $appState.todayIntent.timeWindow, values: TimeWindow.allCases)
+                    IntentPicker(title: "Plan", selection: $appState.todayIntent.plan, values: Plan.allCases)
+                    IntentPicker(title: "Connection", selection: $appState.todayIntent.intent, values: Intent.allCases)
+                    IntentPicker(title: "When today", selection: $appState.todayIntent.timeWindow, values: TimeWindow.allCases)
 
-                Text("One active match only. Stay with this one for now. Tonight everything resets.")
-                    .font(.footnote)
-                    .foregroundStyle(NOWColor.inkSoft)
-                    .padding(14)
-                    .background(NOWColor.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-
-                if let error = appState.errorMessage {
-                    Text(error)
+                    Text("One active match only. Stay with this one for now. Tonight everything resets.")
                         .font(.footnote.weight(.semibold))
-                        .foregroundStyle(NOWColor.coral)
+                        .foregroundStyle(NOWColor.inkSoft)
                         .padding(14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                         .background(NOWColor.surface)
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                    if let error = appState.errorMessage {
+                        Text(error)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(NOWColor.coral)
+                            .padding(14)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(NOWColor.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
                 }
+                .padding(22)
+                .padding(.top, 10)
+                .padding(.bottom, 76)
             }
-            .padding(22)
-            .padding(.bottom, 76)
         }
         .safeAreaInset(edge: .bottom) {
             Button(appState.isLoading ? "Going online..." : "Go online") {
@@ -70,14 +77,14 @@ struct GoOnlineScreen: View {
             .overlay {
                 if appState.isLoading {
                     ProgressView()
-                        .tint(NOWColor.ink)
+                        .tint(NOWColor.surface)
                         .offset(x: -120)
                 }
             }
             .padding(.horizontal, 22)
             .padding(.top, 10)
             .padding(.bottom, 10)
-            .background(NOWColor.paper.opacity(0.96))
+            .background(NOWColor.laCream.opacity(0.96))
         }
     }
 }
@@ -118,8 +125,8 @@ private struct FlowLayout<T: RawRepresentable & Identifiable & Hashable>: View w
                 .font(.subheadline.weight(.semibold))
                 .padding(.vertical, 9)
                 .frame(maxWidth: .infinity)
-                .foregroundStyle(selection == value ? NOWColor.ink : NOWColor.inkSoft)
-                .background(selection == value ? NOWColor.lime : NOWColor.paper)
+                .foregroundStyle(selection == value ? NOWColor.surface : NOWColor.inkSoft)
+                .background(selection == value ? NOWColor.laCoral : NOWColor.paper)
                 .clipShape(Capsule())
             }
         }

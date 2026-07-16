@@ -43,6 +43,75 @@ final class AppState: ObservableObject {
         }
     }
 
+    func loginAndOpenMapForTesting() {
+        let account = selectedDemoAccount
+        Task {
+            await demoLoginAndBootstrap(email: account.email)
+            await goOnlineWithBackend()
+        }
+    }
+
+    func openLAStateForTesting(_ state: String) {
+        isAuthenticated = true
+        isProfileComplete = true
+        isOnline = false
+        isLoading = false
+        errorMessage = nil
+        showHistory = false
+        selectedPoint = nil
+        activeMatch = nil
+        meetingProposal = nil
+        messages = []
+        mapPoints = MockData.mapPoints
+
+        let point = MockData.mapPoints.first ?? mapPoints[0]
+        let match = Match(
+            id: UUID(),
+            profile: point.profile,
+            status: .active,
+            myFirstLoopSent: false,
+            theirFirstLoopReceived: false,
+            meetingStatus: .none
+        )
+
+        switch state {
+        case "profile":
+            selectedPoint = point
+            isOnline = true
+        case "match":
+            activeMatch = match
+        case "chat":
+            activeMatch = Match(
+                id: match.id,
+                profile: match.profile,
+                status: .active,
+                myFirstLoopSent: true,
+                theirFirstLoopReceived: true,
+                meetingStatus: .none
+            )
+        case "meeting":
+            activeMatch = Match(
+                id: match.id,
+                profile: match.profile,
+                status: .active,
+                myFirstLoopSent: true,
+                theirFirstLoopReceived: true,
+                meetingStatus: .onMyWay
+            )
+            let suggestion = match.profile.plan.primaryMeetingSuggestion
+            meetingProposal = MeetingProposal(
+                id: UUID(),
+                matchId: match.id,
+                placeName: suggestion.placeName,
+                coordinate: suggestion.coordinate,
+                time: suggestion.time,
+                status: .accepted
+            )
+        default:
+            isOnline = true
+        }
+    }
+
     func selectDemoAccount(_ account: DemoAccount) {
         selectedDemoAccount = account
     }

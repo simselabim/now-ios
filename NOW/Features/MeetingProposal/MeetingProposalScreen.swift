@@ -4,69 +4,71 @@ struct MeetingProposalScreen: View {
     @EnvironmentObject private var appState: AppState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top, spacing: 12) {
-                NOWBackButton {
-                    appState.goBackForTesting()
+        ZStack(alignment: .top) {
+            NOWColor.laCream.ignoresSafeArea()
+            LATopStripe()
+
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(alignment: .top, spacing: 12) {
+                    NOWBackButton {
+                        appState.goBackForTesting()
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Lock the place.")
+                            .font(.system(size: 34, weight: .heavy, design: .rounded))
+                            .foregroundStyle(NOWColor.laBrown)
+                        Text("Both of you should approve it here.")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(NOWColor.inkSoft)
+                    }
+                    Spacer()
+                    LAPill(text: "19:15", icon: nil)
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Confirm the place.")
-                        .font(.system(size: 34, weight: .black))
-                    Text("Both of you should approve it here.")
+                ZStack(alignment: .bottomLeading) {
+                    PhotoSurface(name: NOWPhoto.cafeMeet, height: 320, blur: 0, cornerRadius: 24)
+                    if let proposal = appState.meetingProposal {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(proposal.placeName)
+                                .font(.system(size: 32, weight: .heavy, design: .rounded))
+                                .foregroundStyle(.white)
+                            Text("Today · \(proposal.time) · public place · busy at this hour")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.9))
+                        }
+                        .padding(18)
+                    }
+                }
+
+                NOWInfoCard {
+                    Text("Use NOW confirmation for place and time.")
+                        .font(.headline.weight(.black))
+                        .foregroundStyle(NOWColor.laBrown)
+                    Text("It keeps the plan visible, clear, and easier to leave if anything feels off.")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(NOWColor.inkSoft)
                 }
-                Spacer()
-                NOWLogo(compact: true)
-            }
 
-            ZStack(alignment: .bottomLeading) {
-                PhotoSurface(name: NOWPhoto.cafeMeet, height: 320, blur: 0, cornerRadius: 24)
-                if let proposal = appState.meetingProposal {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(proposal.placeName)
-                            .font(.system(size: 32, weight: .black))
-                            .foregroundStyle(.white)
-                        Text("Today · \(proposal.time) · public place")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.9))
-                    }
-                    .padding(18)
+                Button("Accept meeting") {
+                    appState.acceptMeetingProposal()
                 }
-            }
+                .buttonStyle(PrimaryButtonStyle())
 
-            NOWInfoCard {
-                Text("Use NOW confirmation for place and time.")
-                    .font(.headline.weight(.black))
-                    .foregroundStyle(NOWColor.ink)
-                Text("It keeps the plan visible, clear, and easier to leave if anything feels off.")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(NOWColor.inkSoft)
-            }
+                Button("Suggest another place") {
+                    appState.suggestAnotherMeetingPlace()
+                }
+                .buttonStyle(SecondaryButtonStyle())
 
-            Button("Accept meeting") {
-                appState.acceptMeetingProposal()
-            }
-            .buttonStyle(PrimaryButtonStyle())
+                Button("Close kindly") {
+                    appState.cancelMatch()
+                }
+                .buttonStyle(DangerButtonStyle())
 
-            Button("Suggest another place") {
-                appState.suggestAnotherMeetingPlace()
+                Spacer()
             }
-            .buttonStyle(SecondaryButtonStyle())
-
-            Button("Decline place") {
-                appState.declineMeetingPlace()
-            }
-            .buttonStyle(SecondaryButtonStyle())
-
-            Button("Close kindly") {
-                appState.cancelMatch()
-            }
-            .buttonStyle(DangerButtonStyle())
-
-            Spacer()
+            .padding(22)
+            .padding(.top, 10)
         }
-        .padding(22)
     }
 }

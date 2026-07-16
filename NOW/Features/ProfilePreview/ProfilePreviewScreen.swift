@@ -5,79 +5,87 @@ struct ProfilePreviewScreen: View {
 
     var body: some View {
         if let point = appState.selectedPoint {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack {
-                        Button {
-                            appState.closeProfilePreview()
-                        } label: {
-                            Image(systemName: "chevron.left")
-                                .font(.headline.weight(.black))
-                                .foregroundStyle(NOWColor.ink)
-                                .frame(width: 42, height: 42)
+            ZStack(alignment: .top) {
+                NOWColor.laCream.ignoresSafeArea()
+                LATopStripe()
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack(spacing: 10) {
+                            NOWBackButton {
+                                appState.closeProfilePreview()
+                            }
+                            Text("NOW · LA")
+                                .font(.subheadline.weight(.heavy))
+                                .tracking(1.4)
+                                .foregroundStyle(NOWColor.laCoral)
+                            Spacer()
+                            Text("Echo Park · \(point.profile.distance)")
+                                .font(.caption.weight(.heavy))
+                                .foregroundStyle(NOWColor.laBrown)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 10)
                                 .background(NOWColor.surface)
-                                .clipShape(Circle())
+                                .clipShape(Capsule())
+                                .shadow(color: NOWColor.ink.opacity(0.08), radius: 10, x: 0, y: 4)
                         }
-                        Spacer()
-                        NOWLogo(compact: true)
-                        Spacer()
-                        NOWChip(text: point.profile.distance, active: true)
-                    }
 
-                    ZStack(alignment: .bottomLeading) {
-                        PhotoSurface(name: NOWPhoto.person, height: 430, blur: 0, cornerRadius: 24)
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("\(point.profile.name), \(point.profile.age)")
-                                .font(.system(size: 34, weight: .black))
-                                .foregroundStyle(.white)
-                            Text("\(point.profile.plan.rawValue), small streets, maybe a gallery if the conversation is good.")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.white.opacity(0.9))
-                                .lineLimit(3)
+                        ZStack(alignment: .bottomLeading) {
+                            PhotoSurface(name: NOWPhoto.person, height: 390, blur: 0, cornerRadius: 24)
+                            VStack(alignment: .leading, spacing: 7) {
+                                Text("\(point.profile.name), \(point.profile.age)")
+                                    .font(.system(size: 32, weight: .heavy, design: .rounded))
+                                    .foregroundStyle(.white)
+                                Text("\(point.profile.plan.rawValue), vintage stores, sunset from the reservoir.")
+                                    .font(.subheadline.weight(.bold))
+                                    .foregroundStyle(.white.opacity(0.92))
+                                    .lineLimit(3)
+                            }
+                            .padding(18)
+
+                            LoopBadge()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                                .padding(.trailing, 16)
+                                .padding(.bottom, 32)
                         }
-                        .padding(18)
-                    }
 
-                    NOWInfoCard {
+                        HStack(spacing: 8) {
+                            NOWChip(text: point.profile.plan.rawValue, active: true)
+                            NOWChip(text: "Hike")
+                            ForEach(point.profile.sharedInterests.prefix(1), id: \.self) { interest in
+                                NOWChip(text: interest)
+                            }
+                        }
+
                         Text("\"\(point.profile.prompt)\"")
-                            .font(.headline.weight(.bold))
-                            .foregroundStyle(NOWColor.slate)
-                    }
+                            .font(.subheadline.weight(.heavy))
+                            .foregroundStyle(NOWColor.laBrown)
+                            .padding(14)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(NOWColor.surface)
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .stroke(NOWColor.line.opacity(0.82), lineWidth: 1)
+                            )
 
-                    HStack(spacing: 8) {
-                        NOWChip(text: point.profile.plan.rawValue, active: true)
-                        NOWChip(text: point.profile.intent.rawValue)
-                        ForEach(point.profile.sharedInterests.prefix(2), id: \.self) { interest in
-                            NOWChip(text: interest)
+                        HStack(spacing: 12) {
+                            Button {
+                                appState.notNow(point)
+                            } label: {
+                                Image(systemName: "xmark")
+                            }
+                            .buttonStyle(ProfileIconButtonStyle())
+
+                            Button("Say hi") {
+                                appState.markInterested(point)
+                            }
+                            .buttonStyle(DangerButtonStyle())
                         }
                     }
-
-                    Text("No contact details in profiles. If it feels right, confirm place and time through NOW.")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(NOWColor.inkSoft)
-
-                    HStack(spacing: 12) {
-                        Button {
-                            appState.notNow(point)
-                        } label: {
-                            Image(systemName: "xmark")
-                        }
-                        .buttonStyle(ProfileIconButtonStyle())
-
-                        Button(likeButtonTitle(for: point.profile)) {
-                            appState.markInterested(point)
-                        }
-                        .buttonStyle(PrimaryButtonStyle())
-
-                        Button {
-                            appState.block(point)
-                        } label: {
-                            Image(systemName: "heart.slash")
-                        }
-                        .buttonStyle(ProfileIconButtonStyle())
-                    }
+                    .padding(14)
+                    .padding(.top, 24)
                 }
-                .padding(22)
             }
         }
     }
@@ -101,10 +109,29 @@ private struct ProfileIconButtonStyle: ButtonStyle {
             .foregroundStyle(NOWColor.ink)
             .frame(width: 58, height: 52)
             .background(NOWColor.surface.opacity(configuration.isPressed ? 0.72 : 1))
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .clipShape(Circle())
             .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                Circle()
                     .stroke(NOWColor.line, lineWidth: 1)
             )
+    }
+}
+
+private struct LoopBadge: View {
+    var body: some View {
+        VStack(spacing: 5) {
+            ZStack {
+                Circle()
+                    .fill(NOWColor.laBrown.opacity(0.62))
+                    .frame(width: 68, height: 68)
+                    .overlay(Circle().stroke(NOWColor.laOrange, lineWidth: 3))
+                Image(systemName: "play.fill")
+                    .font(.headline.weight(.black))
+                    .foregroundStyle(NOWColor.surface)
+            }
+            Text("10s loop")
+                .font(.caption2.weight(.heavy))
+                .foregroundStyle(NOWColor.laGold)
+        }
     }
 }

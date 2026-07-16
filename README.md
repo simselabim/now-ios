@@ -145,6 +145,12 @@ Debug smoke launch with automatic demo login:
 xcrun simctl launch booted com.sim.now --auto-demo-login
 ```
 
+Debug smoke launch directly into the discovery map:
+
+```bash
+xcrun simctl launch booted com.sim.now --auto-open-map
+```
+
 ## Physical iPhone Staging Build
 
 The app can be built for a real iPhone against a public staging backend, for
@@ -235,6 +241,6 @@ demo.ava@example.com / password123
 profile preview open, like/pass, first loop upload, temporary message sending,
 and active match detail refresh.
 
-`--auto-demo-login` is a Debug-only launch argument. It lets us verify the live
-backend path from app launch to the discovery map without relying on macOS
-Accessibility permissions for Simulator clicks.
+`--auto-demo-login` and `--auto-open-map` are Debug-only launch arguments. They
+let us verify the live backend path and the real MapKit discovery map without
+relying on macOS Accessibility permissions for Simulator clicks.

@@ -8,69 +8,133 @@ struct ChatScreen: View {
     private var suggestion: MeetingSuggestion { activePlan.primaryMeetingSuggestion }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 12) {
-                NOWBackButton {
-                    appState.goBackForTesting()
-                }
+        ZStack(alignment: .top) {
+            NOWColor.laCream.ignoresSafeArea()
+            LATopStripe()
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(appState.activeMatch?.profile.name ?? "Today chat")
-                        .font(.system(size: 34, weight: .black))
-                    Text("\(activePlan.rawValue) today · chat closes tonight")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(NOWColor.inkSoft)
-                }
-                Spacer()
-                NOWChip(text: "Now", active: true)
-            }
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
-                    if appState.messages.isEmpty {
-                        Bubble(text: "Still good for \(activePlan.rawValue.lowercased()) around \(suggestion.time)?", sender: .them)
-                        Bubble(text: "Yes. Somewhere public and nearby?", sender: .me)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 10) {
+                    NOWBackButton {
+                        appState.goBackForTesting()
                     }
 
-                    ForEach(appState.messages) { message in
-                        Bubble(text: message.text, sender: message.sender)
-                    }
-
-                    PlaceSuggestionCard(suggestion: suggestion) {
-                        appState.createMeetingProposal()
-                    }
-
-                    Text("Use the app confirmation for place and time. It keeps the meeting clear.")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(NOWColor.inkSoft)
-                        .padding(.top, 2)
-                }
-                .padding(.vertical, 4)
-            }
-
-            HStack(spacing: 10) {
-                TextField("Write a message", text: $draft)
-                    .font(.subheadline.weight(.semibold))
-                    .padding(.horizontal, 16)
-                    .frame(height: 48)
-                    .background(NOWColor.paper)
-                    .clipShape(Capsule())
-
-                Button {
-                    appState.sendMessage(draft)
-                    draft = ""
-                } label: {
-                    Image(systemName: "arrow.up")
-                        .font(.headline.weight(.black))
-                        .foregroundStyle(.white)
-                        .frame(width: 48, height: 48)
-                        .background(NOWColor.ink)
+                    BundlePhoto(name: NOWPhoto.person)
+                        .frame(width: 42, height: 42)
                         .clipShape(Circle())
+                        .overlay(Circle().stroke(NOWColor.laOrange, lineWidth: 2))
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(appState.activeMatch?.profile.name ?? "Maya")
+                            .font(.headline.weight(.heavy))
+                            .foregroundStyle(NOWColor.laBrown)
+                        Text("online until sunset · 19:58")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(NOWColor.inkSoft)
+                    }
+
+                    Spacer()
+
+                    Text("1 h 08 m")
+                        .font(.caption.weight(.heavy))
+                        .foregroundStyle(NOWColor.laCoral)
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 9)
+                        .background(NOWColor.surface)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(NOWColor.laCoral, lineWidth: 1.2))
                 }
-                .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .padding(.top, 24)
+
+                Rectangle()
+                    .fill(NOWColor.line.opacity(0.45))
+                    .frame(height: 1)
+                    .padding(.horizontal, -22)
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        LoopMessage()
+
+                        if appState.messages.isEmpty {
+                            Bubble(text: "Okay that view! Matcha first, reservoir after?", sender: .me)
+                            Bubble(text: "Deal. There's a spot on Sunset - best matcha east of the 101", sender: .them)
+                        }
+
+                        ForEach(appState.messages) { message in
+                            Bubble(text: message.text, sender: message.sender)
+                        }
+
+                        PlaceSuggestionCard(suggestion: suggestion) {
+                            appState.createMeetingProposal()
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+
+                HStack(spacing: 10) {
+                    Button {
+                        appState.sendMessage("Loop")
+                    } label: {
+                        Circle()
+                            .fill(NOWColor.laCoral)
+                            .frame(width: 48, height: 48)
+                            .overlay(
+                                Circle()
+                                    .fill(NOWColor.surface)
+                                    .frame(width: 14, height: 14)
+                            )
+                    }
+                    .buttonStyle(.plain)
+
+                    TextField("Message...", text: $draft)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(NOWColor.laBrown)
+                        .padding(.horizontal, 16)
+                        .frame(height: 48)
+                        .background(NOWColor.surface)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(NOWColor.line, lineWidth: 1))
+
+                    Button {
+                        appState.sendMessage(draft)
+                        draft = ""
+                    } label: {
+                        Image(systemName: "arrow.up")
+                            .font(.headline.weight(.black))
+                            .foregroundStyle(NOWColor.surface)
+                            .frame(width: 48, height: 48)
+                            .background(NOWColor.laBrown)
+                            .clipShape(Circle())
+                    }
+                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
             }
+            .padding(14)
         }
-        .padding(22)
+    }
+}
+
+private struct LoopMessage: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ZStack {
+                BundlePhoto(name: NOWPhoto.person)
+                    .frame(width: 84, height: 84)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(NOWColor.laOrange, lineWidth: 3))
+                Image(systemName: "play.fill")
+                    .font(.headline.weight(.black))
+                    .foregroundStyle(NOWColor.surface)
+            }
+            Text("0:09")
+                .font(.caption2.weight(.heavy))
+                .foregroundStyle(NOWColor.laGold)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(NOWColor.laBrown.opacity(0.75))
+                .clipShape(Capsule())
+                .offset(x: 46, y: -22)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -81,11 +145,11 @@ private struct Bubble: View {
     var body: some View {
         Text(text)
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(sender == .me ? NOWColor.ink : NOWColor.slate)
+            .foregroundStyle(sender == .me ? NOWColor.surface : NOWColor.laBrown)
             .padding(.horizontal, 16)
             .padding(.vertical, 11)
-            .background(sender == .me ? NOWColor.lime : NOWColor.paper)
-            .clipShape(Capsule())
+            .background(sender == .me ? NOWColor.laBrown : NOWColor.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .frame(maxWidth: .infinity, alignment: sender == .me ? .trailing : .leading)
     }
 }
@@ -95,37 +159,48 @@ private struct PlaceSuggestionCard: View {
     let confirm: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: 0) {
             BundlePhoto(name: NOWPhoto.cafeMeet)
-                .frame(width: 84, height: 84)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .frame(height: 108)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(suggestion.placeName)
                     .font(.headline.weight(.black))
-                    .foregroundStyle(NOWColor.ink)
-                Text("\(suggestion.time) today · \(suggestion.descriptor) · both need to approve.")
+                    .foregroundStyle(NOWColor.laBrown)
+                Text("Today \(suggestion.time) · 12 min walk for both")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(NOWColor.inkSoft)
                     .lineLimit(2)
 
-                Button("Confirm place") {
-                    confirm()
+                HStack(spacing: 10) {
+                    Button("Accept") {
+                        confirm()
+                    }
+                    .font(.caption.weight(.heavy))
+                    .foregroundStyle(NOWColor.surface)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 11)
+                    .background(NOWColor.laCoral)
+                    .clipShape(Capsule())
+
+                    Button("Change") {}
+                        .font(.caption.weight(.heavy))
+                        .foregroundStyle(NOWColor.laBrown)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                        .background(NOWColor.paper)
+                        .clipShape(Capsule())
                 }
-                .font(.caption.weight(.black))
-                .foregroundStyle(NOWColor.ink)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background(NOWColor.lime)
-                .clipShape(Capsule())
             }
+            .padding(12)
         }
-        .padding(12)
         .background(NOWColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(NOWColor.line, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(NOWColor.laBrown.opacity(0.22), lineWidth: 1)
         )
+        .frame(maxWidth: 260, alignment: .leading)
     }
 }

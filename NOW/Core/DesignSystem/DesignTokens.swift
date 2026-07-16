@@ -2,20 +2,61 @@ import SwiftUI
 import UIKit
 
 enum NOWColor {
-    static let lime = Color(red: 0.87, green: 1.0, blue: 0.09)
-    static let limeSoft = Color(red: 0.94, green: 1.0, blue: 0.62)
-    static let paper = Color(red: 0.95, green: 0.95, blue: 0.93)
-    static let surface = Color.white
-    static let ink = Color(red: 0.15, green: 0.21, blue: 0.24)
-    static let slate = Color(red: 0.26, green: 0.34, blue: 0.38)
-    static let inkSoft = Color(red: 0.46, green: 0.49, blue: 0.50)
-    static let mapMist = Color(red: 0.84, green: 0.87, blue: 0.86)
-    static let mapLine = Color.white.opacity(0.58)
-    static let coral = Color(red: 0.78, green: 0.25, blue: 0.22)
-    static let line = Color(red: 0.86, green: 0.87, blue: 0.84)
+    static let lime = Color(red: 1.0, green: 0.73, blue: 0.25)
+    static let limeSoft = Color(red: 1.0, green: 0.86, blue: 0.45)
+    static let paper = Color(red: 1.0, green: 0.96, blue: 0.88)
+    static let surface = Color(red: 1.0, green: 0.98, blue: 0.94)
+    static let ink = Color(red: 0.19, green: 0.11, blue: 0.18)
+    static let slate = Color(red: 0.38, green: 0.25, blue: 0.19)
+    static let inkSoft = Color(red: 0.54, green: 0.42, blue: 0.33)
+    static let mapMist = Color(red: 0.94, green: 0.77, blue: 0.62)
+    static let mapLine = Color.white.opacity(0.42)
+    static let coral = Color(red: 0.94, green: 0.32, blue: 0.43)
+    static let line = Color(red: 0.85, green: 0.76, blue: 0.65)
+
+    static let laCream = Color(red: 1.0, green: 0.95, blue: 0.85)
+    static let laMapBase = Color(red: 0.93, green: 0.75, blue: 0.62)
+    static let laMauve = Color(red: 0.49, green: 0.41, blue: 0.46)
+    static let laBrown = Color(red: 0.34, green: 0.19, blue: 0.09)
+    static let laBrownSoft = Color(red: 0.46, green: 0.34, blue: 0.31)
+    static let laEspresso = Color(red: 0.19, green: 0.11, blue: 0.18)
+    static let laCoral = Color(red: 0.94, green: 0.32, blue: 0.43)
+    static let laOrange = Color(red: 1.0, green: 0.61, blue: 0.31)
+    static let laGold = Color(red: 1.0, green: 0.82, blue: 0.42)
+    static let laBlush = Color(red: 1.0, green: 0.47, blue: 0.50)
+    static let laGreen = Color(red: 0.42, green: 0.78, blue: 0.56)
 
     static let teal = lime
     static let tealPale = lime.opacity(0.22)
+}
+
+enum LAGradient {
+    static let sunset = LinearGradient(
+        colors: [NOWColor.laGold, NOWColor.laOrange, NOWColor.laCoral],
+        startPoint: .leading,
+        endPoint: .trailing
+    )
+
+    static let match = LinearGradient(
+        colors: [
+            NOWColor.laOrange,
+            NOWColor.laBlush,
+            NOWColor.laCoral,
+            NOWColor.laEspresso
+        ],
+        startPoint: .top,
+        endPoint: .bottom
+    )
+
+    static let mapWash = LinearGradient(
+        colors: [
+            NOWColor.laMapBase.opacity(0.52),
+            NOWColor.laCoral.opacity(0.18),
+            NOWColor.laEspresso.opacity(0.34)
+        ],
+        startPoint: .top,
+        endPoint: .bottom
+    )
 }
 
 enum NOWPhoto {
@@ -30,21 +71,19 @@ struct NOWLogo: View {
     var compact = false
 
     var body: some View {
-        HStack(spacing: compact ? 1 : 2) {
-            Text("N")
-            ZStack {
-                Text("O")
-                Circle()
-                    .stroke(NOWColor.ink, lineWidth: compact ? 1.6 : 2.4)
-                    .frame(width: compact ? 13 : 22, height: compact ? 13 : 22)
-                Circle()
-                    .fill(NOWColor.lime)
-                    .frame(width: compact ? 6 : 10, height: compact ? 6 : 10)
-            }
-            Text("W")
+        HStack(spacing: compact ? 5 : 8) {
+            Text("NOW")
+            Circle()
+                .fill(NOWColor.laOrange)
+                .frame(width: compact ? 7 : 11, height: compact ? 7 : 11)
         }
-        .font(.system(size: compact ? 22 : 48, weight: .black, design: .rounded))
-        .foregroundStyle(NOWColor.ink)
+        .font(.system(size: compact ? 15 : 44, weight: .heavy, design: .rounded))
+        .tracking(compact ? 1.2 : 0)
+        .foregroundStyle(compact ? NOWColor.surface : NOWColor.ink)
+        .padding(.horizontal, compact ? 12 : 0)
+        .padding(.vertical, compact ? 8 : 0)
+        .background(compact ? NOWColor.laBrownSoft.opacity(0.92) : .clear)
+        .clipShape(Capsule())
         .accessibilityLabel("NOW")
     }
 }
@@ -119,9 +158,10 @@ struct NOWChip: View {
             .minimumScaleFactor(0.82)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .foregroundStyle(active ? NOWColor.ink : NOWColor.slate)
-            .background(active ? NOWColor.lime : NOWColor.paper)
+            .foregroundStyle(active ? NOWColor.surface : NOWColor.laBrown)
+            .background(active ? NOWColor.laCoral : NOWColor.surface)
             .clipShape(Capsule())
+            .overlay(Capsule().stroke(active ? Color.clear : NOWColor.laBrown.opacity(0.62), lineWidth: 1.2))
     }
 }
 
@@ -148,9 +188,9 @@ struct PrimaryButtonStyle: ButtonStyle {
             .font(.headline.weight(.black))
             .frame(maxWidth: .infinity)
             .frame(height: 52)
-            .foregroundStyle(NOWColor.ink)
-            .background(NOWColor.lime.opacity(configuration.isPressed ? 0.76 : 1))
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .foregroundStyle(NOWColor.surface)
+            .background(LAGradient.sunset.opacity(configuration.isPressed ? 0.78 : 1))
+            .clipShape(Capsule())
     }
 }
 
@@ -160,9 +200,10 @@ struct SecondaryButtonStyle: ButtonStyle {
             .font(.subheadline.weight(.bold))
             .frame(maxWidth: .infinity)
             .frame(height: 46)
-            .foregroundStyle(NOWColor.ink)
-            .background(NOWColor.paper.opacity(configuration.isPressed ? 0.72 : 1))
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .foregroundStyle(NOWColor.laBrown)
+            .background(NOWColor.surface.opacity(configuration.isPressed ? 0.72 : 1))
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(NOWColor.laBrown.opacity(0.35), lineWidth: 1))
     }
 }
 
@@ -173,7 +214,51 @@ struct DangerButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity)
             .frame(height: 46)
             .foregroundStyle(.white)
-            .background(NOWColor.ink.opacity(configuration.isPressed ? 0.82 : 1))
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(NOWColor.laBrown.opacity(configuration.isPressed ? 0.82 : 1))
+            .clipShape(Capsule())
+    }
+}
+
+struct LATopStripe: View {
+    var body: some View {
+        HStack(spacing: 0) {
+            NOWColor.laCoral
+            NOWColor.laOrange
+            NOWColor.laGold
+            NOWColor.laGreen
+        }
+        .frame(height: 5)
+        .ignoresSafeArea(edges: .top)
+    }
+}
+
+struct LAPill: View {
+    let text: String
+    var icon: String?
+    var tint: Color = NOWColor.laBrownSoft
+    var foreground: Color = NOWColor.surface
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if let icon {
+                Circle()
+                    .fill(tint)
+                    .frame(width: 9, height: 9)
+                    .overlay(
+                        Image(systemName: icon)
+                            .font(.system(size: 5, weight: .black))
+                            .foregroundStyle(foreground)
+                    )
+            }
+            Text(text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+        }
+        .font(.caption2.weight(.heavy))
+        .foregroundStyle(foreground)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(NOWColor.laBrownSoft.opacity(0.92))
+        .clipShape(Capsule())
     }
 }
