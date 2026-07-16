@@ -256,6 +256,7 @@ struct ActiveMatchDetailDTO: Decodable {
     let messages: [MessageDTO]
     let latestMeetingProposal: MeetingProposalDTO?
     let latestMeetingStatus: MeetingStatusDTO?
+    let tomorrowExtension: TomorrowExtensionSummaryDTO?
     let flags: ActiveMatchFlagsDTO
 }
 
@@ -274,6 +275,8 @@ struct MatchDTO: Codable, Identifiable, Equatable {
     let status: MatchStatusDTO
     let createdAt: String
     let closedAt: String?
+    let extendedUntil: String?
+    let extensionAcceptedAt: String?
 }
 
 enum MatchStatusDTO: String, Codable {
@@ -282,6 +285,39 @@ enum MatchStatusDTO: String, Codable {
     case completed
     case expired
     case blocked
+}
+
+struct TomorrowExtensionSummaryDTO: Codable, Equatable {
+    let status: TomorrowExtensionStatusDTO
+    let requestId: UUID?
+    let requestedByMe: Bool
+    let extendedUntil: String?
+}
+
+struct TomorrowExtensionResponseDTO: Decodable {
+    let request: MatchExtensionRequestDTO
+    let matchItem: MatchDTO
+}
+
+struct MatchExtensionRequestDTO: Codable, Identifiable, Equatable {
+    let id: UUID
+    let matchId: UUID
+    let requestedByUserId: UUID
+    let requestedForDate: String
+    let status: TomorrowExtensionStatusDTO
+    let expiresAt: String
+    let createdAt: String
+    let respondedAt: String?
+    let respondedByUserId: UUID?
+}
+
+enum TomorrowExtensionStatusDTO: String, Codable {
+    case none
+    case proposed
+    case accepted
+    case rejected
+    case expired
+    case cancelled
 }
 
 struct CancelMatchRequestDTO: Encodable {
@@ -423,4 +459,3 @@ struct ReportUserRequestDTO: Encodable {
     let details: String?
     let matchId: UUID?
 }
-

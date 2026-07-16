@@ -167,6 +167,29 @@ enum MeetingProposalStatus: String {
     case rejected
 }
 
+enum TomorrowExtensionStatus: String {
+    case none
+    case proposed
+    case accepted
+    case rejected
+    case expired
+    case cancelled
+}
+
+struct TomorrowExtension {
+    var status: TomorrowExtensionStatus
+    var requestId: UUID?
+    var requestedByMe: Bool
+    var extendedUntil: String?
+
+    static let none = TomorrowExtension(
+        status: .none,
+        requestId: nil,
+        requestedByMe: false,
+        extendedUntil: nil
+    )
+}
+
 enum MessageSender {
     case me
     case them
@@ -211,6 +234,7 @@ struct Match: Identifiable {
     var myFirstLoopSent: Bool
     var theirFirstLoopReceived: Bool
     var meetingStatus: MeetingStatus
+    var tomorrowExtension: TomorrowExtension = .none
 }
 
 struct Message: Identifiable {

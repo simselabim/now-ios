@@ -6,6 +6,9 @@ struct ChatScreen: View {
 
     private var activePlan: Plan { appState.activeMatch?.profile.plan ?? .coffee }
     private var suggestion: MeetingSuggestion { activePlan.primaryMeetingSuggestion }
+    private var isExtendedForTomorrow: Bool {
+        appState.activeMatch?.tomorrowExtension.status == .accepted
+    }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -63,7 +66,20 @@ struct ChatScreen: View {
                             Bubble(text: message.text, sender: message.sender)
                         }
 
-                        PlaceSuggestionCard(suggestion: suggestion) {
+                        if let match = appState.activeMatch {
+                            TomorrowExtensionCard(
+                                match: match,
+                                isLoading: appState.isLoading,
+                                request: appState.requestTomorrowExtension,
+                                accept: appState.acceptTomorrowExtension,
+                                reject: appState.rejectTomorrowExtension
+                            )
+                        }
+
+                        PlaceSuggestionCard(
+                            suggestion: suggestion,
+                            dateLabel: isExtendedForTomorrow ? "Tomorrow" : "Today"
+                        ) {
                             appState.createMeetingProposal()
                         }
                     }
@@ -156,6 +172,7 @@ private struct Bubble: View {
 
 private struct PlaceSuggestionCard: View {
     let suggestion: MeetingSuggestion
+    let dateLabel: String
     let confirm: () -> Void
 
     var body: some View {
@@ -168,7 +185,7 @@ private struct PlaceSuggestionCard: View {
                 Text(suggestion.placeName)
                     .font(.headline.weight(.black))
                     .foregroundStyle(NOWColor.laBrown)
-                Text("Today \(suggestion.time) · 12 min walk for both")
+                Text("\(dateLabel) \(suggestion.time) · 12 min walk for both")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(NOWColor.inkSoft)
                     .lineLimit(2)
@@ -202,5 +219,158 @@ private struct PlaceSuggestionCard: View {
                 .stroke(NOWColor.laBrown.opacity(0.22), lineWidth: 1)
         )
         .frame(maxWidth: 260, alignment: .leading)
+    }
+}
+
+private struct TomorrowExtensionCard: View {
+    let match: Match
+    let isLoading: Bool
+    let request: () -> Void
+    let accept: () -> Void
+    let reject: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(indicatorColor)
+                    .frame(width: 10, height: 10)
+                Text(title)
+                    .font(.headline.weight(.black))
+                    .foregroundStyle(NOWColor.laBrown)
+                Spacer()
+            }
+
+            Text(bodyText)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(NOWColor.inkSoft)
+                .fixedSize(horizontal: false, vertical: true)
+
+            buttons
+        }
+        .padding(13)
+        .background(NOWColor.surface.opacity(0.96))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(NOWColor.laBrown.opacity(0.18), lineWidth: 1)
+        )
+        .frame(maxWidth: 260, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var buttons: some View {
+        switch match.tomorrowExtension.status {
+        case .none:
+            Button("Keep for tomorrow") {
+                request()
+            }
+            .disabled(isLoading)
+            .buttonStyle(TomorrowPrimaryButtonStyle())
+        case .proposed where match.tomorrowExtension.requestedByMe:
+            Text("Waiting for \(match.profile.name)")
+                .font(.caption.weight(.heavy))
+                .foregroundStyle(NOWColor.laBrown)
+                .padding(.vertical, 8)
+        case .proposed:
+            HStack(spacing: 8) {
+                Button("Accept") {
+                    accept()
+                }
+                .disabled(isLoading)
+                .buttonStyle(TomorrowPrimaryButtonStyle())
+
+                Button("No") {
+                    reject()
+                }
+                .disabled(isLoading)
+                .buttonStyle(TomorrowSecondaryButtonStyle())
+            }
+        case .accepted:
+            Text("Tomorrow plans are unlocked")
+                .font(.caption.weight(.heavy))
+                .foregroundStyle(NOWColor.laBrown)
+                .padding(.vertical, 8)
+        case .rejected, .expired, .cancelled:
+            Text("Today rules still apply")
+                .font(.caption.weight(.heavy))
+                .foregroundStyle(NOWColor.laBrown)
+                .padding(.vertical, 8)
+        }
+    }
+
+    private var title: String {
+        switch match.tomorrowExtension.status {
+        case .none:
+            return "Can't today?"
+        case .proposed where match.tomorrowExtension.requestedByMe:
+            return "Tomorrow request sent"
+        case .proposed:
+            return "\(match.profile.name) asked for tomorrow"
+        case .accepted:
+            return "Saved for tomorrow"
+        case .rejected:
+            return "Tomorrow declined"
+        case .expired:
+            return "Tomorrow expired"
+        case .cancelled:
+            return "Tomorrow cancelled"
+        }
+    }
+
+    private var bodyText: String {
+        switch match.tomorrowExtension.status {
+        case .none:
+            return "If today won't work, ask \(match.profile.name) to keep this match one more day."
+        case .proposed where match.tomorrowExtension.requestedByMe:
+            return "If they accept before sunset, you can set a meeting for tomorrow."
+        case .proposed:
+            return "Accept only if you still want to meet tomorrow. One extra day, no open-ended chat."
+        case .accepted:
+            return "You both kept this match. Set the place and time for tomorrow."
+        case .rejected:
+            return "The match stays on today's clock."
+        case .expired:
+            return "The request missed today's window."
+        case .cancelled:
+            return "The tomorrow request is no longer active."
+        }
+    }
+
+    private var indicatorColor: Color {
+        switch match.tomorrowExtension.status {
+        case .accepted:
+            return NOWColor.laGreen
+        case .proposed:
+            return NOWColor.laGold
+        case .rejected, .expired, .cancelled:
+            return NOWColor.laCoral
+        case .none:
+            return NOWColor.laOrange
+        }
+    }
+}
+
+private struct TomorrowPrimaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.caption.weight(.heavy))
+            .foregroundStyle(NOWColor.surface)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(NOWColor.laCoral.opacity(configuration.isPressed ? 0.75 : 1))
+            .clipShape(Capsule())
+    }
+}
+
+private struct TomorrowSecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.caption.weight(.heavy))
+            .foregroundStyle(NOWColor.laBrown)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(NOWColor.paper.opacity(configuration.isPressed ? 0.7 : 1))
+            .clipShape(Capsule())
     }
 }

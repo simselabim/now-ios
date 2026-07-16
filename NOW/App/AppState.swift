@@ -243,6 +243,69 @@ final class AppState: ObservableObject {
         }
     }
 
+    func requestTomorrowExtension() {
+        guard let match = activeMatch else { return }
+
+        Task {
+            await runLoading {
+                do {
+                    let response = try await self.apiClient.requestTomorrowExtension(matchId: match.id)
+                    self.applyTomorrowExtensionResponse(response)
+                } catch {
+                    self.activeMatch?.tomorrowExtension = TomorrowExtension(
+                        status: .proposed,
+                        requestId: UUID(),
+                        requestedByMe: true,
+                        extendedUntil: nil
+                    )
+                    self.errorMessage = "Demo mode: tomorrow request saved locally."
+                }
+            }
+        }
+    }
+
+    func acceptTomorrowExtension() {
+        guard let requestId = activeMatch?.tomorrowExtension.requestId else { return }
+
+        Task {
+            await runLoading {
+                do {
+                    let response = try await self.apiClient.acceptTomorrowExtension(requestId: requestId)
+                    self.applyTomorrowExtensionResponse(response)
+                } catch {
+                    self.activeMatch?.tomorrowExtension = TomorrowExtension(
+                        status: .accepted,
+                        requestId: requestId,
+                        requestedByMe: false,
+                        extendedUntil: "Tomorrow"
+                    )
+                    self.errorMessage = "Demo mode: match kept for tomorrow locally."
+                }
+            }
+        }
+    }
+
+    func rejectTomorrowExtension() {
+        guard let requestId = activeMatch?.tomorrowExtension.requestId else { return }
+
+        Task {
+            await runLoading {
+                do {
+                    let response = try await self.apiClient.rejectTomorrowExtension(requestId: requestId)
+                    self.applyTomorrowExtensionResponse(response)
+                } catch {
+                    self.activeMatch?.tomorrowExtension = TomorrowExtension(
+                        status: .rejected,
+                        requestId: requestId,
+                        requestedByMe: false,
+                        extendedUntil: nil
+                    )
+                    self.errorMessage = "Demo mode: tomorrow request declined locally."
+                }
+            }
+        }
+    }
+
     func createMeetingProposal() {
         guard let match = activeMatch else { return }
         let suggestion = match.profile.plan.primaryMeetingSuggestion
@@ -532,7 +595,11 @@ final class AppState: ObservableObject {
             status: mapMatchStatus(detail.matchItem.status),
             myFirstLoopSent: myLoopSent,
             theirFirstLoopReceived: theirLoopReceived,
-            meetingStatus: detail.latestMeetingStatus.map { mapMeetingStatus($0.status) } ?? .none
+            meetingStatus: detail.latestMeetingStatus.map { mapMeetingStatus($0.status) } ?? .none,
+            tomorrowExtension: mapTomorrowExtension(
+                detail.tomorrowExtension,
+                matchItem: detail.matchItem
+            )
         )
         messages = detail.messages.map { message in
             Message(
@@ -597,6 +664,13 @@ final class AppState: ObservableObject {
                 self.errorMessage = "Demo mode: message saved locally."
             }
         }
+    }
+
+    private func applyTomorrowExtensionResponse(_ response: TomorrowExtensionResponseDTO) {
+        activeMatch?.tomorrowExtension = mapTomorrowExtension(
+            request: response.request,
+            matchItem: response.matchItem
+        )
     }
 
     private func runLoading(_ operation: @escaping () async throws -> Void) async {
@@ -768,6 +842,56 @@ final class AppState: ObservableObject {
             return .arrived
         case .delayed:
             return .delayed
+        }
+    }
+
+    private func mapTomorrowExtension(
+        _ summary: TomorrowExtensionSummaryDTO?,
+        matchItem: MatchDTO
+    ) -> TomorrowExtension {
+        guard let summary else {
+            return TomorrowExtension(
+                status: matchItem.extendedUntil == nil ? .none : .accepted,
+                requestId: nil,
+                requestedByMe: false,
+                extendedUntil: matchItem.extendedUntil
+            )
+        }
+
+        return TomorrowExtension(
+            status: mapTomorrowExtensionStatus(summary.status),
+            requestId: summary.requestId,
+            requestedByMe: summary.requestedByMe,
+            extendedUntil: summary.extendedUntil
+        )
+    }
+
+    private func mapTomorrowExtension(
+        request: MatchExtensionRequestDTO,
+        matchItem: MatchDTO
+    ) -> TomorrowExtension {
+        TomorrowExtension(
+            status: mapTomorrowExtensionStatus(request.status),
+            requestId: request.id,
+            requestedByMe: request.requestedByUserId != matchItem.otherUserId,
+            extendedUntil: matchItem.extendedUntil
+        )
+    }
+
+    private func mapTomorrowExtensionStatus(_ status: TomorrowExtensionStatusDTO) -> TomorrowExtensionStatus {
+        switch status {
+        case .none:
+            return .none
+        case .proposed:
+            return .proposed
+        case .accepted:
+            return .accepted
+        case .rejected:
+            return .rejected
+        case .expired:
+            return .expired
+        case .cancelled:
+            return .cancelled
         }
     }
 

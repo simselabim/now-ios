@@ -129,6 +129,27 @@ final class NOWAPIClient {
         try await send(path: "/matches/active/detail")
     }
 
+    func requestTomorrowExtension(matchId: UUID) async throws -> TomorrowExtensionResponseDTO {
+        try await send(
+            path: "/matches/\(matchId.uuidString)/tomorrow-extension",
+            method: "POST"
+        )
+    }
+
+    func acceptTomorrowExtension(requestId: UUID) async throws -> TomorrowExtensionResponseDTO {
+        try await send(
+            path: "/match-extension-requests/\(requestId.uuidString)/accept",
+            method: "POST"
+        )
+    }
+
+    func rejectTomorrowExtension(requestId: UUID) async throws -> TomorrowExtensionResponseDTO {
+        try await send(
+            path: "/match-extension-requests/\(requestId.uuidString)/reject",
+            method: "POST"
+        )
+    }
+
     func sendFirstLoop(matchId: UUID, storageKey: String, durationMs: Int) async throws -> UploadFirstLoopResponseDTO {
         try await send(
             path: "/matches/\(matchId.uuidString)/loops",
