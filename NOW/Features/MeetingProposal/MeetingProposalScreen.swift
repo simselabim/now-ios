@@ -3,6 +3,15 @@ import SwiftUI
 struct MeetingProposalScreen: View {
     @EnvironmentObject private var appState: AppState
 
+    private var isMyProposal: Bool {
+        guard let currentUserId = appState.currentUserId,
+              let proposerUserId = appState.meetingProposal?.proposerUserId else {
+            return false
+        }
+
+        return currentUserId == proposerUserId
+    }
+
     var body: some View {
         ZStack(alignment: .top) {
             NOWColor.laCream.ignoresSafeArea()
@@ -33,7 +42,7 @@ struct MeetingProposalScreen: View {
                             Text(proposal.placeName)
                                 .font(.system(size: 32, weight: .heavy, design: .rounded))
                                 .foregroundStyle(.white)
-                            Text("Today · \(proposal.time) · public place · busy at this hour")
+                            Text("\(proposal.dateLabel) · \(proposal.time) · public place · busy at this hour")
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(.white.opacity(0.9))
                         }
@@ -50,10 +59,22 @@ struct MeetingProposalScreen: View {
                         .foregroundStyle(NOWColor.inkSoft)
                 }
 
-                Button("Accept meeting") {
-                    appState.acceptMeetingProposal()
+                if isMyProposal {
+                    NOWInfoCard {
+                        Text("Waiting for them.")
+                            .font(.headline.weight(.black))
+                            .foregroundStyle(NOWColor.laBrown)
+                        Text("The place and time are saved. Meeting mode opens after they accept.")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(NOWColor.inkSoft)
+                    }
+                } else {
+                    Button("Accept meeting") {
+                        appState.acceptMeetingProposal()
+                    }
+                    .disabled(appState.isLoading)
+                    .buttonStyle(PrimaryButtonStyle())
                 }
-                .buttonStyle(PrimaryButtonStyle())
 
                 Button("Suggest another place") {
                     appState.suggestAnotherMeetingPlace()

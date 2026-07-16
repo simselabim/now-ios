@@ -191,7 +191,7 @@ private struct PlaceSuggestionCard: View {
                     .lineLimit(2)
 
                 HStack(spacing: 10) {
-                    Button("Accept") {
+                    Button("Propose") {
                         confirm()
                     }
                     .font(.caption.weight(.heavy))

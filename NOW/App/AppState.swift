@@ -19,6 +19,7 @@ final class AppState: ObservableObject {
     @Published var meetingProposal: MeetingProposal?
     @Published var history: [HistoryItem] = MockData.history
     @Published var showHistory = false
+    @Published private(set) var currentUserId: UUID?
 
     private let apiClient: NOWAPIClient
     private let locationService: LocationService
@@ -57,6 +58,7 @@ final class AppState: ObservableObject {
         isOnline = false
         isLoading = false
         errorMessage = nil
+        currentUserId = nil
         showHistory = false
         selectedPoint = nil
         activeMatch = nil
@@ -102,9 +104,11 @@ final class AppState: ObservableObject {
             meetingProposal = MeetingProposal(
                 id: UUID(),
                 matchId: match.id,
+                proposerUserId: nil,
                 placeName: suggestion.placeName,
                 coordinate: suggestion.coordinate,
                 time: suggestion.time,
+                dateLabel: "Today",
                 status: .accepted
             )
         default:
@@ -309,30 +313,99 @@ final class AppState: ObservableObject {
     func createMeetingProposal() {
         guard let match = activeMatch else { return }
         let suggestion = match.profile.plan.primaryMeetingSuggestion
-        meetingProposal = MeetingProposal(
-            id: UUID(),
-            matchId: match.id,
-            placeName: suggestion.placeName,
-            coordinate: suggestion.coordinate,
-            time: suggestion.time,
-            status: .pending
-        )
+
+        Task {
+            await runLoading {
+                let scheduledDate = self.scheduledDate(for: suggestion.time)
+                do {
+                    let proposal = try await self.apiClient.createMeetingProposal(
+                        matchId: match.id,
+                        request: CreateProposalRequestDTO(
+                            placeName: suggestion.placeName,
+                            placeLat: suggestion.coordinate.latitude,
+                            placeLng: suggestion.coordinate.longitude,
+                            proposedTime: self.isoString(from: scheduledDate),
+                            format: self.mapMeetingFormat(match.profile.plan),
+                            note: nil
+                        )
+                    )
+                    self.meetingProposal = self.mapMeetingProposal(proposal)
+                } catch {
+                    self.meetingProposal = MeetingProposal(
+                        id: UUID(),
+                        matchId: match.id,
+                        proposerUserId: self.currentUserId,
+                        placeName: suggestion.placeName,
+                        coordinate: suggestion.coordinate,
+                        time: self.displayTime(from: scheduledDate),
+                        dateLabel: self.dateLabel(for: scheduledDate),
+                        status: .pending
+                    )
+                    self.errorMessage = "Demo mode: meeting proposal saved locally."
+                }
+            }
+        }
     }
 
     func acceptMeetingProposal() {
-        meetingProposal?.status = .accepted
-        activeMatch?.meetingStatus = .onMyWay
+        guard let proposal = meetingProposal else { return }
+
+        if let currentUserId, proposal.proposerUserId == currentUserId {
+            errorMessage = "Waiting for the other person to accept."
+            return
+        }
+
+        Task {
+            await runLoading {
+                do {
+                    let response = try await self.apiClient.acceptMeetingProposal(
+                        matchId: proposal.matchId,
+                        proposalId: proposal.id
+                    )
+                    self.meetingProposal = self.mapMeetingProposal(response)
+                    self.activeMatch?.meetingStatus = .onMyWay
+                } catch {
+                    self.meetingProposal?.status = .accepted
+                    self.activeMatch?.meetingStatus = .onMyWay
+                    self.errorMessage = "Demo mode: meeting accepted locally."
+                }
+            }
+        }
     }
 
     func suggestAnotherMeetingPlace() {
         guard var proposal = meetingProposal else { return }
         let plan = activeMatch?.profile.plan ?? .coffee
         let nextSuggestion = proposal.placeName == plan.primaryMeetingSuggestion.placeName ? plan.alternateMeetingSuggestion : plan.primaryMeetingSuggestion
-        proposal.placeName = nextSuggestion.placeName
-        proposal.coordinate = nextSuggestion.coordinate
-        proposal.time = nextSuggestion.time
-        proposal.status = .pending
-        meetingProposal = proposal
+
+        Task {
+            await runLoading {
+                let scheduledDate = self.scheduledDate(for: nextSuggestion.time)
+                do {
+                    let response = try await self.apiClient.updateMeetingProposal(
+                        matchId: proposal.matchId,
+                        proposalId: proposal.id,
+                        request: UpdateProposalRequestDTO(
+                            placeName: nextSuggestion.placeName,
+                            placeLat: nextSuggestion.coordinate.latitude,
+                            placeLng: nextSuggestion.coordinate.longitude,
+                            proposedTime: self.isoString(from: scheduledDate),
+                            format: self.mapMeetingFormat(plan),
+                            note: nil
+                        )
+                    )
+                    self.meetingProposal = self.mapMeetingProposal(response)
+                } catch {
+                    proposal.placeName = nextSuggestion.placeName
+                    proposal.coordinate = nextSuggestion.coordinate
+                    proposal.time = self.displayTime(from: scheduledDate)
+                    proposal.dateLabel = self.dateLabel(for: scheduledDate)
+                    proposal.status = .pending
+                    self.meetingProposal = proposal
+                    self.errorMessage = "Demo mode: alternate place saved locally."
+                }
+            }
+        }
     }
 
     func declineMeetingPlace() {
@@ -399,7 +472,8 @@ final class AppState: ObservableObject {
     private func demoLoginAndBootstrap(email: String) async {
         await runLoading {
             do {
-                _ = try await self.apiClient.login(email: email, password: "password123")
+                let auth = try await self.apiClient.login(email: email, password: "password123")
+                self.currentUserId = auth.user.id
                 self.isAuthenticated = true
                 try await self.applyBootstrap(self.apiClient.bootstrap())
             } catch {
@@ -415,6 +489,7 @@ final class AppState: ObservableObject {
     }
 
     private func applyBootstrap(_ bootstrap: BootstrapResponseDTO) async throws {
+        currentUserId = bootstrap.user.id
         isProfileComplete = !(bootstrap.requirements.profileRequired)
         isOnline = false
         activeMatch = bootstrap.activeMatch.map { matchDTO in
@@ -610,17 +685,9 @@ final class AppState: ObservableObject {
             )
         }
         if let proposal = detail.latestMeetingProposal {
-            meetingProposal = MeetingProposal(
-                id: proposal.id,
-                matchId: proposal.matchId,
-                placeName: proposal.placeName,
-                coordinate: CLLocationCoordinate2D(
-                    latitude: proposal.placeLat ?? 40.7410,
-                    longitude: proposal.placeLng ?? -73.9897
-                ),
-                time: proposal.proposedTime,
-                status: proposal.status == "accepted" ? .accepted : .pending
-            )
+            meetingProposal = mapMeetingProposal(proposal)
+        } else {
+            meetingProposal = nil
         }
     }
 
@@ -843,6 +910,93 @@ final class AppState: ObservableObject {
         case .delayed:
             return .delayed
         }
+    }
+
+    private func mapMeetingProposal(_ dto: MeetingProposalDTO) -> MeetingProposal {
+        let proposedDate = date(from: dto.proposedTime)
+
+        return MeetingProposal(
+            id: dto.id,
+            matchId: dto.matchId,
+            proposerUserId: dto.proposerUserId,
+            placeName: dto.placeName,
+            coordinate: CLLocationCoordinate2D(
+                latitude: dto.placeLat ?? 34.0928,
+                longitude: dto.placeLng ?? -118.2773
+            ),
+            time: proposedDate.map { displayTime(from: $0) } ?? dto.proposedTime,
+            dateLabel: proposedDate.map { dateLabel(for: $0) } ?? "Today",
+            status: mapMeetingProposalStatus(dto.status)
+        )
+    }
+
+    private func mapMeetingProposalStatus(_ status: String) -> MeetingProposalStatus {
+        switch status {
+        case "accepted":
+            return .accepted
+        case "rejected", "cancelled":
+            return .rejected
+        default:
+            return .pending
+        }
+    }
+
+    private func mapMeetingFormat(_ plan: Plan) -> MeetingFormatDTO {
+        switch plan {
+        case .coffee:
+            return .coffee
+        case .walk:
+            return .walk
+        case .lunch:
+            return .lunch
+        case .dinner:
+            return .dinner
+        case .activity:
+            return .activity
+        }
+    }
+
+    private func scheduledDate(for displayTime: String) -> Date {
+        let calendar = Calendar.current
+        let now = Date()
+        let targetDay = activeMatch?.tomorrowExtension.status == .accepted
+            ? calendar.date(byAdding: .day, value: 1, to: now) ?? now
+            : now
+        let parts = displayTime.split(separator: ":")
+        let hour = parts.first.flatMap { Int($0) } ?? calendar.component(.hour, from: now)
+        let minute = parts.dropFirst().first.flatMap { Int($0) } ?? calendar.component(.minute, from: now)
+        var components = calendar.dateComponents([.year, .month, .day], from: targetDay)
+        components.hour = hour
+        components.minute = minute
+        components.second = 0
+        let proposed = calendar.date(from: components) ?? now
+
+        if proposed <= now {
+            return calendar.date(byAdding: .minute, value: 30, to: now) ?? now
+        }
+
+        return proposed
+    }
+
+    private func isoString(from date: Date) -> String {
+        ISO8601DateFormatter().string(from: date)
+    }
+
+    private func date(from string: String) -> Date? {
+        ISO8601DateFormatter().date(from: string)
+    }
+
+    private func displayTime(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
+    }
+
+    private func dateLabel(for date: Date) -> String {
+        if Calendar.current.isDateInTomorrow(date) {
+            return "Tomorrow"
+        }
+        return "Today"
     }
 
     private func mapTomorrowExtension(

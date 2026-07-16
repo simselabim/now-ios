@@ -247,9 +247,11 @@ struct Message: Identifiable {
 struct MeetingProposal: Identifiable {
     let id: UUID
     let matchId: UUID
+    var proposerUserId: UUID?
     var placeName: String
     var coordinate: CLLocationCoordinate2D
     var time: String
+    var dateLabel: String
     var status: MeetingProposalStatus
 }
 
