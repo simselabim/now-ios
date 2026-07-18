@@ -421,25 +421,38 @@ final class AppState: ObservableObject {
     }
 
     func updateMeetingStatus(_ status: MeetingStatus) {
-        activeMatch?.meetingStatus = status
+        guard let match = activeMatch, status != .none else { return }
+
+        Task {
+            await runLoading {
+                do {
+                    let response = try await self.apiClient.updateMeetingStatus(
+                        matchId: match.id,
+                        status: self.mapMeetingStatus(status)
+                    )
+                    self.activeMatch?.meetingStatus = self.mapMeetingStatus(response.status)
+                } catch {
+                    self.activeMatch?.meetingStatus = status
+                    self.errorMessage = "Demo mode: meeting status saved locally."
+                }
+            }
+        }
     }
 
     func weMet() {
         guard let match = activeMatch else { return }
-        history.insert(
-            HistoryItem(
-                id: UUID(),
-                name: match.profile.name,
-                detail: "\(match.profile.plan.rawValue) today",
-                status: "Awaiting confirmation"
-            ),
-            at: 0
-        )
-        activeMatch = nil
-        meetingProposal = nil
-        messages = []
-        showHistory = true
-        isOnline = false
+
+        Task {
+            await runLoading {
+                do {
+                    let response = try await self.apiClient.weMet(matchId: match.id)
+                    self.finishWeMetFlow(match: match, completed: response.completed)
+                } catch {
+                    self.finishWeMetFlow(match: match, completed: false)
+                    self.errorMessage = "Demo mode: We Met saved locally."
+                }
+            }
+        }
     }
 
     func cancelMatch() {
@@ -733,6 +746,23 @@ final class AppState: ObservableObject {
         }
     }
 
+    private func finishWeMetFlow(match: Match, completed: Bool) {
+        history.insert(
+            HistoryItem(
+                id: UUID(),
+                name: match.profile.name,
+                detail: "\(match.profile.plan.rawValue) \(meetingProposal?.dateLabel.lowercased() ?? "today")",
+                status: completed ? "Completed" : "Awaiting confirmation"
+            ),
+            at: 0
+        )
+        activeMatch = nil
+        meetingProposal = nil
+        messages = []
+        showHistory = true
+        isOnline = false
+    }
+
     private func applyTomorrowExtensionResponse(_ response: TomorrowExtensionResponseDTO) {
         activeMatch?.tomorrowExtension = mapTomorrowExtension(
             request: response.request,
@@ -909,6 +939,19 @@ final class AppState: ObservableObject {
             return .arrived
         case .delayed:
             return .delayed
+        }
+    }
+
+    private func mapMeetingStatus(_ status: MeetingStatus) -> MeetingStatusValueDTO {
+        switch status {
+        case .onMyWay:
+            return .onMyWay
+        case .arrived:
+            return .arrived
+        case .delayed:
+            return .delayed
+        case .none:
+            return .onMyWay
         }
     }
 
