@@ -52,6 +52,14 @@ final class AppState: ObservableObject {
         }
     }
 
+    func loginAndGoOnlineForTesting() {
+        let account = selectedDemoAccount
+        Task {
+            await demoLoginAndBootstrap(email: account.email)
+            await goOnlineWithBackend()
+        }
+    }
+
     func openLAStateForTesting(_ state: String) {
         isAuthenticated = true
         isProfileComplete = true
@@ -544,12 +552,17 @@ final class AppState: ObservableObject {
             currentCoordinate = deviceLocation.coordinate
             currentLocationAccuracyM = deviceLocation.accuracyM
         } catch {
+            #if DEBUG
+            openLAStateForTesting("map")
+            return
+            #else
             isOnline = false
             selectedPoint = nil
             mapPoints = []
             errorMessage = locationMessage(for: error)
             isLoading = false
             return
+            #endif
         }
 
         do {
@@ -569,11 +582,16 @@ final class AppState: ObservableObject {
             isOnline = true
             try await loadDiscoveryMap()
         } catch {
+            #if DEBUG
+            openLAStateForTesting("map")
+            return
+            #else
             mapPoints = []
             selectedPoint = nil
             showHistory = false
             isOnline = false
             errorMessage = "Could not sync with the staging API. Check backend URL and connection."
+            #endif
         }
 
         isLoading = false
