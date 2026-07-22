@@ -48,7 +48,7 @@ final class AppState: ObservableObject {
         let account = selectedDemoAccount
         Task {
             await demoLoginAndBootstrap(email: account.email)
-            await goOnlineWithBackend()
+            openLAStateForTesting("map")
         }
     }
 
