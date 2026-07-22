@@ -25,6 +25,8 @@ struct DiscoveryMapScreen: View {
         .overlay(alignment: .top) {
             MapHeader(isLoading: appState.isLoading, back: {
                 appState.goBackForTesting()
+            }, recenter: {
+                recenterOnUser()
             }, refresh: {
                 appState.refreshActiveMatch()
             }, goOffline: {
@@ -70,11 +72,28 @@ struct DiscoveryMapScreen: View {
     private func rounded(_ value: CLLocationDegrees) -> String {
         String(format: "%.5f", value)
     }
+
+    private func recenterOnUser() {
+        let region: MKCoordinateRegion
+        if let currentCoordinate = appState.currentCoordinate {
+            region = MKCoordinateRegion(
+                center: currentCoordinate,
+                span: MKCoordinateSpan(latitudeDelta: 0.018, longitudeDelta: 0.018)
+            )
+        } else {
+            region = .fitting(points: appState.visibleMapPoints, userCoordinate: appState.currentCoordinate)
+        }
+
+        withAnimation(.easeInOut(duration: 0.35)) {
+            cameraPosition = .region(region)
+        }
+    }
 }
 
 private struct MapHeader: View {
     let isLoading: Bool
     let back: () -> Void
+    let recenter: () -> Void
     let refresh: () -> Void
     let goOffline: () -> Void
 
@@ -104,6 +123,19 @@ private struct MapHeader: View {
                 }
 
                 Button {
+                    recenter()
+                } label: {
+                    Image(systemName: "location.fill")
+                        .font(.caption.weight(.black))
+                        .foregroundStyle(NOWColor.laBrown)
+                        .frame(width: 42, height: 42)
+                        .background(NOWColor.surface.opacity(0.9))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Center on me")
+
+                Button {
                     refresh()
                 } label: {
                     Image(systemName: "arrow.clockwise")
@@ -126,7 +158,7 @@ private struct MapHeader: View {
                 .clipShape(Capsule())
             }
 
-            LAPill(text: "Silver Lake · nearby · sunset 19:58", icon: nil)
+            LAPill(text: "Canggu · nearby · sunset 18:17", icon: nil)
         }
     }
 }
@@ -182,7 +214,7 @@ private struct LiveDiscoveryMap: View {
 
 private extension MKCoordinateRegion {
     static let nowFallback = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 34.0928, longitude: -118.2773),
+        center: CLLocationCoordinate2D(latitude: -8.6504, longitude: 115.1387),
         span: MKCoordinateSpan(latitudeDelta: 0.025, longitudeDelta: 0.025)
     )
 
@@ -360,6 +392,6 @@ private struct MapPersonCard: View {
         guard let profile = point?.profile else {
             return "Open to meet today. Tap a live point."
         }
-        return "\(profile.plan.rawValue) in Silver Lake · \(profile.distance)"
+        return "\(profile.plan.rawValue) in Canggu · \(profile.distance)"
     }
 }
