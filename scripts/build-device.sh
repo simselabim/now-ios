@@ -6,7 +6,7 @@ SCHEME="NOW"
 CONFIGURATION="${CONFIGURATION:-Debug}"
 DERIVED_DATA_PATH="${DERIVED_DATA_PATH:-$PWD/build/DerivedData}"
 BUNDLE_ID="${BUNDLE_ID:-com.sim.now}"
-NOW_API_BASE_URL="${NOW_API_BASE_URL:-}"
+NOW_API_BASE_URL="${NOW_API_BASE_URL:-http://68.183.179.8:8080}"
 DEVELOPMENT_TEAM="${DEVELOPMENT_TEAM:-}"
 DEVICE_ID="${DEVICE_ID:-}"
 RUN_AFTER_INSTALL="${RUN_AFTER_INSTALL:-0}"
@@ -20,10 +20,10 @@ Usage:
   scripts/build-device.sh devices
 
 Required for build/install:
-  NOW_API_BASE_URL     Backend URL, for example http://203.0.113.10:8080
   DEVELOPMENT_TEAM     Apple Developer Team ID
 
 Optional:
+  NOW_API_BASE_URL     Backend URL. Default: http://68.183.179.8:8080
   BUNDLE_ID            Bundle identifier. Default: com.sim.now
   DEVICE_ID            Physical iPhone identifier. Required for install.
   CONFIGURATION        Debug or Release. Default: Debug
@@ -31,13 +31,11 @@ Optional:
   RUN_AFTER_INSTALL    Set to 1 to launch the app after install.
 
 Examples:
-  NOW_API_BASE_URL=http://203.0.113.10:8080 \
   DEVELOPMENT_TEAM=ABCDE12345 \
   BUNDLE_ID=com.example.now.staging \
   scripts/build-device.sh build
 
   DEVICE_ID=00008130-001C2D1234567890 \
-  NOW_API_BASE_URL=http://203.0.113.10:8080 \
   DEVELOPMENT_TEAM=ABCDE12345 \
   BUNDLE_ID=com.example.now.staging \
   RUN_AFTER_INSTALL=1 \
@@ -57,11 +55,6 @@ require_xcode() {
 }
 
 require_build_env() {
-  if [[ -z "$NOW_API_BASE_URL" ]]; then
-    echo "NOW_API_BASE_URL is required for a phone build."
-    exit 1
-  fi
-
   if [[ -z "$DEVELOPMENT_TEAM" ]]; then
     echo "DEVELOPMENT_TEAM is required for automatic signing."
     exit 1

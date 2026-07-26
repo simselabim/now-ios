@@ -97,13 +97,14 @@ Target:
 NOW
 ```
 
-Local simulator backend URL:
+Default backend URL for simulator and phone builds:
 
 ```text
-http://127.0.0.1:8080
+http://68.183.179.8:8080
 ```
 
-Before running the app, start the backend:
+For local-only development, override `NOW_API_BASE_URL` to `http://127.0.0.1:8080`
+and start the backend:
 
 ```bash
 cd /Users/dim4egster/Projects/now_back
@@ -153,11 +154,10 @@ xcrun simctl launch booted com.sim.now --auto-open-map
 
 ## Physical iPhone Staging Build
 
-The app can be built for a real iPhone against a public staging backend, for
-example:
+The app is configured to use the public staging backend by default:
 
 ```text
-http://<server-ip>:8080
+http://68.183.179.8:8080
 ```
 
 Prerequisites on the Mac:
@@ -179,7 +179,6 @@ List connected devices:
 Build a phone app:
 
 ```bash
-NOW_API_BASE_URL=http://<server-ip>:8080 \
 DEVELOPMENT_TEAM=<APPLE_TEAM_ID> \
 BUNDLE_ID=com.example.now.staging \
 ./scripts/build-device.sh build
@@ -189,7 +188,6 @@ Install and launch on a connected iPhone:
 
 ```bash
 DEVICE_ID=<IPHONE_DEVICE_ID> \
-NOW_API_BASE_URL=http://<server-ip>:8080 \
 DEVELOPMENT_TEAM=<APPLE_TEAM_ID> \
 BUNDLE_ID=com.example.now.staging \
 RUN_AFTER_INSTALL=1 \
@@ -229,7 +227,7 @@ NOW/Core/Media/
 ```
 
 Start with `NOWAPIClient`, `APIEnvironment`, `AuthTokenStore`, backend DTOs, and
-`MediaUploadService`. The local simulator default is `http://127.0.0.1:8080`.
+`MediaUploadService`. The default backend is `http://68.183.179.8:8080`.
 
 Demo login:
 

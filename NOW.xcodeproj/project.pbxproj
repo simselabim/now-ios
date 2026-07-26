@@ -433,7 +433,7 @@
 				INFOPLIST_FILE = NOW/Resources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
-				NOW_API_BASE_URL = "http://127.0.0.1:8080";
+				NOW_API_BASE_URL = "http://68.183.179.8:8080";
 				PRODUCT_BUNDLE_IDENTIFIER = com.sim.now;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -457,7 +457,7 @@
 				INFOPLIST_FILE = NOW/Resources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MARKETING_VERSION = 1.0;
-				NOW_API_BASE_URL = "http://127.0.0.1:8080";
+				NOW_API_BASE_URL = "http://68.183.179.8:8080";
 				PRODUCT_BUNDLE_IDENTIFIER = com.sim.now;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
