@@ -104,49 +104,49 @@ enum MockData {
         MapPoint(
             id: UUID(),
             profile: maya,
-            approximateCoordinate: CLLocationCoordinate2D(latitude: -8.6504, longitude: 115.1387),
+            approximateCoordinate: CLLocationCoordinate2D(latitude: -8.667630, longitude: 115.139708),
             state: .unseen,
             isMutualMock: true
         ),
         MapPoint(
             id: UUID(),
             profile: ren,
-            approximateCoordinate: CLLocationCoordinate2D(latitude: -8.6521, longitude: 115.1358),
+            approximateCoordinate: CLLocationCoordinate2D(latitude: -8.669330, longitude: 115.136808),
             state: .unseen,
             isMutualMock: false
         ),
         MapPoint(
             id: UUID(),
             profile: ana,
-            approximateCoordinate: CLLocationCoordinate2D(latitude: -8.6488, longitude: 115.1411),
+            approximateCoordinate: CLLocationCoordinate2D(latitude: -8.666030, longitude: 115.142108),
             state: .unseen,
             isMutualMock: false
         ),
         MapPoint(
             id: UUID(),
             profile: leo,
-            approximateCoordinate: CLLocationCoordinate2D(latitude: -8.6494, longitude: 115.1346),
+            approximateCoordinate: CLLocationCoordinate2D(latitude: -8.666630, longitude: 115.135608),
             state: .unseen,
             isMutualMock: true
         ),
         MapPoint(
             id: UUID(),
             profile: lina,
-            approximateCoordinate: CLLocationCoordinate2D(latitude: -8.6530, longitude: 115.1422),
+            approximateCoordinate: CLLocationCoordinate2D(latitude: -8.670230, longitude: 115.143208),
             state: .viewed,
             isMutualMock: false
         ),
         MapPoint(
             id: UUID(),
             profile: ethan,
-            approximateCoordinate: CLLocationCoordinate2D(latitude: -8.6467, longitude: 115.1369),
+            approximateCoordinate: CLLocationCoordinate2D(latitude: -8.663930, longitude: 115.137908),
             state: .triedBefore,
             isMutualMock: true
         ),
         MapPoint(
             id: UUID(),
             profile: nora,
-            approximateCoordinate: CLLocationCoordinate2D(latitude: -8.6541, longitude: 115.1395),
+            approximateCoordinate: CLLocationCoordinate2D(latitude: -8.671330, longitude: 115.140508),
             state: .unseen,
             isMutualMock: false
         )

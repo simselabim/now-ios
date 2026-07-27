@@ -547,23 +547,27 @@ final class AppState: ObservableObject {
         errorMessage = nil
 
         let deviceLocation: DeviceLocation
+        #if DEBUG
+        deviceLocation = DeviceLocation(
+            coordinate: CLLocationCoordinate2D(latitude: -8.667630, longitude: 115.139708),
+            accuracyM: 25
+        )
+        currentCoordinate = deviceLocation.coordinate
+        currentLocationAccuracyM = deviceLocation.accuracyM
+        #else
         do {
             deviceLocation = try await locationService.currentLocation()
             currentCoordinate = deviceLocation.coordinate
             currentLocationAccuracyM = deviceLocation.accuracyM
         } catch {
-            #if DEBUG
-            openLAStateForTesting("map")
-            return
-            #else
             isOnline = false
             selectedPoint = nil
             mapPoints = []
             errorMessage = locationMessage(for: error)
             isLoading = false
             return
-            #endif
         }
+        #endif
 
         do {
             _ = try await apiClient.updateTodayIntent(

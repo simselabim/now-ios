@@ -214,7 +214,7 @@ private struct LiveDiscoveryMap: View {
 
 private extension MKCoordinateRegion {
     static let nowFallback = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: -8.6504, longitude: 115.1387),
+        center: CLLocationCoordinate2D(latitude: -8.667630, longitude: 115.139708),
         span: MKCoordinateSpan(latitudeDelta: 0.025, longitudeDelta: 0.025)
     )
 

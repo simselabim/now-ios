@@ -5,7 +5,7 @@ struct MeetingModeScreen: View {
     @EnvironmentObject private var appState: AppState
     @State private var cameraPosition: MapCameraPosition = .region(
         MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: -8.6504, longitude: 115.1387),
+            center: CLLocationCoordinate2D(latitude: -8.667630, longitude: 115.139708),
             span: MKCoordinateSpan(latitudeDelta: 0.014, longitudeDelta: 0.014)
         )
     )
@@ -48,11 +48,11 @@ struct MeetingModeScreen: View {
                     }
                 }
 
-                Annotation("You", coordinate: CLLocationCoordinate2D(latitude: -8.6515, longitude: 115.1372), anchor: .center) {
+                Annotation("You", coordinate: CLLocationCoordinate2D(latitude: -8.668730, longitude: 115.138208), anchor: .center) {
                     MeetingAvatar(image: NOWPhoto.streetCoffee, label: "You · 6 min")
                 }
 
-                Annotation(appState.activeMatch?.profile.name ?? "Maya", coordinate: CLLocationCoordinate2D(latitude: -8.6491, longitude: 115.1406), anchor: .center) {
+                Annotation(appState.activeMatch?.profile.name ?? "Maya", coordinate: CLLocationCoordinate2D(latitude: -8.666330, longitude: 115.141608), anchor: .center) {
                     MeetingAvatar(image: NOWPhoto.person, label: "\(appState.activeMatch?.profile.name ?? "Maya") · 9 min")
                 }
             }
