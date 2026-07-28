@@ -11,6 +11,12 @@ struct APIEnvironment: Equatable {
         APIEnvironment(baseURL: URL(string: "http://\(macLANIP):\(port)")!)
     }
 
+    func mediaURL(storageKey: String) -> URL? {
+        URL(
+            string: "\(baseURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/dev/uploads/\(storageKey)"
+        )
+    }
+
     private static var configuredBaseURL: URL? {
         guard
             let value = Bundle.main.object(forInfoDictionaryKey: "NOWAPIBaseURL") as? String,

@@ -55,11 +55,8 @@ struct ChatScreen: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
-                        LoopMessage()
-
-                        if appState.messages.isEmpty {
-                            Bubble(text: "Okay that view! Matcha first, reservoir after?", sender: .me)
-                            Bubble(text: "Deal. There's a spot on Sunset - best matcha east of the 101", sender: .them)
+                        if let loopURL = appState.theirFirstLoopURL {
+                            LoopMessage(url: loopURL)
                         }
 
                         ForEach(appState.messages) { message in
@@ -130,25 +127,17 @@ struct ChatScreen: View {
 }
 
 private struct LoopMessage: View {
+    let url: URL
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            ZStack {
-                BundlePhoto(name: NOWPhoto.person)
-                    .frame(width: 84, height: 84)
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(NOWColor.laOrange, lineWidth: 3))
-                Image(systemName: "play.fill")
-                    .font(.headline.weight(.black))
-                    .foregroundStyle(NOWColor.surface)
-            }
-            Text("0:09")
-                .font(.caption2.weight(.heavy))
-                .foregroundStyle(NOWColor.laGold)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(NOWColor.laBrown.opacity(0.75))
-                .clipShape(Capsule())
-                .offset(x: 46, y: -22)
+            LoopVideoPlayer(url: url)
+                .frame(width: 180, height: 240)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(NOWColor.laOrange, lineWidth: 3)
+                )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

@@ -1,7 +1,11 @@
 import SwiftUI
+import AVKit
+import UniformTypeIdentifiers
+import UIKit
 
 struct FirstLoopScreen: View {
     @EnvironmentObject private var appState: AppState
+    @State private var showVideoCapture = false
 
     var body: some View {
         ZStack {
@@ -65,16 +69,17 @@ struct FirstLoopScreen: View {
                             .stroke(NOWColor.surface.opacity(0.22), lineWidth: 1)
                     )
 
+                    if let url = appState.theirFirstLoopURL {
+                        LoopVideoPlayer(url: url)
+                            .frame(height: 180)
+                            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    }
+
                     Button(match.myFirstLoopSent ? "Waiting for their loop" : "Record a loop") {
-                        appState.sendFirstLoop()
+                        showVideoCapture = true
                     }
                     .disabled(match.myFirstLoopSent)
                     .buttonStyle(LightButtonStyle())
-
-                    Button("Type instead") {
-                        appState.sendFirstLoop()
-                    }
-                    .buttonStyle(OutlineLightButtonStyle())
 
                     Button("Close kindly") {
                         appState.cancelMatch()
@@ -87,6 +92,76 @@ struct FirstLoopScreen: View {
                 }
                 .padding(22)
             }
+        }
+        .sheet(isPresented: $showVideoCapture) {
+            VideoCapturePicker { url in
+                showVideoCapture = false
+                appState.sendFirstLoop(videoURL: url)
+            }
+            .ignoresSafeArea()
+        }
+    }
+}
+
+struct LoopVideoPlayer: View {
+    @State private var player: AVPlayer
+
+    init(url: URL) {
+        _player = State(initialValue: AVPlayer(url: url))
+    }
+
+    var body: some View {
+        VideoPlayer(player: player)
+            .onDisappear {
+                player.pause()
+            }
+    }
+}
+
+private struct VideoCapturePicker: UIViewControllerRepresentable {
+    let onPicked: (URL) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onPicked: onPicked)
+    }
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        let canUseCamera = UIImagePickerController.isSourceTypeAvailable(.camera)
+        picker.sourceType = canUseCamera ? .camera : .photoLibrary
+        picker.mediaTypes = [UTType.movie.identifier]
+        picker.videoMaximumDuration = 10
+        picker.videoQuality = .typeMedium
+        picker.allowsEditing = true
+        if canUseCamera {
+            picker.cameraCaptureMode = .video
+        }
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        private let onPicked: (URL) -> Void
+
+        init(onPicked: @escaping (URL) -> Void) {
+            self.onPicked = onPicked
+        }
+
+        func imagePickerController(
+            _ picker: UIImagePickerController,
+            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+        ) {
+            guard let url = info[.mediaURL] as? URL else {
+                picker.dismiss(animated: true)
+                return
+            }
+            onPicked(url)
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            picker.dismiss(animated: true)
         }
     }
 }

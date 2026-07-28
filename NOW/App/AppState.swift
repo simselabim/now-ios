@@ -1,5 +1,6 @@
 import Foundation
 import CoreLocation
+import AVFoundation
 
 @MainActor
 final class AppState: ObservableObject {
@@ -15,6 +16,8 @@ final class AppState: ObservableObject {
     @Published var currentLocationAccuracyM: Int?
     @Published var selectedPoint: MapPoint?
     @Published var activeMatch: Match?
+    @Published private(set) var myFirstLoopURL: URL?
+    @Published private(set) var theirFirstLoopURL: URL?
     @Published var messages: [Message] = []
     @Published var meetingProposal: MeetingProposal?
     @Published var history: [HistoryItem] = MockData.history
@@ -262,11 +265,11 @@ final class AppState: ObservableObject {
         selectedPoint = nil
     }
 
-    func sendFirstLoop() {
+    func sendFirstLoop(videoURL: URL) {
         guard let match = activeMatch else { return }
 
         Task {
-            await sendMockFirstLoopWithBackend(match)
+            await sendFirstLoopWithBackend(match, videoURL: videoURL)
         }
     }
 
@@ -725,6 +728,12 @@ final class AppState: ObservableObject {
         let profile = mapProfile(detail.otherProfile)
         let myLoopSent = detail.loops.contains { $0.userId != detail.matchItem.otherUserId }
         let theirLoopReceived = detail.loops.contains { $0.userId == detail.matchItem.otherUserId }
+        myFirstLoopURL = detail.loops
+            .first { $0.userId != detail.matchItem.otherUserId }
+            .flatMap { APIEnvironment.appDefault.mediaURL(storageKey: $0.storageKey) }
+        theirFirstLoopURL = detail.loops
+            .first { $0.userId == detail.matchItem.otherUserId }
+            .flatMap { APIEnvironment.appDefault.mediaURL(storageKey: $0.storageKey) }
         activeMatch = Match(
             id: detail.matchItem.id,
             profile: profile,
@@ -757,32 +766,45 @@ final class AppState: ObservableObject {
 
     private func clearActiveMatchState() {
         activeMatch = nil
+        myFirstLoopURL = nil
+        theirFirstLoopURL = nil
         meetingProposal = nil
         messages = []
     }
 
-    private func sendMockFirstLoopWithBackend(_ match: Match) async {
+    private func sendFirstLoopWithBackend(_ match: Match, videoURL: URL) async {
         await runLoading {
             do {
-                let data = Data("mock-loop".utf8)
+                let asset = AVURLAsset(url: videoURL)
+                let duration = try await asset.load(.duration)
+                let durationSeconds = CMTimeGetSeconds(duration)
+                guard durationSeconds.isFinite, durationSeconds > 0, durationSeconds <= 10.5 else {
+                    self.errorMessage = "Your First Loop must be 10 seconds or shorter."
+                    return
+                }
+
+                let data = try Data(contentsOf: videoURL)
+                guard data.count <= 25 * 1024 * 1024 else {
+                    self.errorMessage = "This video is too large. Record a shorter First Loop."
+                    return
+                }
+                let contentType = videoURL.pathExtension.lowercased() == "mov"
+                    ? "video/quicktime"
+                    : "video/mp4"
                 let intent = try await self.apiClient.createUploadIntent(
                     kind: .firstLoop,
-                    contentType: "video/mp4",
+                    contentType: contentType,
                     fileSizeBytes: data.count
                 )
                 _ = try await MediaUploadService().upload(data: data, intent: intent)
                 _ = try await self.apiClient.sendFirstLoop(
                     matchId: match.id,
                     storageKey: intent.storageKey,
-                    durationMs: 2_900
+                    durationMs: Int(durationSeconds * 1_000)
                 )
                 try await self.loadActiveMatchDetail()
-                self.activeMatch?.myFirstLoopSent = true
-                self.activeMatch?.theirFirstLoopReceived = true
             } catch {
-                self.activeMatch?.myFirstLoopSent = true
-                self.activeMatch?.theirFirstLoopReceived = true
-                self.errorMessage = "Demo mode: first loop accepted locally."
+                self.errorMessage = "Could not send your First Loop. Please try again."
             }
         }
     }
@@ -797,8 +819,7 @@ final class AppState: ObservableObject {
                     Message(id: response.message.id, sender: .me, text: response.message.body, createdAt: Date())
                 )
             } catch {
-                self.messages.append(Message(id: UUID(), sender: .me, text: text, createdAt: Date()))
-                self.errorMessage = "Demo mode: message saved locally."
+                self.errorMessage = "Message was not sent. Please try again."
             }
         }
     }

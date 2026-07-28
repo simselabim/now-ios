@@ -31,6 +31,12 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>NOW uses your location to show nearby people and start today's live map.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>NOW uses the camera to record your 10-second First Loop video hello.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>NOW uses the microphone to include your voice in your First Loop.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>NOW lets you choose a First Loop video when the camera is unavailable.</string>
 	<key>NOWAPIBaseURL</key>
 	<string>$(NOW_API_BASE_URL)</string>
 	<key>UILaunchScreen</key>
