@@ -1,11 +1,13 @@
 import SwiftUI
 import AVKit
+import PhotosUI
 import UniformTypeIdentifiers
 import UIKit
 
 struct FirstLoopScreen: View {
     @EnvironmentObject private var appState: AppState
     @State private var showVideoCapture = false
+    @State private var selectedVideo: PhotosPickerItem?
 
     var body: some View {
         ZStack {
@@ -75,11 +77,19 @@ struct FirstLoopScreen: View {
                             .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                     }
 
+                    #if targetEnvironment(simulator)
+                    PhotosPicker(selection: $selectedVideo, matching: .videos) {
+                        Text(match.myFirstLoopSent ? "Waiting for their loop" : "Choose a test loop")
+                    }
+                    .disabled(match.myFirstLoopSent)
+                    .buttonStyle(LightButtonStyle())
+                    #else
                     Button(match.myFirstLoopSent ? "Waiting for their loop" : "Record a loop") {
                         showVideoCapture = true
                     }
                     .disabled(match.myFirstLoopSent)
                     .buttonStyle(LightButtonStyle())
+                    #endif
 
                     Button("Close kindly") {
                         appState.cancelMatch()
@@ -99,6 +109,27 @@ struct FirstLoopScreen: View {
                 appState.sendFirstLoop(videoURL: url)
             }
             .ignoresSafeArea()
+        }
+        .onChange(of: selectedVideo) { _, item in
+            guard let item else { return }
+            Task {
+                do {
+                    guard let data = try await item.loadTransferable(type: Data.self) else {
+                        appState.errorMessage = "Could not read the selected video."
+                        return
+                    }
+                    let fileExtension = item.supportedContentTypes
+                        .first?
+                        .preferredFilenameExtension ?? "mp4"
+                    let url = FileManager.default.temporaryDirectory
+                        .appendingPathComponent("\(UUID().uuidString).\(fileExtension)")
+                    try data.write(to: url, options: .atomic)
+                    appState.sendFirstLoop(videoURL: url)
+                } catch {
+                    appState.errorMessage = "Could not open the selected video."
+                }
+                selectedVideo = nil
+            }
         }
     }
 }
@@ -127,15 +158,12 @@ private struct VideoCapturePicker: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
-        let canUseCamera = UIImagePickerController.isSourceTypeAvailable(.camera)
-        picker.sourceType = canUseCamera ? .camera : .photoLibrary
+        picker.sourceType = .camera
         picker.mediaTypes = [UTType.movie.identifier]
         picker.videoMaximumDuration = 10
         picker.videoQuality = .typeMedium
         picker.allowsEditing = true
-        if canUseCamera {
-            picker.cameraCaptureMode = .video
-        }
+        picker.cameraCaptureMode = .video
         picker.delegate = context.coordinator
         return picker
     }
