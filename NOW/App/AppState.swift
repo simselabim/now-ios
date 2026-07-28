@@ -774,6 +774,7 @@ final class AppState: ObservableObject {
 
     private func sendFirstLoopWithBackend(_ match: Match, videoURL: URL) async {
         await runLoading {
+            var stage = "reading the selected video"
             do {
                 let asset = AVURLAsset(url: videoURL)
                 let duration = try await asset.load(.duration)
@@ -783,20 +784,27 @@ final class AppState: ObservableObject {
                     return
                 }
 
-                let data = try Data(contentsOf: videoURL)
-                guard data.count <= 25 * 1024 * 1024 else {
+                let fileSize = try videoURL.resourceValues(forKeys: [.fileSizeKey]).fileSize
+                guard let fileSize, fileSize > 0 else {
+                    self.errorMessage = "The selected First Loop file is empty."
+                    return
+                }
+                guard fileSize <= 25 * 1024 * 1024 else {
                     self.errorMessage = "This video is too large. Record a shorter First Loop."
                     return
                 }
                 let contentType = videoURL.pathExtension.lowercased() == "mov"
                     ? "video/quicktime"
                     : "video/mp4"
+                stage = "requesting an upload"
                 let intent = try await self.apiClient.createUploadIntent(
                     kind: .firstLoop,
                     contentType: contentType,
-                    fileSizeBytes: data.count
+                    fileSizeBytes: fileSize
                 )
-                _ = try await MediaUploadService().upload(data: data, intent: intent)
+                stage = "uploading the video"
+                _ = try await MediaUploadService().upload(fileURL: videoURL, intent: intent)
+                stage = "attaching the video to the match"
                 _ = try await self.apiClient.sendFirstLoop(
                     matchId: match.id,
                     storageKey: intent.storageKey,
@@ -804,9 +812,19 @@ final class AppState: ObservableObject {
                 )
                 try await self.loadActiveMatchDetail()
             } catch {
-                self.errorMessage = "Could not send your First Loop. Please try again."
+                self.errorMessage = "First Loop failed while \(stage): \(self.uploadErrorDetail(error))"
             }
         }
+    }
+
+    private func uploadErrorDetail(_ error: Error) -> String {
+        if case let APIError.server(statusCode, message) = error {
+            return message ?? "server returned HTTP \(statusCode)"
+        }
+        if let apiError = error as? APIError {
+            return String(describing: apiError)
+        }
+        return (error as NSError).localizedDescription
     }
 
     private func sendMessageWithBackend(_ text: String) async {
