@@ -1,5 +1,6 @@
 import SwiftUI
 import AVKit
+import CoreTransferable
 import PhotosUI
 import UniformTypeIdentifiers
 import UIKit
@@ -91,6 +92,13 @@ struct FirstLoopScreen: View {
                     .buttonStyle(LightButtonStyle())
                     #endif
 
+                    if let errorMessage = appState.errorMessage {
+                        Text(errorMessage)
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(NOWColor.surface)
+                            .padding(.horizontal, 4)
+                    }
+
                     Button("Close kindly") {
                         appState.cancelMatch()
                     }
@@ -114,22 +122,34 @@ struct FirstLoopScreen: View {
             guard let item else { return }
             Task {
                 do {
-                    guard let data = try await item.loadTransferable(type: Data.self) else {
+                    guard let video = try await item.loadTransferable(type: PickedLoopVideo.self) else {
                         appState.errorMessage = "Could not read the selected video."
                         return
                     }
-                    let fileExtension = item.supportedContentTypes
-                        .first?
-                        .preferredFilenameExtension ?? "mp4"
-                    let url = FileManager.default.temporaryDirectory
-                        .appendingPathComponent("\(UUID().uuidString).\(fileExtension)")
-                    try data.write(to: url, options: .atomic)
-                    appState.sendFirstLoop(videoURL: url)
+                    appState.sendFirstLoop(videoURL: video.url)
                 } catch {
                     appState.errorMessage = "Could not open the selected video."
                 }
                 selectedVideo = nil
             }
+        }
+    }
+}
+
+private struct PickedLoopVideo: Transferable {
+    let url: URL
+
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(contentType: .movie) { video in
+            SentTransferredFile(video.url)
+        } importing: { received in
+            let fileExtension = received.file.pathExtension.isEmpty
+                ? "mov"
+                : received.file.pathExtension
+            let destination = FileManager.default.temporaryDirectory
+                .appendingPathComponent("\(UUID().uuidString).\(fileExtension)")
+            try FileManager.default.copyItem(at: received.file, to: destination)
+            return PickedLoopVideo(url: destination)
         }
     }
 }
