@@ -21,6 +21,7 @@ struct NOWApp: App {
                         appState.login()
                     }
                     #endif
+                    await appState.runServerSync()
                 }
         }
     }

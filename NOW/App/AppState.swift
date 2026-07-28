@@ -153,6 +153,30 @@ final class AppState: ObservableObject {
         }
     }
 
+    func runServerSync() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(2))
+            guard isAuthenticated, isProfileComplete, !isLoading else { continue }
+
+            do {
+                let hadActiveMatch = activeMatch != nil
+                try await loadActiveMatchDetail()
+
+                if activeMatch != nil {
+                    isOnline = false
+                } else if hadActiveMatch {
+                    selectedPoint = nil
+                    isOnline = true
+                    try await loadDiscoveryMap()
+                } else if isOnline, selectedPoint == nil {
+                    try await loadDiscoveryMap()
+                }
+            } catch {
+                // Polling preserves the last usable screen. Explicit refresh still surfaces errors.
+            }
+        }
+    }
+
     func goBackForTesting() {
         errorMessage = nil
 
@@ -610,6 +634,8 @@ final class AppState: ObservableObject {
             errorMessage = "Discovery is locked while an active match is open."
         } else if mappedPoints.isEmpty {
             errorMessage = "No live nearby points yet. Keep both phones online and refresh."
+        } else {
+            errorMessage = nil
         }
     }
 
@@ -692,7 +718,7 @@ final class AppState: ObservableObject {
     private func loadActiveMatchDetail() async throws {
         let response = try await apiClient.activeMatchDetail()
         guard let detail = response.matchItem else {
-            activeMatch = nil
+            clearActiveMatchState()
             return
         }
 
@@ -711,6 +737,9 @@ final class AppState: ObservableObject {
                 matchItem: detail.matchItem
             )
         )
+        selectedPoint = nil
+        isOnline = false
+        errorMessage = nil
         messages = detail.messages.map { message in
             Message(
                 id: message.id,
@@ -724,6 +753,12 @@ final class AppState: ObservableObject {
         } else {
             meetingProposal = nil
         }
+    }
+
+    private func clearActiveMatchState() {
+        activeMatch = nil
+        meetingProposal = nil
+        messages = []
     }
 
     private func sendMockFirstLoopWithBackend(_ match: Match) async {
