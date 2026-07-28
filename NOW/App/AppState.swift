@@ -26,6 +26,7 @@ final class AppState: ObservableObject {
 
     private let apiClient: NOWAPIClient
     private let locationService: LocationService
+    private var cachedLoopFiles: [String: URL] = [:]
 
     init(apiClient: NOWAPIClient = NOWAPIClient()) {
         self.apiClient = apiClient
@@ -726,14 +727,12 @@ final class AppState: ObservableObject {
         }
 
         let profile = mapProfile(detail.otherProfile)
-        let myLoopSent = detail.loops.contains { $0.userId != detail.matchItem.otherUserId }
-        let theirLoopReceived = detail.loops.contains { $0.userId == detail.matchItem.otherUserId }
-        myFirstLoopURL = detail.loops
-            .first { $0.userId != detail.matchItem.otherUserId }
-            .flatMap { APIEnvironment.appDefault.mediaURL(storageKey: $0.storageKey) }
-        theirFirstLoopURL = detail.loops
-            .first { $0.userId == detail.matchItem.otherUserId }
-            .flatMap { APIEnvironment.appDefault.mediaURL(storageKey: $0.storageKey) }
+        let myLoop = detail.loops.first { $0.userId != detail.matchItem.otherUserId }
+        let theirLoop = detail.loops.first { $0.userId == detail.matchItem.otherUserId }
+        let myLoopSent = myLoop != nil
+        let theirLoopReceived = theirLoop != nil
+        myFirstLoopURL = await playbackURL(for: myLoop)
+        theirFirstLoopURL = await playbackURL(for: theirLoop)
         activeMatch = Match(
             id: detail.matchItem.id,
             profile: profile,
@@ -768,8 +767,32 @@ final class AppState: ObservableObject {
         activeMatch = nil
         myFirstLoopURL = nil
         theirFirstLoopURL = nil
+        cachedLoopFiles = [:]
         meetingProposal = nil
         messages = []
+    }
+
+    private func playbackURL(for loop: LoopDTO?) async -> URL? {
+        guard let loop else { return nil }
+        if let cachedURL = cachedLoopFiles[loop.storageKey] {
+            return cachedURL
+        }
+        guard let remoteURL = APIEnvironment.appDefault.mediaURL(storageKey: loop.storageKey) else {
+            return nil
+        }
+
+        do {
+            let data = try await MediaUploadService().download(from: remoteURL.absoluteString)
+            let fileExtension = remoteURL.pathExtension.isEmpty ? "mp4" : remoteURL.pathExtension
+            let localURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("now-loop-\(loop.id.uuidString).\(fileExtension)")
+            try data.write(to: localURL, options: .atomic)
+            cachedLoopFiles[loop.storageKey] = localURL
+            return localURL
+        } catch {
+            // Retry the download on the next server sync.
+            return nil
+        }
     }
 
     private func sendFirstLoopWithBackend(_ match: Match, videoURL: URL) async {

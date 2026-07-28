@@ -163,6 +163,9 @@ struct LoopVideoPlayer: View {
 
     var body: some View {
         VideoPlayer(player: player)
+            .onAppear {
+                player.play()
+            }
             .onDisappear {
                 player.pause()
             }
