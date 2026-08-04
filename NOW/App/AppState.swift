@@ -1022,6 +1022,7 @@ final class AppState: ObservableObject {
     }
 
     private func resetAuthenticatedState() {
+        errorMessage = nil
         isAuthenticated = false
         isProfileComplete = false
         isOnline = false
