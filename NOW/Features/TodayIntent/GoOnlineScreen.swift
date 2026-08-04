@@ -12,7 +12,7 @@ struct GoOnlineScreen: View {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack(alignment: .top, spacing: 12) {
                         NOWBackButton {
-                            appState.goBackForTesting()
+                            appState.logout()
                         }
 
                         VStack(alignment: .leading, spacing: 6) {
@@ -38,7 +38,7 @@ struct GoOnlineScreen: View {
                         .padding(18)
                     }
 
-                    Text("Signed in as \(appState.selectedDemoAccount.displayName)")
+                    Text("Signed in as \(signedInIdentity)")
                         .font(.caption.weight(.black))
                         .foregroundStyle(NOWColor.ink)
 
@@ -86,6 +86,12 @@ struct GoOnlineScreen: View {
             .padding(.bottom, 10)
             .background(NOWColor.laCream.opacity(0.96))
         }
+    }
+
+    private var signedInIdentity: String {
+        appState.myProfile?.displayName
+            ?? appState.currentUserEmail
+            ?? appState.selectedDemoAccount.displayName
     }
 }
 
