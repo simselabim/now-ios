@@ -133,6 +133,18 @@ final class AppState: ObservableObject {
         }
     }
 
+    func deleteAccount() {
+        Task {
+            await runLoading {
+                let response = try await self.apiClient.deleteAccount()
+                guard response.deleted else {
+                    throw APIError.invalidResponse
+                }
+                self.resetAuthenticatedState()
+            }
+        }
+    }
+
     func loginAndOpenMapForTesting() {
         let account = selectedDemoAccount
         Task {

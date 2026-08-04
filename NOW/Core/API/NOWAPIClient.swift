@@ -61,6 +61,12 @@ final class NOWAPIClient {
         try await send(path: "/me")
     }
 
+    func deleteAccount() async throws -> DeleteAccountResponseDTO {
+        let response: DeleteAccountResponseDTO = try await send(path: "/me", method: "DELETE")
+        await tokenStore.clear()
+        return response
+    }
+
     func bootstrap() async throws -> BootstrapResponseDTO {
         try await send(path: "/app/bootstrap")
     }

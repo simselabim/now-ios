@@ -53,6 +53,7 @@ private struct AccountScreen: View {
     @State private var bio = ""
     @State private var interests = ""
     @State private var hasLoadedForm = false
+    @State private var showDeleteConfirmation = false
 
     private let genderOptions = ["woman", "man", "non-binary"]
 
@@ -139,6 +140,14 @@ private struct AccountScreen: View {
                     appState.logout()
                 }
                 .buttonStyle(SecondaryButtonStyle())
+
+                Button("Delete account and data") {
+                    showDeleteConfirmation = true
+                }
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(NOWColor.coral)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
             }
             .padding(22)
         }
@@ -146,6 +155,14 @@ private struct AccountScreen: View {
         .onAppear { applyProfileIfNeeded(appState.myProfile) }
         .onChange(of: appState.myProfile) { _, profile in
             applyProfileIfNeeded(profile)
+        }
+        .alert("Delete your account?", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete account", role: .destructive) {
+                appState.deleteAccount()
+            }
+        } message: {
+            Text("Your profile, matches, messages, loops, history, and account data will be permanently deleted.")
         }
     }
 

@@ -15,6 +15,10 @@ struct MeResponseDTO: Decodable {
     let user: UserDTO
 }
 
+struct DeleteAccountResponseDTO: Decodable {
+    let deleted: Bool
+}
+
 struct UserDTO: Codable, Identifiable, Equatable {
     let id: UUID
     let email: String
