@@ -22,8 +22,10 @@ final class AppState: ObservableObject {
     @Published var meetingProposal: MeetingProposal?
     @Published var history: [HistoryItem] = MockData.history
     @Published var showHistory = false
+    @Published var showAccount = false
     @Published private(set) var currentUserId: UUID?
     @Published private(set) var currentUserEmail: String?
+    @Published private(set) var myProfile: ProfileDTO?
     @Published private(set) var didAttemptSessionRestore = false
 
     private let apiClient: NOWAPIClient
@@ -89,6 +91,45 @@ final class AppState: ObservableObject {
         Task {
             await apiClient.logout()
             resetAuthenticatedState()
+        }
+    }
+
+    func openAccount() {
+        showAccount = true
+        Task { await loadMyProfile() }
+    }
+
+    func closeAccount() {
+        showAccount = false
+    }
+
+    func loadMyProfile() async {
+        await runLoading {
+            self.myProfile = try await self.apiClient.myProfile().profile
+        }
+    }
+
+    func saveProfile(
+        displayName: String,
+        birthDate: String,
+        gender: String,
+        bio: String,
+        interests: [String]
+    ) {
+        Task {
+            await runLoading {
+                let profile = try await self.apiClient.updateProfile(
+                    UpdateProfileRequestDTO(
+                        displayName: displayName,
+                        birthDate: birthDate,
+                        gender: gender,
+                        bio: bio,
+                        interests: interests
+                    )
+                )
+                self.myProfile = profile
+                self.isProfileComplete = profile.isPublishable
+            }
         }
     }
 
@@ -585,6 +626,7 @@ final class AppState: ObservableObject {
     private func applyBootstrap(_ bootstrap: BootstrapResponseDTO) async throws {
         currentUserId = bootstrap.user.id
         currentUserEmail = bootstrap.user.email
+        myProfile = bootstrap.profile
         isProfileComplete = !(bootstrap.requirements.profileRequired)
         isOnline = false
         activeMatch = bootstrap.activeMatch.map { matchDTO in
@@ -956,11 +998,13 @@ final class AppState: ObservableObject {
         isOnline = false
         currentUserId = nil
         currentUserEmail = nil
+        myProfile = nil
         selectedPoint = nil
         activeMatch = nil
         meetingProposal = nil
         messages = []
         showHistory = false
+        showAccount = false
         myFirstLoopURL = nil
         theirFirstLoopURL = nil
         cachedLoopFiles = [:]
