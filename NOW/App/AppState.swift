@@ -143,6 +143,56 @@ final class AppState: ObservableObject {
         }
     }
 
+    func createProfile(
+        displayName: String,
+        birthDate: String,
+        gender: String,
+        bio: String,
+        photoData: Data
+    ) {
+        Task {
+            isLoading = true
+            errorMessage = nil
+            defer { isLoading = false }
+
+            do {
+                myProfile = try await apiClient.updateProfile(
+                    UpdateProfileRequestDTO(
+                        displayName: displayName,
+                        birthDate: birthDate,
+                        gender: gender,
+                        bio: bio,
+                        interests: []
+                    )
+                )
+
+                let uploadIntent = try await apiClient.createUploadIntent(
+                    kind: .profilePhoto,
+                    contentType: "image/jpeg",
+                    fileSizeBytes: photoData.count
+                )
+                _ = try await MediaUploadService().upload(data: photoData, intent: uploadIntent)
+                let upload = try await apiClient.uploadPhoto(
+                    storageKey: uploadIntent.storageKey,
+                    position: 1,
+                    isMain: true
+                )
+
+                myProfile = try await apiClient.myProfile().profile
+                isProfileComplete = upload.isProfilePublishable
+                if !upload.isProfilePublishable {
+                    errorMessage = "Add a name, birth date, gender, bio, and one photo to continue."
+                }
+            } catch APIError.unauthorized {
+                await apiClient.logout()
+                resetAuthenticatedState()
+                errorMessage = "Your session expired. Please sign in again."
+            } catch {
+                errorMessage = profileCreationErrorMessage(error)
+            }
+        }
+    }
+
     func deleteAccount() {
         Task {
             await runLoading {
@@ -1072,6 +1122,23 @@ final class AppState: ObservableObject {
         return registering
             ? "Could not create the account. Please try again."
             : "Could not sign in. Please try again."
+    }
+
+    private func profileCreationErrorMessage(_ error: Error) -> String {
+        if case let APIError.server(statusCode, _) = error {
+            if statusCode == 413 {
+                return "This photo is too large. Choose another photo."
+            }
+            if statusCode == 422 {
+                return "Check the profile fields and photo, then try again."
+            }
+        }
+
+        if error is URLError {
+            return "Could not connect to the server. Check your internet connection."
+        }
+
+        return "Could not create your profile. Please try again."
     }
 
     private func locationMessage(for error: Error) -> String {
