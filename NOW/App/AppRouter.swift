@@ -29,7 +29,7 @@ struct AppRouter: View {
             }
             .background(NOWColor.paper.ignoresSafeArea())
             .toolbar {
-                if appState.isAuthenticated && appState.isProfileComplete && !appState.showAccount {
+                if appState.isAuthenticated && !appState.showAccount {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             appState.openAccount()
