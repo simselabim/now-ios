@@ -74,12 +74,23 @@ struct WelcomeScreen: View {
                         .padding(14)
                         .background(NOWColor.surface)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                    if !password.isEmpty && password.count < 8 {
+                        Text("Password must be at least 8 characters.")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(NOWColor.coral)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
 
                 Button(appState.isLoading ? "Connecting..." : (isRegistering ? "Create account" : "Sign in")) {
-                    appState.authenticate(email: email, password: password, register: isRegistering)
+                    appState.authenticate(
+                        email: email.trimmingCharacters(in: .whitespacesAndNewlines),
+                        password: password,
+                        register: isRegistering
+                    )
                 }
-                .disabled(appState.isLoading || email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || password.isEmpty)
+                .disabled(appState.isLoading || !canSubmit)
                 .buttonStyle(PrimaryButtonStyle())
 
                 Button(isRegistering ? "Already have an account? Sign in" : "New here? Create account") {
@@ -107,6 +118,11 @@ struct WelcomeScreen: View {
             }
             .padding(22)
         }
+    }
+
+    private var canSubmit: Bool {
+        !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && password.count >= 8
     }
 }
 

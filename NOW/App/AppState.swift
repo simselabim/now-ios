@@ -54,7 +54,11 @@ final class AppState: ObservableObject {
 
     func authenticate(email: String, password: String, register: Bool) {
         Task {
-            await runLoading {
+            isLoading = true
+            errorMessage = nil
+            defer { isLoading = false }
+
+            do {
                 let auth = try await (register
                     ? self.apiClient.register(email: email, password: password)
                     : self.apiClient.login(email: email, password: password))
@@ -62,6 +66,12 @@ final class AppState: ObservableObject {
                 self.currentUserEmail = auth.user.email
                 self.isAuthenticated = true
                 try await self.applyBootstrap(self.apiClient.bootstrap())
+            } catch APIError.unauthorized {
+                await apiClient.logout()
+                resetAuthenticatedState()
+                errorMessage = "Email or password is incorrect."
+            } catch {
+                errorMessage = authenticationErrorMessage(error, registering: register)
             }
         }
     }
@@ -1038,6 +1048,30 @@ final class AppState: ObservableObject {
         myFirstLoopURL = nil
         theirFirstLoopURL = nil
         cachedLoopFiles = [:]
+    }
+
+    private func authenticationErrorMessage(_ error: Error, registering: Bool) -> String {
+        if case let APIError.server(statusCode, message) = error {
+            let serverMessage = message?.lowercased() ?? ""
+
+            if statusCode == 422, serverMessage.contains("password") {
+                return "Password must be at least 8 characters."
+            }
+            if statusCode == 409 || serverMessage.contains("already exists") {
+                return "An account with this email already exists. Sign in instead."
+            }
+            if statusCode == 422 {
+                return "Check the email and password, then try again."
+            }
+        }
+
+        if error is URLError {
+            return "Could not connect to the server. Check your internet connection."
+        }
+
+        return registering
+            ? "Could not create the account. Please try again."
+            : "Could not sign in. Please try again."
     }
 
     private func locationMessage(for error: Error) -> String {
