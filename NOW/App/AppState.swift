@@ -589,11 +589,28 @@ final class AppState: ObservableObject {
     }
 
     func cancelMatch() {
-        activeMatch = nil
-        meetingProposal = nil
-        messages = []
-        showHistory = false
-        isOnline = false
+        guard let match = activeMatch else { return }
+
+        // UI preview states do not have a server-backed user or match.
+        guard currentUserId != nil else {
+            clearActiveMatchState()
+            selectedPoint = nil
+            showHistory = false
+            isOnline = true
+            ensureDemoPointsIfNeeded()
+            return
+        }
+
+        Task {
+            await runLoading {
+                _ = try await self.apiClient.cancelMatch(matchId: match.id)
+                self.clearActiveMatchState()
+                self.selectedPoint = nil
+                self.showHistory = false
+                self.isOnline = true
+                try await self.loadDiscoveryMap()
+            }
+        }
     }
 
     func closeHistory() {

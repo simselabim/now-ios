@@ -139,6 +139,18 @@ final class NOWAPIClient {
         try await send(path: "/matches/active/detail")
     }
 
+    func cancelMatch(
+        matchId: UUID,
+        reason: CancelReasonDTO = .changedMind,
+        note: String? = nil
+    ) async throws -> MatchDTO {
+        try await send(
+            path: "/matches/\(matchId.uuidString)/cancel",
+            method: "POST",
+            body: CancelMatchRequestDTO(reason: reason, note: note)
+        )
+    }
+
     func requestTomorrowExtension(matchId: UUID) async throws -> TomorrowExtensionResponseDTO {
         try await send(
             path: "/matches/\(matchId.uuidString)/tomorrow-extension",
