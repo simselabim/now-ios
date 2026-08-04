@@ -5,6 +5,7 @@ struct WelcomeScreen: View {
     @State private var email = ""
     @State private var password = ""
     @State private var isRegistering = false
+    @State private var isPhilosophyPresented = false
 
     var body: some View {
         ScrollView {
@@ -17,7 +18,13 @@ struct WelcomeScreen: View {
                             .foregroundStyle(NOWColor.slate)
                     }
                     Spacer()
-                    NOWChip(text: "Today", active: true)
+                    Button {
+                        isPhilosophyPresented = true
+                    } label: {
+                        NOWChip(text: "Today", active: true)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Learn what NOW is about")
                 }
 
                 ZStack(alignment: .bottomLeading) {
@@ -108,10 +115,62 @@ struct WelcomeScreen: View {
             }
             .padding(22)
         }
+        .sheet(isPresented: $isPhilosophyPresented) {
+            NOWPhilosophySheet()
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
     }
 
     private var canSubmit: Bool {
         !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && password.count >= 8
+    }
+}
+
+private struct NOWPhilosophySheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack {
+                NOWLogo(compact: true)
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.subheadline.weight(.black))
+                        .foregroundStyle(NOWColor.ink)
+                        .frame(width: 38, height: 38)
+                        .background(NOWColor.surface)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close")
+            }
+
+            Text("One click.\nOne meeting. Now.")
+                .font(.system(size: 36, weight: .black, design: .rounded))
+                .foregroundStyle(NOWColor.ink)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text("NOW is not about endless choices. It is about one real meeting today.")
+                .font(.title3.weight(.bold))
+                .foregroundStyle(NOWColor.slate)
+
+            Text("Choose someone nearby and make a plan for today — no endless swiping, no weeks of messaging.")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(NOWColor.inkSoft)
+
+            Spacer(minLength: 0)
+
+            Button("Got it") {
+                dismiss()
+            }
+            .buttonStyle(PrimaryButtonStyle())
+        }
+        .padding(24)
+        .background(NOWColor.laCream.ignoresSafeArea())
     }
 }
