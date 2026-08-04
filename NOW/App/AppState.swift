@@ -23,6 +23,8 @@ final class AppState: ObservableObject {
     @Published var history: [HistoryItem] = MockData.history
     @Published var showHistory = false
     @Published private(set) var currentUserId: UUID?
+    @Published private(set) var currentUserEmail: String?
+    @Published private(set) var didAttemptSessionRestore = false
 
     private let apiClient: NOWAPIClient
     private let locationService: LocationService
@@ -45,6 +47,48 @@ final class AppState: ObservableObject {
         let account = selectedDemoAccount
         Task {
             await demoLoginAndBootstrap(email: account.email)
+        }
+    }
+
+    func authenticate(email: String, password: String, register: Bool) {
+        Task {
+            await runLoading {
+                let auth = try await (register
+                    ? self.apiClient.register(email: email, password: password)
+                    : self.apiClient.login(email: email, password: password))
+                self.currentUserId = auth.user.id
+                self.currentUserEmail = auth.user.email
+                self.isAuthenticated = true
+                try await self.applyBootstrap(self.apiClient.bootstrap())
+            }
+        }
+    }
+
+    func restoreSession() async {
+        guard !didAttemptSessionRestore else { return }
+        defer { didAttemptSessionRestore = true }
+
+        guard await apiClient.hasStoredSession() else { return }
+
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let me = try await apiClient.me()
+            currentUserId = me.user.id
+            currentUserEmail = me.user.email
+            isAuthenticated = true
+            try await applyBootstrap(apiClient.bootstrap())
+        } catch {
+            await apiClient.logout()
+            resetAuthenticatedState()
+        }
+    }
+
+    func logout() {
+        Task {
+            await apiClient.logout()
+            resetAuthenticatedState()
         }
     }
 
@@ -523,6 +567,7 @@ final class AppState: ObservableObject {
             do {
                 let auth = try await self.apiClient.login(email: email, password: "password123")
                 self.currentUserId = auth.user.id
+                self.currentUserEmail = auth.user.email
                 self.isAuthenticated = true
                 try await self.applyBootstrap(self.apiClient.bootstrap())
             } catch {
@@ -539,6 +584,7 @@ final class AppState: ObservableObject {
 
     private func applyBootstrap(_ bootstrap: BootstrapResponseDTO) async throws {
         currentUserId = bootstrap.user.id
+        currentUserEmail = bootstrap.user.email
         isProfileComplete = !(bootstrap.requirements.profileRequired)
         isOnline = false
         activeMatch = bootstrap.activeMatch.map { matchDTO in
@@ -894,10 +940,30 @@ final class AppState: ObservableObject {
         errorMessage = nil
         do {
             try await operation()
+        } catch APIError.unauthorized {
+            await apiClient.logout()
+            resetAuthenticatedState()
+            errorMessage = "Your session expired. Please sign in again."
         } catch {
             errorMessage = String(describing: error)
         }
         isLoading = false
+    }
+
+    private func resetAuthenticatedState() {
+        isAuthenticated = false
+        isProfileComplete = false
+        isOnline = false
+        currentUserId = nil
+        currentUserEmail = nil
+        selectedPoint = nil
+        activeMatch = nil
+        meetingProposal = nil
+        messages = []
+        showHistory = false
+        myFirstLoopURL = nil
+        theirFirstLoopURL = nil
+        cachedLoopFiles = [:]
     }
 
     private func locationMessage(for error: Error) -> String {

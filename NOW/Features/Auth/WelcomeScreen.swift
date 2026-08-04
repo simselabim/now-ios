@@ -2,6 +2,9 @@ import SwiftUI
 
 struct WelcomeScreen: View {
     @EnvironmentObject private var appState: AppState
+    @State private var email = ""
+    @State private var password = ""
+    @State private var isRegistering = false
 
     var body: some View {
         ScrollView {
@@ -57,13 +60,45 @@ struct WelcomeScreen: View {
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
 
+                VStack(spacing: 12) {
+                    TextField("Email", text: $email)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.emailAddress)
+                        .textContentType(.emailAddress)
+                        .padding(14)
+                        .background(NOWColor.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                    SecureField("Password", text: $password)
+                        .textContentType(isRegistering ? .newPassword : .password)
+                        .padding(14)
+                        .background(NOWColor.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+
+                Button(appState.isLoading ? "Connecting..." : (isRegistering ? "Create account" : "Sign in")) {
+                    appState.authenticate(email: email, password: password, register: isRegistering)
+                }
+                .disabled(appState.isLoading || email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || password.isEmpty)
+                .buttonStyle(PrimaryButtonStyle())
+
+                Button(isRegistering ? "Already have an account? Sign in" : "New here? Create account") {
+                    isRegistering.toggle()
+                    appState.errorMessage = nil
+                }
+                .font(.footnote.weight(.bold))
+                .foregroundStyle(NOWColor.ink)
+                .frame(maxWidth: .infinity)
+
+                #if DEBUG
                 DemoAccountPicker()
 
                 Button(appState.isLoading ? "Connecting..." : "Demo Login") {
                     appState.login()
                 }
                 .disabled(appState.isLoading)
-                .buttonStyle(PrimaryButtonStyle())
+                .buttonStyle(SecondaryButtonStyle())
+                #endif
 
                 Text("You will be visible while you are here. Tonight everything resets.")
                     .font(.footnote.weight(.semibold))

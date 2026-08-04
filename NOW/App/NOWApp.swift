@@ -9,6 +9,7 @@ struct NOWApp: App {
             AppRouter()
                 .environmentObject(appState)
                 .task {
+                    await appState.restoreSession()
                     #if DEBUG
                     let arguments = ProcessInfo.processInfo.arguments
                     if let laScreen = arguments.first(where: { $0.hasPrefix("--la-screen=") }) {

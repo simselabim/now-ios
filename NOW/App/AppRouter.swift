@@ -6,7 +6,10 @@ struct AppRouter: View {
     var body: some View {
         NavigationStack {
             Group {
-                if !appState.isAuthenticated {
+                if !appState.didAttemptSessionRestore {
+                    ProgressView("Restoring session…")
+                        .tint(NOWColor.lime)
+                } else if !appState.isAuthenticated {
                     WelcomeScreen()
                 } else if !appState.isProfileComplete {
                     CreateProfileScreen()

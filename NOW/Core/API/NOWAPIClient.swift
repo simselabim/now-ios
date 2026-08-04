@@ -53,6 +53,10 @@ final class NOWAPIClient {
         await tokenStore.clear()
     }
 
+    func hasStoredSession() async -> Bool {
+        await tokenStore.getAccessToken() != nil
+    }
+
     func me() async throws -> MeResponseDTO {
         try await send(path: "/me")
     }
