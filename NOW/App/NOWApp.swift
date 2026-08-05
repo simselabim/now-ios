@@ -8,6 +8,7 @@ struct NOWApp: App {
         WindowGroup {
             AppRouter()
                 .environmentObject(appState)
+                .preferredColorScheme(.light)
                 .task {
                     await appState.restoreSession()
                     #if DEBUG

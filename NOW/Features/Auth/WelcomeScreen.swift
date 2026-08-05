@@ -43,6 +43,7 @@ struct WelcomeScreen: View {
                 NOWInfoCard {
                     Text("What feels right now?")
                         .font(.headline.weight(.black))
+                        .foregroundStyle(NOWColor.ink)
                     HStack(spacing: 8) {
                         NOWChip(text: "Coffee", active: true)
                         NOWChip(text: "Walk")
@@ -72,12 +73,16 @@ struct WelcomeScreen: View {
                         .textInputAutocapitalization(.never)
                         .keyboardType(.emailAddress)
                         .textContentType(.emailAddress)
+                        .foregroundStyle(NOWColor.ink)
+                        .tint(NOWColor.laCoral)
                         .padding(14)
                         .background(NOWColor.surface)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                     SecureField("Password", text: $password)
                         .textContentType(isRegistering ? .newPassword : .password)
+                        .foregroundStyle(NOWColor.ink)
+                        .tint(NOWColor.laCoral)
                         .padding(14)
                         .background(NOWColor.surface)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))

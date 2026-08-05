@@ -23,6 +23,7 @@ struct CreateProfileScreen: View {
             VStack(alignment: .leading, spacing: 20) {
                 Text("Create profile")
                     .font(.largeTitle.weight(.black))
+                    .foregroundStyle(NOWColor.ink)
 
                 Text("The essentials only. You can add more from your account later.")
                     .font(.subheadline.weight(.semibold))
@@ -63,6 +64,8 @@ struct CreateProfileScreen: View {
                     fieldLabel("Short bio")
                     TextField("A few honest words about you", text: $bio, axis: .vertical)
                         .lineLimit(3...5)
+                        .foregroundStyle(NOWColor.ink)
+                        .tint(NOWColor.laCoral)
                         .padding(14)
                         .background(NOWColor.surface)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -171,6 +174,8 @@ struct CreateProfileScreen: View {
         VStack(alignment: .leading, spacing: 8) {
             fieldLabel(title)
             TextField(prompt, text: text)
+                .foregroundStyle(NOWColor.ink)
+                .tint(NOWColor.laCoral)
                 .padding(14)
                 .background(NOWColor.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))

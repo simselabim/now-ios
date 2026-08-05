@@ -188,6 +188,7 @@ private struct AccountScreen: View {
 
                 Text("Your account")
                     .font(.largeTitle.weight(.black))
+                    .foregroundStyle(NOWColor.ink)
 
                 if let email = appState.currentUserEmail {
                     Text(email)
@@ -218,6 +219,8 @@ private struct AccountScreen: View {
                             .foregroundStyle(NOWColor.inkSoft)
                         TextField("A few honest words about you", text: $bio, axis: .vertical)
                             .lineLimit(3...6)
+                            .foregroundStyle(NOWColor.ink)
+                            .tint(NOWColor.laCoral)
                             .padding(14)
                             .background(NOWColor.surface)
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -293,6 +296,8 @@ private struct AccountScreen: View {
                 .foregroundStyle(NOWColor.inkSoft)
             TextField(title, text: text)
                 .textInputAutocapitalization(title.contains("Birth") ? .never : .sentences)
+                .foregroundStyle(NOWColor.ink)
+                .tint(NOWColor.laCoral)
                 .padding(14)
                 .background(NOWColor.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
