@@ -2,134 +2,125 @@ import SwiftUI
 
 struct GoOnlineScreen: View {
     @EnvironmentObject private var appState: AppState
+    @State private var selectedPlan: Plan?
+    @State private var selectedIntent: Intent?
+    @State private var selectedTimeWindow: TimeWindow?
 
     var body: some View {
-        ZStack(alignment: .top) {
-            NOWColor.laCream.ignoresSafeArea()
-            LATopStripe()
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack(alignment: .top, spacing: 12) {
-                        NOWBackButton {
-                            appState.logout()
-                        }
-
-                        VStack(alignment: .leading, spacing: 6) {
-                            NOWLogo(compact: true)
-                            Text("Nearby for today")
-                                .font(.caption.weight(.black))
-                                .foregroundStyle(NOWColor.inkSoft)
-                        }
-                        Spacer()
-                        NOWChip(text: "Today", active: true)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 13) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        NOWLogo(compact: true)
+                        Text("Nearby for today")
+                            .font(.caption.weight(.black))
+                            .foregroundStyle(NOWColor.inkSoft)
                     }
+                    Spacer()
+                    NOWChip(text: "Today", active: true)
+                }
 
-                    ZStack(alignment: .bottomLeading) {
-                        PhotoSurface(name: NOWPhoto.streetCoffee, height: 172, blur: 0.8)
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("What feels right now?")
-                                .font(.system(size: 32, weight: .heavy, design: .rounded))
-                                .foregroundStyle(.white)
-                            Text("Pick the plan you would actually say yes to today.")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.white.opacity(0.9))
-                        }
-                        .padding(18)
-                    }
-
-                    Text("Signed in as \(signedInIdentity)")
-                        .font(.caption.weight(.black))
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("What feels right now?")
+                        .font(.system(size: 29, weight: .black, design: .rounded))
                         .foregroundStyle(NOWColor.ink)
-
-                    IntentPicker(title: "Plan", selection: $appState.todayIntent.plan, values: Plan.allCases)
-                    IntentPicker(title: "Connection", selection: $appState.todayIntent.intent, values: Intent.allCases)
-                    IntentPicker(title: "When today", selection: $appState.todayIntent.timeWindow, values: TimeWindow.allCases)
-
-                    Text("One active match only. Stay with this one for now. Tonight everything resets.")
-                        .font(.footnote.weight(.semibold))
+                    Text("Choose all three to go online and meet nearby today.")
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(NOWColor.inkSoft)
-                        .padding(14)
-                        .background(NOWColor.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
 
-                    if let error = appState.errorMessage {
-                        Text(error)
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(NOWColor.coral)
-                            .padding(14)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(NOWColor.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                CompactIntentPicker(title: "Plan", selection: $selectedPlan, values: Plan.allCases)
+                CompactIntentPicker(title: "Connection", selection: $selectedIntent, values: Intent.allCases)
+                CompactIntentPicker(title: "When today", selection: $selectedTimeWindow, values: TimeWindow.allCases)
+
+                if let error = appState.errorMessage {
+                    Text(error)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(NOWColor.coral)
+                        .padding(11)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(NOWColor.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+
+                Button(appState.isLoading ? "Going online..." : "Go online") {
+                    goOnline()
+                }
+                .disabled(!isReady || appState.isLoading)
+                .buttonStyle(PrimaryButtonStyle())
+                .opacity(isReady ? 1 : 0.45)
+                .overlay {
+                    if appState.isLoading {
+                        ProgressView()
+                            .tint(NOWColor.surface)
+                            .offset(x: -120)
                     }
                 }
-                .padding(22)
-                .padding(.top, 10)
-                .padding(.bottom, 76)
+
+                Text("One active match at a time. Tonight everything resets.")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(NOWColor.inkSoft)
+                    .frame(maxWidth: .infinity, alignment: .center)
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 12)
         }
-        .safeAreaInset(edge: .bottom) {
-            Button(appState.isLoading ? "Going online..." : "Go online") {
-                appState.goOnline()
-            }
-            .disabled(appState.isLoading)
-            .buttonStyle(PrimaryButtonStyle())
-            .overlay {
-                if appState.isLoading {
-                    ProgressView()
-                        .tint(NOWColor.surface)
-                        .offset(x: -120)
-                }
-            }
-            .padding(.horizontal, 22)
-            .padding(.top, 10)
-            .padding(.bottom, 10)
-            .background(NOWColor.laCream.opacity(0.96))
-        }
+        .scrollBounceBehavior(.basedOnSize)
+        .background(NOWColor.laCream.ignoresSafeArea())
+        .overlay(alignment: .top) { LATopStripe() }
     }
 
-    private var signedInIdentity: String {
-        appState.myProfile?.displayName
-            ?? appState.currentUserEmail
-            ?? appState.selectedDemoAccount.displayName
+    private var isReady: Bool {
+        selectedPlan != nil && selectedIntent != nil && selectedTimeWindow != nil
+    }
+
+    private func goOnline() {
+        guard let selectedPlan, let selectedIntent, let selectedTimeWindow else { return }
+        appState.todayIntent = TodayIntent(
+            plan: selectedPlan,
+            intent: selectedIntent,
+            timeWindow: selectedTimeWindow
+        )
+        appState.goOnline()
     }
 }
 
-private struct IntentPicker<T: RawRepresentable & CaseIterable & Identifiable & Hashable>: View where T.RawValue == String {
+private struct CompactIntentPicker<T: RawRepresentable & Identifiable & Hashable>: View where T.RawValue == String {
     let title: String
-    @Binding var selection: T
+    @Binding var selection: T?
     let values: [T]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 7) {
             Text(title.uppercased())
                 .font(.caption.weight(.bold))
                 .foregroundStyle(NOWColor.inkSoft)
 
-            FlowLayout(values: values, selection: $selection)
+            CompactFlowLayout(values: values, selection: $selection)
         }
-        .padding(16)
+        .padding(12)
         .background(NOWColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(NOWColor.line.opacity(0.8), lineWidth: 1)
         )
     }
 }
 
-private struct FlowLayout<T: RawRepresentable & Identifiable & Hashable>: View where T.RawValue == String {
+private struct CompactFlowLayout<T: RawRepresentable & Identifiable & Hashable>: View where T.RawValue == String {
     let values: [T]
-    @Binding var selection: T
+    @Binding var selection: T?
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 8)], spacing: 8) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 82), spacing: 7)], spacing: 7) {
             ForEach(values) { value in
                 Button(value.rawValue) {
                     selection = value
                 }
-                .font(.subheadline.weight(.semibold))
-                .padding(.vertical, 9)
+                .font(.caption.weight(.bold))
+                .padding(.vertical, 8)
                 .frame(maxWidth: .infinity)
                 .foregroundStyle(selection == value ? NOWColor.surface : NOWColor.inkSoft)
                 .background(selection == value ? NOWColor.laCoral : NOWColor.paper)

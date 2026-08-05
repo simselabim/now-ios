@@ -152,7 +152,19 @@ private struct MapHeader: View {
                 .clipShape(Capsule())
             }
 
-            LAPill(text: "Canggu · nearby · sunset 18:17", icon: nil)
+            HStack(spacing: 8) {
+                LAPill(text: "Nearby · within 50 km · sunset 18:17", icon: nil)
+
+                Button("Swipe") {}
+                    .font(.caption.weight(.heavy))
+                    .foregroundStyle(NOWColor.laBrownSoft.opacity(0.55))
+                    .padding(.horizontal, 13)
+                    .padding(.vertical, 9)
+                    .background(NOWColor.surface.opacity(0.72))
+                    .clipShape(Capsule())
+                    .disabled(true)
+                    .accessibilityHint("Coming soon")
+            }
         }
     }
 }
@@ -292,17 +304,17 @@ private struct LAMapPersonMarker: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            ZStack(alignment: .topTrailing) {
-                BundlePhoto(name: markerPhoto)
+            ZStack {
+                Circle()
+                    .fill(markerFill)
                     .frame(width: 46, height: 46)
-                    .clipShape(Circle())
                     .overlay(Circle().stroke(markerStroke, lineWidth: 3))
-                    .shadow(color: NOWColor.ink.opacity(0.22), radius: 10, x: 0, y: 6)
+                    .shadow(color: NOWColor.ink.opacity(0.18), radius: 10, x: 0, y: 6)
 
                 if point.state == .triedBefore {
-                    Circle()
-                        .fill(NOWColor.laBrown)
-                        .frame(width: 9, height: 9)
+                    Image(systemName: "xmark")
+                        .font(.system(size: 20, weight: .black))
+                        .foregroundStyle(NOWColor.laBrown)
                 }
             }
 
@@ -319,24 +331,42 @@ private struct LAMapPersonMarker: View {
         }
     }
 
-    private var markerPhoto: String {
-        switch point.profile.name {
-        case "Ethan", "Ren", "Leo":
-            return NOWPhoto.streetCoffee
-        default:
-            return NOWPhoto.person
+    private var markerFill: Color {
+        switch point.state {
+        case .unseen:
+            return NOWColor.laGreen
+        case .interested, .triedBefore:
+            return NOWColor.laGold
+        case .viewed:
+            return NOWColor.surface.opacity(0.25)
+        case .hiddenToday, .blocked:
+            return NOWColor.laBrownSoft.opacity(0.45)
         }
     }
 
     private var markerStroke: Color {
-        point.state == .viewed ? NOWColor.surface : NOWColor.laOrange
+        switch point.state {
+        case .viewed:
+            return NOWColor.laBrownSoft
+        default:
+            return markerFill
+        }
     }
 
     private var labelBackground: Color {
-        point.state == .viewed ? NOWColor.laBrownSoft : NOWColor.laOrange
+        switch point.state {
+        case .unseen:
+            return NOWColor.laGreen
+        case .interested, .triedBefore:
+            return NOWColor.laGold
+        case .viewed:
+            return NOWColor.surface.opacity(0.9)
+        case .hiddenToday, .blocked:
+            return NOWColor.laBrownSoft
+        }
     }
 
     private var labelForeground: Color {
-        point.state == .viewed ? NOWColor.surface : NOWColor.ink
+        point.state == .hiddenToday || point.state == .blocked ? NOWColor.surface : NOWColor.ink
     }
 }
