@@ -74,9 +74,13 @@ struct FirstLoopScreen: View {
                     )
 
                     if let url = appState.theirFirstLoopURL {
-                        LoopVideoPlayer(url: url)
-                            .frame(height: 180)
-                            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                        CircularLoopPlayer(
+                            url: url,
+                            diameter: 180,
+                            strokeColor: NOWColor.surface.opacity(0.72),
+                            lineWidth: 3
+                        )
+                        .frame(maxWidth: .infinity)
                     }
 
                     #if targetEnvironment(simulator)
@@ -349,6 +353,24 @@ struct LoopVideoPlayer: View {
     }
 }
 
+struct CircularLoopPlayer: View {
+    let url: URL
+    let diameter: CGFloat
+    var strokeColor: Color = NOWColor.laOrange
+    var lineWidth: CGFloat = 3
+
+    var body: some View {
+        LoopVideoPlayer(url: url)
+            .frame(width: diameter, height: diameter)
+            .clipShape(Circle())
+            .overlay(
+                Circle()
+                    .stroke(strokeColor, lineWidth: lineWidth)
+            )
+            .contentShape(Circle())
+    }
+}
+
 private final class LoopingVideoPlayerModel: ObservableObject {
     let player: AVQueuePlayer
     private var looper: AVPlayerLooper?
@@ -417,13 +439,13 @@ private struct LoopRecorderScreen: View {
                         Text(recorder.recordedURL == nil ? "Record your loop" : "Your First Loop")
                             .font(.title2.weight(.black))
                             .foregroundStyle(NOWColor.laEspresso)
-                        Text("Up to 10 seconds · vertical · one honest hello")
+                        Text("Up to 10 seconds · round · one honest hello")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(NOWColor.laEspresso.opacity(0.72))
                     }
 
                     ZStack {
-                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        Circle()
                             .fill(Color.black)
 
                         if let recordedURL = recorder.recordedURL {
@@ -453,11 +475,11 @@ private struct LoopRecorderScreen: View {
                             }
                         }
                     }
-                    .aspectRatio(9.0 / 16.0, contentMode: .fit)
-                    .frame(maxHeight: 520)
-                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                    .aspectRatio(1, contentMode: .fit)
+                    .frame(maxWidth: 360)
+                    .clipShape(Circle())
                     .overlay(
-                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        Circle()
                             .stroke(.white.opacity(0.45), lineWidth: 1)
                     )
 

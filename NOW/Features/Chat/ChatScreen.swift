@@ -130,15 +130,12 @@ private struct LoopMessage: View {
     let url: URL
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            LoopVideoPlayer(url: url)
-                .frame(width: 180, height: 240)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(NOWColor.laOrange, lineWidth: 3)
-                )
-        }
+        CircularLoopPlayer(
+            url: url,
+            diameter: 180,
+            strokeColor: NOWColor.laOrange,
+            lineWidth: 3
+        )
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
