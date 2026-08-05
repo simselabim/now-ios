@@ -969,9 +969,18 @@ final class AppState: ObservableObject {
 
     private func sendFirstLoopWithBackend(_ match: Match, videoURL: URL) async {
         await runLoading {
-            var stage = "reading the selected video"
+            var stage = "preparing the video"
+            var uploadURL = videoURL
             do {
-                let asset = AVURLAsset(url: videoURL)
+                uploadURL = try await LoopVideoProcessor.prepareForUpload(videoURL)
+                defer {
+                    if uploadURL != videoURL {
+                        try? FileManager.default.removeItem(at: uploadURL)
+                    }
+                }
+
+                stage = "reading the prepared video"
+                let asset = AVURLAsset(url: uploadURL)
                 let duration = try await asset.load(.duration)
                 let durationSeconds = CMTimeGetSeconds(duration)
                 guard durationSeconds.isFinite, durationSeconds > 0, durationSeconds <= 10.5 else {
@@ -979,7 +988,7 @@ final class AppState: ObservableObject {
                     return
                 }
 
-                let fileSize = try videoURL.resourceValues(forKeys: [.fileSizeKey]).fileSize
+                let fileSize = try uploadURL.resourceValues(forKeys: [.fileSizeKey]).fileSize
                 guard let fileSize, fileSize > 0 else {
                     self.errorMessage = "The selected First Loop file is empty."
                     return
@@ -988,17 +997,14 @@ final class AppState: ObservableObject {
                     self.errorMessage = "This video is too large. Record a shorter First Loop."
                     return
                 }
-                let contentType = videoURL.pathExtension.lowercased() == "mov"
-                    ? "video/quicktime"
-                    : "video/mp4"
                 stage = "requesting an upload"
                 let intent = try await self.apiClient.createUploadIntent(
                     kind: .firstLoop,
-                    contentType: contentType,
+                    contentType: "video/mp4",
                     fileSizeBytes: fileSize
                 )
                 stage = "uploading the video"
-                _ = try await MediaUploadService().upload(fileURL: videoURL, intent: intent)
+                _ = try await MediaUploadService().upload(fileURL: uploadURL, intent: intent)
                 stage = "attaching the video to the match"
                 _ = try await self.apiClient.sendFirstLoop(
                     matchId: match.id,
