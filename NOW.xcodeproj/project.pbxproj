@@ -1,7 +1,8 @@
 // !$*UTF8*$!
 {
 	archiveVersion = 1;
-	classes = {};
+	classes = {
+	};
 	objectVersion = 56;
 	objects = {
 
@@ -19,7 +20,6 @@
 		10000000000000000000010B /* MockData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020B /* MockData.swift */; };
 		10000000000000000000010C /* NOWModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020C /* NOWModels.swift */; };
 		10000000000000000000010D /* AuthTokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020D /* AuthTokenStore.swift */; };
-		100000000000000000000121 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000223 /* LocationService.swift */; };
 		10000000000000000000010E /* WelcomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020E /* WelcomeScreen.swift */; };
 		10000000000000000000010F /* ChatScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020F /* ChatScreen.swift */; };
 		100000000000000000000110 /* DiscoveryMapScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000210 /* DiscoveryMapScreen.swift */; };
@@ -39,6 +39,7 @@
 		10000000000000000000011E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000220 /* Assets.xcassets */; };
 		10000000000000000000011F /* now-logo-live-signal.png in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000221 /* now-logo-live-signal.png */; };
 		100000000000000000000120 /* now-logo-o-variants.png in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000222 /* now-logo-o-variants.png */; };
+		100000000000000000000121 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000223 /* LocationService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -55,7 +56,6 @@
 		10000000000000000000020B /* MockData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockData.swift; sourceTree = "<group>"; };
 		10000000000000000000020C /* NOWModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NOWModels.swift; sourceTree = "<group>"; };
 		10000000000000000000020D /* AuthTokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthTokenStore.swift; sourceTree = "<group>"; };
-		100000000000000000000223 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
 		10000000000000000000020E /* WelcomeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeScreen.swift; sourceTree = "<group>"; };
 		10000000000000000000020F /* ChatScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatScreen.swift; sourceTree = "<group>"; };
 		100000000000000000000210 /* DiscoveryMapScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoveryMapScreen.swift; sourceTree = "<group>"; };
@@ -77,10 +77,17 @@
 		100000000000000000000220 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		100000000000000000000221 /* now-logo-live-signal.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "now-logo-live-signal.png"; sourceTree = "<group>"; };
 		100000000000000000000222 /* now-logo-o-variants.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "now-logo-o-variants.png"; sourceTree = "<group>"; };
+		100000000000000000000223 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		100000000000000000000301 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		100000000000000000000301 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -105,7 +112,9 @@
 		};
 		100000000000000000000403 /* Products */ = {
 			isa = PBXGroup;
-			children = (100000000000000000000219 /* NOW.app */);
+			children = (
+				100000000000000000000219 /* NOW.app */,
+			);
 			name = Products;
 			sourceTree = "<group>";
 		};
@@ -132,51 +141,6 @@
 			path = Core;
 			sourceTree = "<group>";
 		};
-		100000000000000000000407 /* API */ = {
-			isa = PBXGroup;
-			children = (
-				100000000000000000000204 /* APIClient.swift */,
-				100000000000000000000205 /* APIEnvironment.swift */,
-				100000000000000000000206 /* APIError.swift */,
-				100000000000000000000207 /* BackendDTOs.swift */,
-				100000000000000000000208 /* NOWAPIClient.swift */,
-			);
-			path = API;
-			sourceTree = "<group>";
-		};
-		100000000000000000000408 /* DesignSystem */ = {
-			isa = PBXGroup;
-			children = (100000000000000000000209 /* DesignTokens.swift */);
-			path = DesignSystem;
-			sourceTree = "<group>";
-		};
-		100000000000000000000419 /* Location */ = {
-			isa = PBXGroup;
-			children = (100000000000000000000223 /* LocationService.swift */);
-			path = Location;
-			sourceTree = "<group>";
-		};
-		100000000000000000000409 /* Media */ = {
-			isa = PBXGroup;
-			children = (10000000000000000000020A /* MediaUploadService.swift */);
-			path = Media;
-			sourceTree = "<group>";
-		};
-		10000000000000000000040A /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				10000000000000000000020B /* MockData.swift */,
-				10000000000000000000020C /* NOWModels.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
-		10000000000000000000040B /* Storage */ = {
-			isa = PBXGroup;
-			children = (10000000000000000000020D /* AuthTokenStore.swift */);
-			path = Storage;
-			sourceTree = "<group>";
-		};
 		100000000000000000000406 /* Features */ = {
 			isa = PBXGroup;
 			children = (
@@ -195,17 +159,139 @@
 			path = Features;
 			sourceTree = "<group>";
 		};
-		10000000000000000000040C /* Auth */ = {isa = PBXGroup; children = (10000000000000000000020E /* WelcomeScreen.swift */); path = Auth; sourceTree = "<group>"; };
-		10000000000000000000040D /* Chat */ = {isa = PBXGroup; children = (10000000000000000000020F /* ChatScreen.swift */); path = Chat; sourceTree = "<group>"; };
-		10000000000000000000040E /* DiscoveryMap */ = {isa = PBXGroup; children = (100000000000000000000210 /* DiscoveryMapScreen.swift */); path = DiscoveryMap; sourceTree = "<group>"; };
-		10000000000000000000040F /* History */ = {isa = PBXGroup; children = (100000000000000000000211 /* HistoryScreen.swift */); path = History; sourceTree = "<group>"; };
-		100000000000000000000410 /* Loops */ = {isa = PBXGroup; children = (100000000000000000000212 /* FirstLoopScreen.swift */); path = Loops; sourceTree = "<group>"; };
-		100000000000000000000411 /* Match */ = {isa = PBXGroup; children = (100000000000000000000213 /* MatchFlowScreen.swift */); path = Match; sourceTree = "<group>"; };
-		100000000000000000000412 /* MeetingMode */ = {isa = PBXGroup; children = (100000000000000000000214 /* MeetingModeScreen.swift */); path = MeetingMode; sourceTree = "<group>"; };
-		100000000000000000000413 /* MeetingProposal */ = {isa = PBXGroup; children = (100000000000000000000215 /* MeetingProposalScreen.swift */); path = MeetingProposal; sourceTree = "<group>"; };
-		100000000000000000000414 /* Onboarding */ = {isa = PBXGroup; children = (100000000000000000000216 /* CreateProfileScreen.swift */); path = Onboarding; sourceTree = "<group>"; };
-		100000000000000000000415 /* ProfilePreview */ = {isa = PBXGroup; children = (100000000000000000000217 /* ProfilePreviewScreen.swift */); path = ProfilePreview; sourceTree = "<group>"; };
-		100000000000000000000416 /* TodayIntent */ = {isa = PBXGroup; children = (100000000000000000000218 /* GoOnlineScreen.swift */); path = TodayIntent; sourceTree = "<group>"; };
+		100000000000000000000407 /* API */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000204 /* APIClient.swift */,
+				100000000000000000000205 /* APIEnvironment.swift */,
+				100000000000000000000206 /* APIError.swift */,
+				100000000000000000000207 /* BackendDTOs.swift */,
+				100000000000000000000208 /* NOWAPIClient.swift */,
+			);
+			path = API;
+			sourceTree = "<group>";
+		};
+		100000000000000000000408 /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000209 /* DesignTokens.swift */,
+			);
+			path = DesignSystem;
+			sourceTree = "<group>";
+		};
+		100000000000000000000409 /* Media */ = {
+			isa = PBXGroup;
+			children = (
+				10000000000000000000020A /* MediaUploadService.swift */,
+			);
+			path = Media;
+			sourceTree = "<group>";
+		};
+		10000000000000000000040A /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				10000000000000000000020B /* MockData.swift */,
+				10000000000000000000020C /* NOWModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		10000000000000000000040B /* Storage */ = {
+			isa = PBXGroup;
+			children = (
+				10000000000000000000020D /* AuthTokenStore.swift */,
+			);
+			path = Storage;
+			sourceTree = "<group>";
+		};
+		10000000000000000000040C /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				10000000000000000000020E /* WelcomeScreen.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		10000000000000000000040D /* Chat */ = {
+			isa = PBXGroup;
+			children = (
+				10000000000000000000020F /* ChatScreen.swift */,
+			);
+			path = Chat;
+			sourceTree = "<group>";
+		};
+		10000000000000000000040E /* DiscoveryMap */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000210 /* DiscoveryMapScreen.swift */,
+			);
+			path = DiscoveryMap;
+			sourceTree = "<group>";
+		};
+		10000000000000000000040F /* History */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000211 /* HistoryScreen.swift */,
+			);
+			path = History;
+			sourceTree = "<group>";
+		};
+		100000000000000000000410 /* Loops */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000212 /* FirstLoopScreen.swift */,
+			);
+			path = Loops;
+			sourceTree = "<group>";
+		};
+		100000000000000000000411 /* Match */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000213 /* MatchFlowScreen.swift */,
+			);
+			path = Match;
+			sourceTree = "<group>";
+		};
+		100000000000000000000412 /* MeetingMode */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000214 /* MeetingModeScreen.swift */,
+			);
+			path = MeetingMode;
+			sourceTree = "<group>";
+		};
+		100000000000000000000413 /* MeetingProposal */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000215 /* MeetingProposalScreen.swift */,
+			);
+			path = MeetingProposal;
+			sourceTree = "<group>";
+		};
+		100000000000000000000414 /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000216 /* CreateProfileScreen.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		100000000000000000000415 /* ProfilePreview */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000217 /* ProfilePreviewScreen.swift */,
+			);
+			path = ProfilePreview;
+			sourceTree = "<group>";
+		};
+		100000000000000000000416 /* TodayIntent */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000218 /* GoOnlineScreen.swift */,
+			);
+			path = TodayIntent;
+			sourceTree = "<group>";
+		};
 		100000000000000000000417 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
@@ -230,6 +316,14 @@
 			path = Images;
 			sourceTree = "<group>";
 		};
+		100000000000000000000419 /* Location */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000223 /* LocationService.swift */,
+			);
+			path = Location;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -241,8 +335,10 @@
 				100000000000000000000301 /* Frameworks */,
 				100000000000000000000602 /* Resources */,
 			);
-			buildRules = ();
-			dependencies = ();
+			buildRules = (
+			);
+			dependencies = (
+			);
 			name = NOW;
 			productName = NOW;
 			productReference = 100000000000000000000219 /* NOW.app */;
@@ -258,19 +354,26 @@
 				LastSwiftUpdateCheck = 1540;
 				LastUpgradeCheck = 1540;
 				TargetAttributes = {
-					100000000000000000000501 = {CreatedOnToolsVersion = 15.4;};
+					100000000000000000000501 = {
+						CreatedOnToolsVersion = 15.4;
+					};
 				};
 			};
 			buildConfigurationList = 100000000000000000000702 /* Build configuration list for PBXProject "NOW" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
-			knownRegions = (en, Base);
+			knownRegions = (
+				en,
+				Base,
+			);
 			mainGroup = 100000000000000000000401;
 			productRefGroup = 100000000000000000000403 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			targets = (100000000000000000000501 /* NOW */);
+			targets = (
+				100000000000000000000501 /* NOW */,
+			);
 		};
 /* End PBXProject section */
 
@@ -279,14 +382,14 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				100000000000000000000119,
-				10000000000000000000011A,
-				10000000000000000000011B,
-				10000000000000000000011C,
-				10000000000000000000011D,
-				10000000000000000000011E,
-				10000000000000000000011F,
-				100000000000000000000120,
+				100000000000000000000119 /* human-city-person-woman.png in Resources */,
+				10000000000000000000011A /* human-city-cafe-meet.png in Resources */,
+				10000000000000000000011B /* human-city-street-coffee.png in Resources */,
+				10000000000000000000011C /* human-city-park-walk-blur.png in Resources */,
+				10000000000000000000011D /* human-city-cafe-table-blur.png in Resources */,
+				10000000000000000000011E /* Assets.xcassets in Resources */,
+				10000000000000000000011F /* now-logo-live-signal.png in Resources */,
+				100000000000000000000120 /* now-logo-o-variants.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -297,14 +400,31 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				100000000000000000000101, 100000000000000000000102, 100000000000000000000103,
-				100000000000000000000104, 100000000000000000000105, 100000000000000000000106,
-				100000000000000000000107, 100000000000000000000108, 100000000000000000000109,
-				10000000000000000000010A, 10000000000000000000010B, 10000000000000000000010C,
-				10000000000000000000010D, 100000000000000000000121, 10000000000000000000010E, 10000000000000000000010F,
-				100000000000000000000110, 100000000000000000000111, 100000000000000000000112,
-				100000000000000000000113, 100000000000000000000114, 100000000000000000000115,
-				100000000000000000000116, 100000000000000000000117, 100000000000000000000118,
+				100000000000000000000101 /* NOWApp.swift in Sources */,
+				100000000000000000000102 /* AppRouter.swift in Sources */,
+				100000000000000000000103 /* AppState.swift in Sources */,
+				100000000000000000000104 /* APIClient.swift in Sources */,
+				100000000000000000000105 /* APIEnvironment.swift in Sources */,
+				100000000000000000000106 /* APIError.swift in Sources */,
+				100000000000000000000107 /* BackendDTOs.swift in Sources */,
+				100000000000000000000108 /* NOWAPIClient.swift in Sources */,
+				100000000000000000000109 /* DesignTokens.swift in Sources */,
+				10000000000000000000010A /* MediaUploadService.swift in Sources */,
+				10000000000000000000010B /* MockData.swift in Sources */,
+				10000000000000000000010C /* NOWModels.swift in Sources */,
+				10000000000000000000010D /* AuthTokenStore.swift in Sources */,
+				100000000000000000000121 /* LocationService.swift in Sources */,
+				10000000000000000000010E /* WelcomeScreen.swift in Sources */,
+				10000000000000000000010F /* ChatScreen.swift in Sources */,
+				100000000000000000000110 /* DiscoveryMapScreen.swift in Sources */,
+				100000000000000000000111 /* HistoryScreen.swift in Sources */,
+				100000000000000000000112 /* FirstLoopScreen.swift in Sources */,
+				100000000000000000000113 /* MatchFlowScreen.swift in Sources */,
+				100000000000000000000114 /* MeetingModeScreen.swift in Sources */,
+				100000000000000000000115 /* MeetingProposalScreen.swift in Sources */,
+				100000000000000000000116 /* CreateProfileScreen.swift in Sources */,
+				100000000000000000000117 /* ProfilePreviewScreen.swift in Sources */,
+				100000000000000000000118 /* GoOnlineScreen.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -350,7 +470,10 @@
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = ("DEBUG=1", "$(inherited)");
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
@@ -427,7 +550,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 5SMGL4C99T;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = NOW/Resources/Info.plist;
@@ -451,7 +574,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 5SMGL4C99T;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = NOW/Resources/Info.plist;
@@ -471,8 +594,24 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		100000000000000000000701 /* Build configuration list for PBXNativeTarget "NOW" */ = {isa = XCConfigurationList; buildConfigurations = (100000000000000000000803, 100000000000000000000804); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		100000000000000000000702 /* Build configuration list for PBXProject "NOW" */ = {isa = XCConfigurationList; buildConfigurations = (100000000000000000000801, 100000000000000000000802); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		100000000000000000000701 /* Build configuration list for PBXNativeTarget "NOW" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				100000000000000000000803 /* Debug */,
+				100000000000000000000804 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		100000000000000000000702 /* Build configuration list for PBXProject "NOW" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				100000000000000000000801 /* Debug */,
+				100000000000000000000802 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 	};
 	rootObject = 100000000000000000000502 /* Project object */;
