@@ -21,8 +21,7 @@ final class AppState: ObservableObject {
     @Published var messages: [Message] = []
     @Published var meetingProposal: MeetingProposal?
     @Published var history: [HistoryItem] = []
-    @Published var showHistory = false
-    @Published var showAccount = false
+    @Published var selectedAppTab: AppTab = .search
     @Published private(set) var currentUserId: UUID?
     @Published private(set) var currentUserEmail: String?
     @Published private(set) var myProfile: ProfileDTO?
@@ -39,6 +38,28 @@ final class AppState: ObservableObject {
 
     var visibleMapPoints: [MapPoint] {
         mapPoints.filter { $0.state != .hiddenToday && $0.state != .blocked }
+    }
+
+    var showHistory: Bool {
+        get { selectedAppTab == .history }
+        set {
+            if newValue {
+                selectedAppTab = .history
+            } else if selectedAppTab == .history {
+                selectedAppTab = .search
+            }
+        }
+    }
+
+    var showAccount: Bool {
+        get { selectedAppTab == .account }
+        set {
+            if newValue {
+                selectedAppTab = .account
+            } else if selectedAppTab == .account {
+                selectedAppTab = .search
+            }
+        }
     }
 
     var chatUnlocked: Bool {
@@ -105,12 +126,20 @@ final class AppState: ObservableObject {
     }
 
     func openAccount() {
-        showAccount = true
-        Task { await loadMyProfile() }
+        selectAppTab(.account)
     }
 
     func closeAccount() {
-        showAccount = false
+        selectAppTab(.search)
+    }
+
+    func selectAppTab(_ tab: AppTab) {
+        errorMessage = nil
+        selectedAppTab = tab
+
+        if tab == .account {
+            Task { await loadMyProfile() }
+        }
     }
 
     func loadMyProfile() async {
@@ -674,7 +703,7 @@ final class AppState: ObservableObject {
     }
 
     func closeHistory() {
-        showHistory = false
+        selectAppTab(.search)
     }
 
     private func ensureDemoPointsIfNeeded() {
@@ -802,7 +831,7 @@ final class AppState: ObservableObject {
     }
 
     private func loadDiscoveryMap() async throws {
-        let response = try await apiClient.discoverMap()
+        let response = try await apiClient.discoverMap(radiusM: 50_000)
         let mappedPoints = response.points.map(mapPoint)
         mapPoints = mappedPoints
         isOnline = true
@@ -1096,6 +1125,7 @@ final class AppState: ObservableObject {
         messages = []
         showHistory = false
         showAccount = false
+        selectedAppTab = .search
         myFirstLoopURL = nil
         theirFirstLoopURL = nil
         cachedLoopFiles = [:]

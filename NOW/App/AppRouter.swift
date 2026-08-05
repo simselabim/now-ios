@@ -11,36 +11,154 @@ struct AppRouter: View {
                         .tint(NOWColor.lime)
                 } else if !appState.isAuthenticated {
                     WelcomeScreen()
-                } else if appState.showAccount {
-                    AccountScreen()
                 } else if !appState.isProfileComplete {
                     CreateProfileScreen()
-                } else if appState.showHistory {
-                    HistoryScreen()
                 } else if appState.activeMatch != nil {
                     MatchFlowScreen()
                 } else if appState.selectedPoint != nil {
                     ProfilePreviewScreen()
-                } else if !appState.isOnline {
-                    GoOnlineScreen()
                 } else {
-                    DiscoveryMapScreen()
+                    MainAppShell()
                 }
             }
             .background(NOWColor.paper.ignoresSafeArea())
-            .toolbar {
-                if appState.isAuthenticated && !appState.showAccount {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            appState.openAccount()
-                        } label: {
-                            Label("Account", systemImage: "person.crop.circle")
-                        }
-                        .tint(NOWColor.ink)
-                    }
+            .toolbar(.hidden, for: .navigationBar)
+        }
+    }
+}
+
+private struct MainAppShell: View {
+    @EnvironmentObject private var appState: AppState
+
+    var body: some View {
+        Group {
+            switch appState.selectedAppTab {
+            case .search:
+                if appState.isOnline {
+                    DiscoveryMapScreen()
+                } else {
+                    GoOnlineScreen()
                 }
+            case .history:
+                HistoryScreen()
+            case .account:
+                AccountScreen()
+            case .now:
+                NOWPhilosophyScreen()
             }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            NOWBottomNavigation(
+                selection: Binding(
+                    get: { appState.selectedAppTab },
+                    set: { appState.selectAppTab($0) }
+                )
+            )
+        }
+    }
+}
+
+private struct NOWBottomNavigation: View {
+    @Binding var selection: AppTab
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(AppTab.allCases) { tab in
+                Button {
+                    selection = tab
+                } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: tab.systemImage)
+                            .font(.system(size: 18, weight: .bold))
+                        Text(tab.rawValue)
+                            .font(.system(size: 10, weight: .heavy, design: .rounded))
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(selection == tab ? NOWColor.surface : NOWColor.laBrownSoft)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background {
+                        if selection == tab {
+                            Capsule()
+                                .fill(NOWColor.laBrownSoft)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(tab.rawValue)
+                .accessibilityAddTraits(selection == tab ? .isSelected : [])
+            }
+        }
+        .padding(6)
+        .background(NOWColor.surface.opacity(0.98))
+        .clipShape(Capsule())
+        .overlay(Capsule().stroke(NOWColor.line.opacity(0.8), lineWidth: 1))
+        .shadow(color: NOWColor.ink.opacity(0.16), radius: 18, x: 0, y: 8)
+        .padding(.horizontal, 14)
+        .padding(.top, 8)
+        .padding(.bottom, 6)
+        .background(NOWColor.laCream.opacity(0.94))
+    }
+}
+
+private struct NOWPhilosophyScreen: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                NOWLogo()
+
+                Text("One click.\nOne meeting. Now.")
+                    .font(.system(size: 40, weight: .black, design: .rounded))
+                    .foregroundStyle(NOWColor.ink)
+
+                Text("NOW is built for a real plan today, not an endless catalogue of people.")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(NOWColor.slate)
+
+                philosophyCard(
+                    icon: "location.fill",
+                    title: "Nearby and available",
+                    copy: "Search only among people who are online nearby and ready to meet today."
+                )
+                philosophyCard(
+                    icon: "hand.tap.fill",
+                    title: "One clear choice",
+                    copy: "Open a person, say hi, and give one connection your attention instead of swiping forever."
+                )
+                philosophyCard(
+                    icon: "sunset.fill",
+                    title: "Today stays honest",
+                    copy: "Your plan, availability, and matches reset with the day. Choose what feels right now."
+                )
+            }
+            .padding(22)
+            .padding(.bottom, 16)
+        }
+        .background(NOWColor.laCream.ignoresSafeArea())
+    }
+
+    private func philosophyCard(icon: String, title: String, copy: String) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: icon)
+                .font(.title3.weight(.black))
+                .foregroundStyle(NOWColor.laCoral)
+                .frame(width: 42, height: 42)
+                .background(NOWColor.laGold.opacity(0.38))
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title)
+                    .font(.headline.weight(.black))
+                    .foregroundStyle(NOWColor.ink)
+                Text(copy)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(NOWColor.inkSoft)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(NOWColor.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 
@@ -61,14 +179,9 @@ private struct AccountScreen: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 HStack {
-                    Button {
-                        appState.closeAccount()
-                    } label: {
-                        Label("Back", systemImage: "chevron.left")
-                            .font(.subheadline.weight(.bold))
-                    }
-                    .foregroundStyle(NOWColor.ink)
-
+                    Text("Account")
+                        .font(.caption.weight(.black))
+                        .foregroundStyle(NOWColor.laCoral)
                     Spacer()
                     NOWLogo(compact: true)
                 }

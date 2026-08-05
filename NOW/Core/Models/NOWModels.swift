@@ -1,6 +1,28 @@
 import Foundation
 import CoreLocation
 
+enum AppTab: String, CaseIterable, Identifiable {
+    case search = "Search"
+    case history = "History"
+    case account = "Account"
+    case now = "NOW"
+
+    var id: String { rawValue }
+
+    var systemImage: String {
+        switch self {
+        case .search:
+            return "location.magnifyingglass"
+        case .history:
+            return "clock.arrow.circlepath"
+        case .account:
+            return "person.crop.circle"
+        case .now:
+            return "sparkles"
+        }
+    }
+}
+
 enum Plan: String, CaseIterable, Identifiable {
     case coffee = "Coffee"
     case walk = "Walk"
