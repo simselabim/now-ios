@@ -11,7 +11,7 @@ final class AppState: ObservableObject {
     @Published var errorMessage: String?
     @Published var selectedDemoAccount = DemoAccount.defaultAccount
     @Published var todayIntent = TodayIntent(plan: .coffee, intent: .date, timeWindow: .evening)
-    @Published var mapPoints: [MapPoint] = MockData.mapPoints
+    @Published var mapPoints: [MapPoint] = []
     @Published var currentCoordinate: CLLocationCoordinate2D?
     @Published var currentLocationAccuracyM: Int?
     @Published var selectedPoint: MapPoint?
@@ -20,7 +20,7 @@ final class AppState: ObservableObject {
     @Published private(set) var theirFirstLoopURL: URL?
     @Published var messages: [Message] = []
     @Published var meetingProposal: MeetingProposal?
-    @Published var history: [HistoryItem] = MockData.history
+    @Published var history: [HistoryItem] = []
     @Published var showHistory = false
     @Published var showAccount = false
     @Published private(set) var currentUserId: UUID?
@@ -791,16 +791,11 @@ final class AppState: ObservableObject {
             isOnline = true
             try await loadDiscoveryMap()
         } catch {
-            #if DEBUG
-            openLAStateForTesting("map")
-            return
-            #else
             mapPoints = []
             selectedPoint = nil
             showHistory = false
             isOnline = false
             errorMessage = "Could not sync with the staging API. Check backend URL and connection."
-            #endif
         }
 
         isLoading = false
