@@ -49,12 +49,6 @@ struct DiscoveryMapScreen: View {
 
                 LAPill(text: "Golden hour · 1 h 16 m of daylight left", icon: nil)
                     .frame(maxWidth: .infinity, alignment: .leading)
-
-                MapPersonCard(point: appState.visibleMapPoints.first) {
-                    if let point = appState.visibleMapPoints.first {
-                        appState.viewPoint(point)
-                    }
-                }
             }
             .padding(.horizontal, 18)
             .padding(.bottom, 18)
@@ -344,54 +338,5 @@ private struct LAMapPersonMarker: View {
 
     private var labelForeground: Color {
         point.state == .viewed ? NOWColor.surface : NOWColor.ink
-    }
-}
-
-private struct MapPersonCard: View {
-    let point: MapPoint?
-    let open: () -> Void
-
-    var body: some View {
-        Button {
-            open()
-        } label: {
-            HStack(spacing: 12) {
-                BundlePhoto(name: NOWPhoto.person)
-                    .frame(width: 78, height: 78)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(point?.profile.name ?? "Someone nearby")
-                        .font(.title3.weight(.black))
-                        .foregroundStyle(NOWColor.ink)
-                    Text(cardCopy)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(NOWColor.inkSoft)
-                        .lineLimit(2)
-                }
-
-                Spacer()
-
-                Text("Open")
-                    .font(.caption.weight(.black))
-                    .foregroundStyle(NOWColor.surface)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 12)
-                    .background(LAGradient.sunset)
-                    .clipShape(Capsule())
-            }
-        }
-        .buttonStyle(.plain)
-        .padding(12)
-        .background(NOWColor.surface.opacity(0.98))
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .shadow(color: NOWColor.ink.opacity(0.12), radius: 22, x: 0, y: 12)
-    }
-
-    private var cardCopy: String {
-        guard let profile = point?.profile else {
-            return "Open to meet today. Tap a live point."
-        }
-        return "\(profile.plan.rawValue) in Canggu · \(profile.distance)"
     }
 }
