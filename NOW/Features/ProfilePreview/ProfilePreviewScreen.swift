@@ -69,24 +69,25 @@ struct ProfilePreviewScreen: View {
                                     .stroke(NOWColor.line.opacity(0.82), lineWidth: 1)
                             )
 
-                        HStack(spacing: 12) {
-                            Button {
-                                appState.notNow(point)
-                            } label: {
-                                Image(systemName: "xmark")
-                            }
-                            .buttonStyle(ProfileIconButtonStyle())
-
-                            Button("Say hi") {
-                                appState.markInterested(point)
-                            }
-                            .buttonStyle(DangerButtonStyle())
+                        Button("Say hi") {
+                            appState.markInterested(point)
                         }
+                        .buttonStyle(DangerButtonStyle())
                     }
                     .padding(14)
                     .padding(.top, 24)
                 }
             }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 24)
+                    .onEnded { value in
+                        let isDownwardSwipe = value.translation.height > 100
+                            && abs(value.translation.height) > abs(value.translation.width)
+                        if isDownwardSwipe {
+                            appState.closeProfilePreview()
+                        }
+                    }
+            )
         }
     }
 }
@@ -100,21 +101,6 @@ private func likeButtonTitle(for profile: UserProfile) -> String {
         return "Like him"
     }
     return "Like \(profile.name)"
-}
-
-private struct ProfileIconButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.headline.weight(.black))
-            .foregroundStyle(NOWColor.ink)
-            .frame(width: 58, height: 52)
-            .background(NOWColor.surface.opacity(configuration.isPressed ? 0.72 : 1))
-            .clipShape(Circle())
-            .overlay(
-                Circle()
-                    .stroke(NOWColor.line, lineWidth: 1)
-            )
-    }
 }
 
 private struct LoopBadge: View {

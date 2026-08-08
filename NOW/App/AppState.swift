@@ -37,7 +37,7 @@ final class AppState: ObservableObject {
     }
 
     var visibleMapPoints: [MapPoint] {
-        mapPoints.filter { $0.state != .hiddenToday && $0.state != .blocked }
+        mapPoints.filter { $0.state != .blocked }
     }
 
     var showHistory: Bool {
@@ -438,12 +438,6 @@ final class AppState: ObservableObject {
     func markInterested(_ point: MapPoint) {
         Task {
             await likePointWithBackend(point)
-        }
-    }
-
-    func notNow(_ point: MapPoint) {
-        Task {
-            await passPointWithBackend(point)
         }
     }
 
@@ -905,18 +899,6 @@ final class AppState: ObservableObject {
                     self.errorMessage = "Liked for today. No match yet."
                 }
             }
-        }
-    }
-
-    private func passPointWithBackend(_ point: MapPoint) async {
-        await runLoading {
-            do {
-                _ = try await self.apiClient.passProfile(point.profile.id)
-            } catch {
-                self.errorMessage = "Demo mode: hidden for today locally."
-            }
-            self.updatePoint(point.id, state: .hiddenToday)
-            self.selectedPoint = nil
         }
     }
 

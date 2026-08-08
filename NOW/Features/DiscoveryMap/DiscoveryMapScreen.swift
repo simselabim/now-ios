@@ -311,10 +311,10 @@ private struct LAMapPersonMarker: View {
                     .overlay(Circle().stroke(markerStroke, lineWidth: 3))
                     .shadow(color: NOWColor.ink.opacity(0.18), radius: 10, x: 0, y: 6)
 
-                if point.state == .triedBefore {
-                    Image(systemName: "xmark")
+                if let markerSymbol {
+                    Image(systemName: markerSymbol)
                         .font(.system(size: 20, weight: .black))
-                        .foregroundStyle(NOWColor.laBrown)
+                        .foregroundStyle(markerSymbolColor)
                 }
             }
 
@@ -335,19 +335,17 @@ private struct LAMapPersonMarker: View {
         switch point.state {
         case .unseen:
             return NOWColor.laGreen
-        case .interested, .triedBefore:
-            return NOWColor.laGold
-        case .viewed:
-            return NOWColor.surface.opacity(0.25)
-        case .hiddenToday, .blocked:
+        case .viewed, .interested, .triedBefore:
+            return NOWColor.laBrownSoft.opacity(0.22)
+        case .blocked:
             return NOWColor.laBrownSoft.opacity(0.45)
         }
     }
 
     private var markerStroke: Color {
         switch point.state {
-        case .viewed:
-            return NOWColor.laBrownSoft
+        case .viewed, .interested, .triedBefore:
+            return NOWColor.laBrownSoft.opacity(0.58)
         default:
             return markerFill
         }
@@ -357,16 +355,29 @@ private struct LAMapPersonMarker: View {
         switch point.state {
         case .unseen:
             return NOWColor.laGreen
-        case .interested, .triedBefore:
-            return NOWColor.laGold
-        case .viewed:
-            return NOWColor.surface.opacity(0.9)
-        case .hiddenToday, .blocked:
+        case .viewed, .interested, .triedBefore:
+            return NOWColor.surface.opacity(0.72)
+        case .blocked:
             return NOWColor.laBrownSoft
         }
     }
 
     private var labelForeground: Color {
-        point.state == .hiddenToday || point.state == .blocked ? NOWColor.surface : NOWColor.ink
+        point.state == .blocked ? NOWColor.surface : NOWColor.ink
+    }
+
+    private var markerSymbol: String? {
+        switch point.state {
+        case .interested:
+            return "heart.fill"
+        case .triedBefore:
+            return "xmark"
+        default:
+            return nil
+        }
+    }
+
+    private var markerSymbolColor: Color {
+        point.state == .interested ? NOWColor.laCoral : NOWColor.laBrown
     }
 }
