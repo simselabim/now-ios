@@ -43,7 +43,7 @@ struct ProfilePreviewScreen: View {
                             }
                             .padding(18)
 
-                            LoopBadge()
+                            LoopBadge(loopURL: loopURL(for: point.profile))
                                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
                                 .padding(.trailing, 16)
                                 .padding(.bottom, 32)
@@ -92,6 +92,11 @@ struct ProfilePreviewScreen: View {
             )
         }
     }
+
+    private func loopURL(for profile: UserProfile) -> URL? {
+        guard appState.activeMatch?.profile.id == profile.id else { return nil }
+        return appState.theirFirstLoopURL
+    }
 }
 
 private func likeButtonTitle(for profile: UserProfile) -> String {
@@ -106,16 +111,29 @@ private func likeButtonTitle(for profile: UserProfile) -> String {
 }
 
 private struct LoopBadge: View {
+    let loopURL: URL?
+
     var body: some View {
         VStack(spacing: 5) {
-            ZStack {
-                Circle()
-                    .fill(NOWColor.laBrown.opacity(0.62))
-                    .frame(width: 68, height: 68)
-                    .overlay(Circle().stroke(NOWColor.laOrange, lineWidth: 3))
-                Image(systemName: "play.fill")
-                    .font(.headline.weight(.black))
-                    .foregroundStyle(NOWColor.surface)
+            if let loopURL {
+                CircularLoopPlayer(
+                    url: loopURL,
+                    diameter: 68,
+                    strokeColor: NOWColor.laOrange,
+                    lineWidth: 3,
+                    startsMuted: true,
+                    togglesAudioOnTap: true
+                )
+            } else {
+                ZStack {
+                    Circle()
+                        .fill(NOWColor.laBrown.opacity(0.62))
+                        .frame(width: 68, height: 68)
+                        .overlay(Circle().stroke(NOWColor.laOrange, lineWidth: 3))
+                    Image(systemName: "play.fill")
+                        .font(.headline.weight(.black))
+                        .foregroundStyle(NOWColor.surface)
+                }
             }
             Text("10s loop")
                 .font(.caption2.weight(.heavy))
