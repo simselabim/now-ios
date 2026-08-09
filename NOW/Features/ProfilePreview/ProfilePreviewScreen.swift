@@ -83,7 +83,9 @@ struct ProfilePreviewScreen: View {
                     .onEnded { value in
                         let isDownwardSwipe = value.translation.height > 100
                             && abs(value.translation.height) > abs(value.translation.width)
-                        if isDownwardSwipe {
+                        let isBackSwipe = value.translation.width > 90
+                            && abs(value.translation.width) > abs(value.translation.height)
+                        if isDownwardSwipe || isBackSwipe {
                             appState.closeProfilePreview()
                         }
                     }
