@@ -31,6 +31,8 @@ final class AppState: ObservableObject {
     private let apiClient: NOWAPIClient
     private let locationService: LocationService
     private var cachedLoopFiles: [String: URL] = [:]
+    private var activeMatchEventsTask: Task<Void, Never>?
+    private var activeMatchEventsMatchId: UUID?
 
     init(apiClient: NOWAPIClient = NOWAPIClient()) {
         self.apiClient = apiClient
@@ -366,10 +368,17 @@ final class AppState: ObservableObject {
 
             do {
                 let hadActiveMatch = activeMatch != nil
+
+                if activeMatch != nil {
+                    startActiveMatchEventsIfNeeded()
+                    continue
+                }
+
                 try await loadActiveMatchDetail()
 
                 if activeMatch != nil {
                     isOnline = false
+                    startActiveMatchEventsIfNeeded()
                 } else if hadActiveMatch {
                     isViewingActiveMatchMap = false
                     selectedPoint = nil
@@ -974,6 +983,10 @@ final class AppState: ObservableObject {
 
     private func loadActiveMatchDetail() async throws {
         let response = try await apiClient.activeMatchDetail()
+        await applyActiveMatchDetail(response)
+    }
+
+    private func applyActiveMatchDetail(_ response: ActiveMatchDetailResponseDTO) async {
         guard let detail = response.matchItem else {
             clearActiveMatchState()
             return
@@ -1014,9 +1027,11 @@ final class AppState: ObservableObject {
         } else {
             meetingProposal = nil
         }
+        startActiveMatchEventsIfNeeded()
     }
 
     private func clearActiveMatchState() {
+        stopActiveMatchEvents()
         activeMatch = nil
         isViewingActiveMatchMap = false
         myFirstLoopURL = nil
@@ -1024,6 +1039,58 @@ final class AppState: ObservableObject {
         cachedLoopFiles = [:]
         meetingProposal = nil
         messages = []
+    }
+
+    private func startActiveMatchEventsIfNeeded() {
+        guard currentUserId != nil, let match = activeMatch else {
+            stopActiveMatchEvents()
+            return
+        }
+
+        if activeMatchEventsMatchId == match.id, activeMatchEventsTask != nil {
+            return
+        }
+
+        stopActiveMatchEvents()
+        activeMatchEventsMatchId = match.id
+        activeMatchEventsTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let events = try await self.apiClient.activeMatchEvents(matchId: match.id)
+                for try await event in events {
+                    await self.applyActiveMatchEvent(event, matchId: match.id)
+                }
+            } catch {
+                await self.stopActiveMatchEvents(matchId: match.id)
+            }
+        }
+    }
+
+    private func stopActiveMatchEvents(matchId: UUID? = nil) {
+        if let matchId, activeMatchEventsMatchId != matchId {
+            return
+        }
+        activeMatchEventsTask?.cancel()
+        activeMatchEventsTask = nil
+        activeMatchEventsMatchId = nil
+    }
+
+    private func applyActiveMatchEvent(_ event: MatchEventDTO, matchId: UUID) async {
+        guard activeMatch?.id == matchId else {
+            stopActiveMatchEvents(matchId: matchId)
+            return
+        }
+
+        switch event {
+        case .snapshot(let detail):
+            await applyActiveMatchDetail(detail)
+        case .matchClosed:
+            clearActiveMatchState()
+            isOnline = true
+            try? await loadDiscoveryMap()
+        case .error:
+            stopActiveMatchEvents(matchId: matchId)
+        }
     }
 
     private func playbackURL(for loop: LoopDTO?) async -> URL? {
@@ -1166,6 +1233,7 @@ final class AppState: ObservableObject {
     }
 
     private func resetAuthenticatedState() {
+        stopActiveMatchEvents()
         errorMessage = nil
         isAuthenticated = false
         isProfileComplete = false

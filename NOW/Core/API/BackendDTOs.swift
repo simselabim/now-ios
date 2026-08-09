@@ -252,6 +252,38 @@ struct ActiveMatchDetailResponseDTO: Decodable {
     let matchItem: ActiveMatchDetailDTO?
 }
 
+enum MatchEventDTO: Decodable {
+    case snapshot(ActiveMatchDetailResponseDTO)
+    case matchClosed
+    case error(String)
+
+    private enum CodingKeys: String, CodingKey {
+        case type
+        case detail
+        case message
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let type = try container.decode(String.self, forKey: .type)
+
+        switch type {
+        case "snapshot":
+            self = .snapshot(try container.decode(ActiveMatchDetailResponseDTO.self, forKey: .detail))
+        case "match_closed":
+            self = .matchClosed
+        case "error":
+            self = .error(try container.decodeIfPresent(String.self, forKey: .message) ?? "Realtime sync failed.")
+        default:
+            throw DecodingError.dataCorruptedError(
+                forKey: .type,
+                in: container,
+                debugDescription: "Unsupported match event type: \(type)"
+            )
+        }
+    }
+}
+
 struct ActiveMatchDetailDTO: Decodable {
     let matchItem: MatchDTO
     let otherProfile: ProfileDTO

@@ -17,6 +17,13 @@ struct APIEnvironment: Equatable {
         )
     }
 
+    func webSocketURL(path: String) -> URL? {
+        var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
+        components?.scheme = baseURL.scheme == "https" ? "wss" : "ws"
+        components?.path = path
+        return components?.url
+    }
+
     private static var configuredBaseURL: URL? {
         guard
             let value = Bundle.main.object(forInfoDictionaryKey: "NOWAPIBaseURL") as? String,

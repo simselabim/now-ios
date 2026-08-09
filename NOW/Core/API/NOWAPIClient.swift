@@ -139,6 +139,47 @@ final class NOWAPIClient {
         try await send(path: "/matches/active/detail")
     }
 
+    func activeMatchEvents(matchId: UUID) async throws -> AsyncThrowingStream<MatchEventDTO, Error> {
+        guard let url = environment.webSocketURL(path: "/matches/\(matchId.uuidString)/events") else {
+            throw APIError.invalidURL
+        }
+        guard let token = await tokenStore.getAccessToken() else {
+            throw APIError.missingToken
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let socket = session.webSocketTask(with: request)
+        socket.resume()
+
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    while !Task.isCancelled {
+                        let message = try await socket.receive()
+                        switch message {
+                        case .string(let value):
+                            guard let data = value.data(using: .utf8) else { continue }
+                            continuation.yield(try self.decoder.decode(MatchEventDTO.self, from: data))
+                        case .data(let data):
+                            continuation.yield(try self.decoder.decode(MatchEventDTO.self, from: data))
+                        @unknown default:
+                            continue
+                        }
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+
+            continuation.onTermination = { _ in
+                task.cancel()
+                socket.cancel(with: .goingAway, reason: nil)
+            }
+        }
+    }
+
     func cancelMatch(
         matchId: UUID,
         reason: CancelReasonDTO = .changedMind,
