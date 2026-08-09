@@ -90,6 +90,7 @@ struct NOWLogo: View {
 
 struct PhotoSurface: View {
     let name: String
+    var remoteURL: URL?
     var height: CGFloat
     var blur: CGFloat = 0
     var cornerRadius: CGFloat = 22
@@ -100,12 +101,51 @@ struct PhotoSurface: View {
     )
 
     var body: some View {
-        BundlePhoto(name: name)
+        RemoteOrBundlePhoto(url: remoteURL, fallbackName: name)
             .frame(maxWidth: .infinity)
             .frame(height: height)
             .blur(radius: blur)
             .overlay(overlay)
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+}
+
+struct ProfilePhoto: View {
+    let profile: UserProfile
+    var fallbackName = NOWPhoto.person
+
+    var body: some View {
+        RemoteOrBundlePhoto(url: profile.mainPhotoURL, fallbackName: fallbackName)
+    }
+}
+
+private struct RemoteOrBundlePhoto: View {
+    let url: URL?
+    let fallbackName: String
+
+    var body: some View {
+        if let url {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                case .failure:
+                    BundlePhoto(name: fallbackName)
+                case .empty:
+                    ZStack {
+                        BundlePhoto(name: fallbackName)
+                        ProgressView()
+                            .tint(NOWColor.laOrange)
+                    }
+                @unknown default:
+                    BundlePhoto(name: fallbackName)
+                }
+            }
+        } else {
+            BundlePhoto(name: fallbackName)
+        }
     }
 }
 

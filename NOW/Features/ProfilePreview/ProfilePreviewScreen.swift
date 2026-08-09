@@ -31,7 +31,7 @@ struct ProfilePreviewScreen: View {
                         }
 
                         ZStack(alignment: .bottomLeading) {
-                            PhotoSurface(name: NOWPhoto.person, height: 390, blur: 0, cornerRadius: 24)
+                            PhotoSurface(name: NOWPhoto.person, remoteURL: point.profile.mainPhotoURL, height: 390, blur: 0, cornerRadius: 24)
                             VStack(alignment: .leading, spacing: 7) {
                                 Text("\(point.profile.name), \(point.profile.age)")
                                     .font(.system(size: 32, weight: .heavy, design: .rounded))

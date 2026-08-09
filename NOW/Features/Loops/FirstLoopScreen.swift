@@ -38,7 +38,7 @@ struct FirstLoopScreen: View {
                                 .foregroundStyle(NOWColor.laCoral)
                         }
                         .zIndex(2)
-                        LoopAvatar(imageName: NOWPhoto.person, name: match.profile.name)
+                        LoopAvatar(imageName: NOWPhoto.person, name: match.profile.name, profile: match.profile)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
@@ -863,11 +863,18 @@ private enum LoopRecorderError: LocalizedError {
 private struct LoopAvatar: View {
     let imageName: String
     let name: String
+    var profile: UserProfile?
 
     var body: some View {
         VStack(spacing: 10) {
             ZStack(alignment: .bottomTrailing) {
-                BundlePhoto(name: imageName)
+                Group {
+                    if let profile {
+                        ProfilePhoto(profile: profile, fallbackName: imageName)
+                    } else {
+                        BundlePhoto(name: imageName)
+                    }
+                }
                     .frame(width: 108, height: 108)
                     .clipShape(Circle())
                     .overlay(Circle().stroke(NOWColor.surface, lineWidth: 5))

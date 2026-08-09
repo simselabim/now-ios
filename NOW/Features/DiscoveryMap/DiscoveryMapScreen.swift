@@ -340,10 +340,22 @@ private struct LAMapPersonMarker: View {
                     .overlay(Circle().stroke(markerStroke, lineWidth: 3))
                     .shadow(color: NOWColor.ink.opacity(0.18), radius: 10, x: 0, y: 6)
 
+                if point.profile.mainPhotoURL != nil {
+                    ProfilePhoto(profile: point.profile)
+                        .frame(width: 46, height: 46)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(markerStroke, lineWidth: 3))
+                        .shadow(color: NOWColor.ink.opacity(0.18), radius: 10, x: 0, y: 6)
+                }
+
                 if let markerSymbol {
                     Image(systemName: markerSymbol)
-                        .font(.system(size: 20, weight: .black))
+                        .font(.system(size: point.profile.mainPhotoURL == nil ? 20 : 12, weight: .black))
                         .foregroundStyle(markerSymbolColor)
+                        .padding(point.profile.mainPhotoURL == nil ? 0 : 5)
+                        .background(point.profile.mainPhotoURL == nil ? Color.clear : NOWColor.surface.opacity(0.9))
+                        .clipShape(Circle())
+                        .offset(x: point.profile.mainPhotoURL == nil ? 0 : 18, y: point.profile.mainPhotoURL == nil ? 0 : 18)
                 }
             }
 

@@ -215,19 +215,7 @@ final class AppState: ObservableObject {
                     )
                 )
 
-                let uploadIntent = try await apiClient.createUploadIntent(
-                    kind: .profilePhoto,
-                    contentType: "image/jpeg",
-                    fileSizeBytes: photoData.count
-                )
-                _ = try await MediaUploadService().upload(data: photoData, intent: uploadIntent)
-                let upload = try await apiClient.uploadPhoto(
-                    storageKey: uploadIntent.storageKey,
-                    position: 1,
-                    isMain: true
-                )
-
-                myProfile = try await apiClient.myProfile().profile
+                let upload = try await uploadMainProfilePhoto(photoData)
                 isProfileComplete = upload.isProfilePublishable
                 if !upload.isProfilePublishable {
                     errorMessage = "Add a name, birth date, gender, bio, and one photo to continue."
@@ -238,6 +226,14 @@ final class AppState: ObservableObject {
                 errorMessage = "Your session expired. Please sign in again."
             } catch {
                 errorMessage = profileCreationErrorMessage(error)
+            }
+        }
+    }
+
+    func updateProfilePhoto(photoData: Data) {
+        Task {
+            await runLoading {
+                _ = try await self.uploadMainProfilePhoto(photoData)
             }
         }
     }
@@ -763,6 +759,23 @@ final class AppState: ObservableObject {
         }
     }
 
+    private func uploadMainProfilePhoto(_ photoData: Data) async throws -> UploadPhotoResponseDTO {
+        let uploadIntent = try await apiClient.createUploadIntent(
+            kind: .profilePhoto,
+            contentType: "image/jpeg",
+            fileSizeBytes: photoData.count
+        )
+        _ = try await MediaUploadService().upload(data: photoData, intent: uploadIntent)
+        let upload = try await apiClient.uploadPhoto(
+            storageKey: uploadIntent.storageKey,
+            position: 1,
+            isMain: true
+        )
+        myProfile = try await apiClient.myProfile().profile
+        isProfileComplete = upload.isProfilePublishable
+        return upload
+    }
+
     private func updatePoint(_ id: UUID, state: MapPointState) {
         guard let index = mapPoints.firstIndex(where: { $0.id == id }) else { return }
         mapPoints[index].state = state
@@ -1249,7 +1262,8 @@ final class AppState: ObservableObject {
                 languages: [],
                 interests: dto.interests,
                 sharedInterests: Array(dto.interests.prefix(3)),
-                prompt: dto.bio
+                prompt: dto.bio,
+                mainPhotoURL: mainPhotoURL(from: dto.photos)
             )
         }
 
@@ -1264,8 +1278,15 @@ final class AppState: ObservableObject {
             languages: [],
             interests: [],
             sharedInterests: [],
-            prompt: "Open to meet today."
+            prompt: "Open to meet today.",
+            mainPhotoURL: fallback?.mainPhotoStorageKey.flatMap(APIEnvironment.appDefault.mediaURL)
         )
+    }
+
+    private func mainPhotoURL(from photos: [PhotoDTO]) -> URL? {
+        let photo = photos.first(where: \.isMain) ?? photos.sorted { $0.position < $1.position }.first
+        guard let photo else { return nil }
+        return APIEnvironment.appDefault.mediaURL(storageKey: photo.storageKey)
     }
 
     private func mapPointState(_ state: MapPointStateDTO) -> MapPointState {

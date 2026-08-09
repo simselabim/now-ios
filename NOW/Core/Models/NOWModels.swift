@@ -243,6 +243,7 @@ struct UserProfile: Identifiable, Equatable {
     let interests: [String]
     let sharedInterests: [String]
     let prompt: String
+    let mainPhotoURL: URL?
 }
 
 struct TodayIntent {

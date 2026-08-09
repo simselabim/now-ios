@@ -21,10 +21,16 @@ struct ChatScreen: View {
                         appState.showActiveMatchMap()
                     }
 
-                    BundlePhoto(name: NOWPhoto.person)
-                        .frame(width: 42, height: 42)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(NOWColor.laOrange, lineWidth: 2))
+                    Group {
+                        if let profile = appState.activeMatch?.profile {
+                            ProfilePhoto(profile: profile)
+                        } else {
+                            BundlePhoto(name: NOWPhoto.person)
+                        }
+                    }
+                    .frame(width: 42, height: 42)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(NOWColor.laOrange, lineWidth: 2))
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(appState.activeMatch?.profile.name ?? "Maya")

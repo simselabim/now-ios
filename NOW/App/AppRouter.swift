@@ -1,4 +1,6 @@
+import PhotosUI
 import SwiftUI
+import UIKit
 
 struct AppRouter: View {
     @EnvironmentObject private var appState: AppState
@@ -172,6 +174,9 @@ private struct AccountScreen: View {
     @State private var gender = ""
     @State private var bio = ""
     @State private var interests = ""
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var photoPreview: UIImage?
+    @State private var photoError: String?
     @State private var hasLoadedForm = false
     @State private var showDeleteConfirmation = false
 
@@ -197,6 +202,8 @@ private struct AccountScreen: View {
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(NOWColor.inkSoft)
                 }
+
+                profilePhotoEditor
 
                 Group {
                     accountField("Display name", text: $displayName)
@@ -231,7 +238,7 @@ private struct AccountScreen: View {
                     accountField("Interests (comma separated)", text: $interests)
                 }
 
-                if let error = appState.errorMessage {
+                if let error = photoError ?? appState.errorMessage {
                     Text(error)
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(NOWColor.coral)
@@ -274,6 +281,9 @@ private struct AccountScreen: View {
         .onChange(of: appState.myProfile) { _, profile in
             applyProfileIfNeeded(profile)
         }
+        .onChange(of: selectedPhotoItem) { _, item in
+            loadProfilePhoto(item)
+        }
         .alert("Delete your account?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Delete account", role: .destructive) {
@@ -289,6 +299,40 @@ private struct AccountScreen: View {
             && birthDate.count == 10
             && !gender.isEmpty
             && !bio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var profilePhotoEditor: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Main photo")
+                .font(.caption.weight(.black))
+                .foregroundStyle(NOWColor.inkSoft)
+
+            PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                ZStack(alignment: .bottomTrailing) {
+                    AccountProfilePhoto(url: currentProfilePhotoURL, preview: photoPreview)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 210)
+                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+
+                    Label(currentProfilePhotoURL == nil && photoPreview == nil ? "Add photo" : "Change", systemImage: "photo")
+                        .font(.caption.weight(.bold))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .foregroundStyle(NOWColor.ink)
+                        .background(NOWColor.surface.opacity(0.92))
+                        .clipShape(Capsule())
+                        .padding(12)
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var currentProfilePhotoURL: URL? {
+        guard let photos = appState.myProfile?.photos else { return nil }
+        let photo = photos.first(where: \.isMain) ?? photos.sorted { $0.position < $1.position }.first
+        guard let photo else { return nil }
+        return APIEnvironment.appDefault.mediaURL(storageKey: photo.storageKey)
     }
 
     private func accountField(_ title: String, text: Binding<String>) -> some View {
@@ -314,5 +358,77 @@ private struct AccountScreen: View {
         bio = profile.bio
         interests = profile.interests.joined(separator: ", ")
         hasLoadedForm = true
+    }
+
+    private func loadProfilePhoto(_ item: PhotosPickerItem?) {
+        guard let item else { return }
+        photoError = nil
+
+        Task {
+            do {
+                guard let originalData = try await item.loadTransferable(type: Data.self),
+                      let prepared = prepareAccountPhoto(originalData) else {
+                    photoError = "Could not read this photo. Choose another one."
+                    return
+                }
+                photoPreview = prepared.image
+                appState.updateProfilePhoto(photoData: prepared.data)
+            } catch {
+                photoError = "Could not open this photo. Choose another one."
+            }
+        }
+    }
+
+    private func prepareAccountPhoto(_ data: Data) -> (data: Data, image: UIImage)? {
+        guard let image = UIImage(data: data) else { return nil }
+        let maxDimension: CGFloat = 1_600
+        let largestSide = max(image.size.width, image.size.height)
+        let scale = min(1, maxDimension / largestSide)
+        let targetSize = CGSize(
+            width: max(1, image.size.width * scale),
+            height: max(1, image.size.height * scale)
+        )
+        let rendered = UIGraphicsImageRenderer(size: targetSize).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+        guard let jpeg = rendered.jpegData(compressionQuality: 0.82) else { return nil }
+        return (jpeg, rendered)
+    }
+}
+
+private struct AccountProfilePhoto: View {
+    let url: URL?
+    let preview: UIImage?
+
+    var body: some View {
+        if let preview {
+            Image(uiImage: preview)
+                .resizable()
+                .scaledToFill()
+        } else if let url {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                case .failure, .empty:
+                    photoPlaceholder
+                @unknown default:
+                    photoPlaceholder
+                }
+            }
+        } else {
+            photoPlaceholder
+        }
+    }
+
+    private var photoPlaceholder: some View {
+        ZStack {
+            NOWColor.surface
+            Image(systemName: "person.crop.square")
+                .font(.system(size: 38, weight: .semibold))
+                .foregroundStyle(NOWColor.inkSoft)
+        }
     }
 }
