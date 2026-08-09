@@ -29,9 +29,9 @@ struct GoOnlineScreen: View {
                         .foregroundStyle(NOWColor.inkSoft)
                 }
 
-                CompactIntentPicker(title: "Plan", selection: $selectedPlan, values: Plan.allCases)
-                CompactIntentPicker(title: "Connection", selection: $selectedIntent, values: Intent.allCases)
-                CompactIntentPicker(title: "When today", selection: $selectedTimeWindow, values: TimeWindow.allCases)
+                CompactIntentPicker(title: "Plan", selection: $selectedPlan, values: Plan.goOnlineOptions) { $0.goOnlineLabel }
+                CompactIntentPicker(title: "Connection", selection: $selectedIntent, values: Intent.goOnlineOptions) { $0.rawValue }
+                CompactIntentPicker(title: "When today", selection: $selectedTimeWindow, values: TimeWindow.goOnlineOptions) { $0.rawValue }
 
                 if let error = appState.errorMessage {
                     Text(error)
@@ -90,6 +90,7 @@ private struct CompactIntentPicker<T: RawRepresentable & Identifiable & Hashable
     let title: String
     @Binding var selection: T?
     let values: [T]
+    let label: (T) -> String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
@@ -97,7 +98,7 @@ private struct CompactIntentPicker<T: RawRepresentable & Identifiable & Hashable
                 .font(.caption.weight(.bold))
                 .foregroundStyle(NOWColor.inkSoft)
 
-            CompactFlowLayout(values: values, selection: $selection)
+            CompactFlowLayout(values: values, selection: $selection, label: label)
         }
         .padding(12)
         .background(NOWColor.surface)
@@ -112,11 +113,12 @@ private struct CompactIntentPicker<T: RawRepresentable & Identifiable & Hashable
 private struct CompactFlowLayout<T: RawRepresentable & Identifiable & Hashable>: View where T.RawValue == String {
     let values: [T]
     @Binding var selection: T?
+    let label: (T) -> String
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 82), spacing: 7)], spacing: 7) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 7), count: 3), spacing: 7) {
             ForEach(values) { value in
-                Button(value.rawValue) {
+                Button(label(value)) {
                     selection = value
                 }
                 .font(.caption.weight(.bold))

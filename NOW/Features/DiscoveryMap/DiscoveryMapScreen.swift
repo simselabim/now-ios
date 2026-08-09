@@ -7,23 +7,24 @@ struct DiscoveryMapScreen: View {
 
     var body: some View {
         LiveDiscoveryMap(
-            points: appState.visibleMapPoints,
+            points: mapPoints,
             userCoordinate: appState.currentCoordinate,
-            cameraPosition: $cameraPosition
+            cameraPosition: $cameraPosition,
+            activeMatchProfileId: appState.isViewingActiveMatchMap ? appState.activeMatch?.profile.id : nil
         ) { point in
             appState.viewPoint(point)
         }
         .ignoresSafeArea(edges: .top)
         .onAppear {
-            cameraPosition = .region(.fitting(points: appState.visibleMapPoints, userCoordinate: appState.currentCoordinate))
+            cameraPosition = .region(.fitting(points: mapPoints, userCoordinate: appState.currentCoordinate))
         }
         .onChange(of: cameraKey) { _, _ in
             withAnimation(.easeInOut(duration: 0.35)) {
-                cameraPosition = .region(.fitting(points: appState.visibleMapPoints, userCoordinate: appState.currentCoordinate))
+                cameraPosition = .region(.fitting(points: mapPoints, userCoordinate: appState.currentCoordinate))
             }
         }
         .overlay(alignment: .top) {
-            MapHeader(isLoading: appState.isLoading, back: {
+            MapHeader(isLoading: appState.isLoading, isLockedToActiveMatch: appState.isViewingActiveMatchMap, back: {
                 appState.goBackForTesting()
             }, recenter: {
                 recenterOnUser()
@@ -55,8 +56,12 @@ struct DiscoveryMapScreen: View {
         }
     }
 
+    private var mapPoints: [MapPoint] {
+        appState.isViewingActiveMatchMap ? appState.activeMatchMapPoints : appState.visibleMapPoints
+    }
+
     private var cameraKey: String {
-        let pointKey = appState.visibleMapPoints
+        let pointKey = mapPoints
             .map { "\($0.id.uuidString):\(rounded($0.approximateCoordinate.latitude)):\(rounded($0.approximateCoordinate.longitude))" }
             .joined(separator: "|")
         let userKey = appState.currentCoordinate.map { "\(rounded($0.latitude)):\(rounded($0.longitude))" } ?? "none"
@@ -75,7 +80,7 @@ struct DiscoveryMapScreen: View {
                 span: MKCoordinateSpan(latitudeDelta: 0.018, longitudeDelta: 0.018)
             )
         } else {
-            region = .fitting(points: appState.visibleMapPoints, userCoordinate: appState.currentCoordinate)
+            region = .fitting(points: mapPoints, userCoordinate: appState.currentCoordinate)
         }
 
         withAnimation(.easeInOut(duration: 0.35)) {
@@ -86,6 +91,7 @@ struct DiscoveryMapScreen: View {
 
 private struct MapHeader: View {
     let isLoading: Bool
+    let isLockedToActiveMatch: Bool
     let back: () -> Void
     let recenter: () -> Void
     let refresh: () -> Void
@@ -141,19 +147,34 @@ private struct MapHeader: View {
                 }
                 .buttonStyle(.plain)
 
-                Button("Online") {
-                    goOffline()
+                if isLockedToActiveMatch {
+                    Text("Read-only")
+                        .font(.caption.weight(.heavy))
+                        .foregroundStyle(NOWColor.surface)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(NOWColor.laBrownSoft.opacity(0.92))
+                        .clipShape(Capsule())
+                } else {
+                    Button("Online") {
+                        goOffline()
+                    }
+                    .font(.caption.weight(.heavy))
+                    .foregroundStyle(NOWColor.ink)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(NOWColor.laOrange)
+                    .clipShape(Capsule())
                 }
-                .font(.caption.weight(.heavy))
-                .foregroundStyle(NOWColor.ink)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(NOWColor.laOrange)
-                .clipShape(Capsule())
             }
 
             HStack(spacing: 8) {
-                LAPill(text: "Nearby · within 50 km · sunset 18:17", icon: nil)
+                LAPill(
+                    text: isLockedToActiveMatch
+                        ? "Meeting mode · active match only"
+                        : "Nearby · within 50 km · sunset 18:17",
+                    icon: nil
+                )
 
                 Button("Swipe") {}
                     .font(.caption.weight(.heavy))
@@ -173,6 +194,7 @@ private struct LiveDiscoveryMap: View {
     let points: [MapPoint]
     let userCoordinate: CLLocationCoordinate2D?
     @Binding var cameraPosition: MapCameraPosition
+    let activeMatchProfileId: UUID?
     let onTap: (MapPoint) -> Void
 
     var body: some View {
@@ -188,9 +210,14 @@ private struct LiveDiscoveryMap: View {
                     Button {
                         onTap(point)
                     } label: {
-                        LAMapPersonMarker(point: point)
+                        LAMapPersonMarker(
+                            point: point,
+                            isCurrentMatch: point.profile.id == activeMatchProfileId,
+                            isLocked: activeMatchProfileId != nil
+                        )
                     }
                     .buttonStyle(.plain)
+                    .disabled(activeMatchProfileId != nil && point.profile.id != activeMatchProfileId)
                     .accessibilityLabel("\(point.profile.name), \(point.profile.distance)")
                 }
             }
@@ -301,6 +328,8 @@ private struct EmptyMapState: View {
 
 private struct LAMapPersonMarker: View {
     let point: MapPoint
+    var isCurrentMatch = false
+    var isLocked = false
 
     var body: some View {
         VStack(spacing: 4) {
@@ -329,9 +358,14 @@ private struct LAMapPersonMarker: View {
                 .clipShape(Capsule())
                 .shadow(color: NOWColor.ink.opacity(0.12), radius: 8, x: 0, y: 4)
         }
+        .opacity(isLocked && !isCurrentMatch ? 0.48 : 1)
     }
 
     private var markerFill: Color {
+        if isCurrentMatch {
+            return NOWColor.laOrange
+        }
+
         switch point.state {
         case .unseen:
             return NOWColor.laGreen
@@ -343,6 +377,10 @@ private struct LAMapPersonMarker: View {
     }
 
     private var markerStroke: Color {
+        if isCurrentMatch {
+            return NOWColor.surface
+        }
+
         switch point.state {
         case .viewed, .interested, .triedBefore:
             return NOWColor.laBrownSoft.opacity(0.58)
@@ -352,6 +390,10 @@ private struct LAMapPersonMarker: View {
     }
 
     private var labelBackground: Color {
+        if isCurrentMatch {
+            return NOWColor.surface
+        }
+
         switch point.state {
         case .unseen:
             return NOWColor.laGreen
@@ -367,6 +409,10 @@ private struct LAMapPersonMarker: View {
     }
 
     private var markerSymbol: String? {
+        if isCurrentMatch {
+            return "message.fill"
+        }
+
         switch point.state {
         case .interested:
             return "heart.fill"
@@ -378,6 +424,10 @@ private struct LAMapPersonMarker: View {
     }
 
     private var markerSymbolColor: Color {
-        point.state == .interested ? NOWColor.laCoral : NOWColor.laBrown
+        if isCurrentMatch {
+            return NOWColor.ink
+        }
+
+        return point.state == .interested ? NOWColor.laCoral : NOWColor.laBrown
     }
 }

@@ -13,6 +13,8 @@ struct AppRouter: View {
                     WelcomeScreen()
                 } else if !appState.isProfileComplete {
                     CreateProfileScreen()
+                } else if appState.activeMatch != nil && appState.isViewingActiveMatchMap {
+                    DiscoveryMapScreen()
                 } else if appState.activeMatch != nil {
                     MatchFlowScreen()
                 } else if appState.selectedPoint != nil {

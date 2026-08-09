@@ -16,6 +16,7 @@ final class AppState: ObservableObject {
     @Published var currentLocationAccuracyM: Int?
     @Published var selectedPoint: MapPoint?
     @Published var activeMatch: Match?
+    @Published var isViewingActiveMatchMap = false
     @Published private(set) var myFirstLoopURL: URL?
     @Published private(set) var theirFirstLoopURL: URL?
     @Published var messages: [Message] = []
@@ -64,6 +65,24 @@ final class AppState: ObservableObject {
 
     var chatUnlocked: Bool {
         activeMatch?.myFirstLoopSent == true && activeMatch?.theirFirstLoopReceived == true
+    }
+
+    var activeMatchMapPoints: [MapPoint] {
+        guard let activeMatch else { return visibleMapPoints }
+
+        if visibleMapPoints.contains(where: { $0.profile.id == activeMatch.profile.id }) {
+            return visibleMapPoints
+        }
+
+        let matchPoint = MapPoint(
+            id: activeMatch.profile.id,
+            profile: activeMatch.profile,
+            approximateCoordinate: meetingProposal?.coordinate ?? currentCoordinate ?? CLLocationCoordinate2D(latitude: -8.667630, longitude: 115.139708),
+            state: .interested,
+            isMutualMock: true
+        )
+
+        return [matchPoint] + visibleMapPoints
     }
 
     func login() {
@@ -135,6 +154,7 @@ final class AppState: ObservableObject {
 
     func selectAppTab(_ tab: AppTab) {
         errorMessage = nil
+        isViewingActiveMatchMap = false
         selectedAppTab = tab
 
         if tab == .account {
@@ -355,6 +375,7 @@ final class AppState: ObservableObject {
                 if activeMatch != nil {
                     isOnline = false
                 } else if hadActiveMatch {
+                    isViewingActiveMatchMap = false
                     selectedPoint = nil
                     isOnline = true
                     try await loadDiscoveryMap()
@@ -369,6 +390,11 @@ final class AppState: ObservableObject {
 
     func goBackForTesting() {
         errorMessage = nil
+
+        if isViewingActiveMatchMap {
+            isViewingActiveMatchMap = false
+            return
+        }
 
         if selectedPoint != nil {
             selectedPoint = nil
@@ -403,6 +429,7 @@ final class AppState: ObservableObject {
 
         if activeMatch != nil {
             activeMatch = nil
+            isViewingActiveMatchMap = false
             meetingProposal = nil
             messages = []
             isOnline = true
@@ -423,6 +450,16 @@ final class AppState: ObservableObject {
     }
 
     func viewPoint(_ point: MapPoint) {
+        if isViewingActiveMatchMap {
+            guard point.profile.id == activeMatch?.profile.id else {
+                errorMessage = "Map is read-only while this match is active."
+                return
+            }
+
+            returnToActiveMatch()
+            return
+        }
+
         selectedPoint = point
         updatePoint(point.id, state: point.state == .unseen ? .viewed : point.state)
 
@@ -433,6 +470,26 @@ final class AppState: ObservableObject {
 
     func closeProfilePreview() {
         selectedPoint = nil
+    }
+
+    func showActiveMatchMap() {
+        guard activeMatch != nil else { return }
+        errorMessage = "Map is read-only while this match is active."
+        selectedPoint = nil
+        selectedAppTab = .search
+        isViewingActiveMatchMap = true
+        ensureDemoPointsIfNeeded()
+    }
+
+    func returnToActiveMatch() {
+        guard activeMatch != nil else {
+            isViewingActiveMatchMap = false
+            return
+        }
+
+        errorMessage = nil
+        selectedPoint = nil
+        isViewingActiveMatchMap = false
     }
 
     func markInterested(_ point: MapPoint) {
@@ -948,6 +1005,7 @@ final class AppState: ObservableObject {
 
     private func clearActiveMatchState() {
         activeMatch = nil
+        isViewingActiveMatchMap = false
         myFirstLoopURL = nil
         theirFirstLoopURL = nil
         cachedLoopFiles = [:]
@@ -1065,6 +1123,7 @@ final class AppState: ObservableObject {
             at: 0
         )
         activeMatch = nil
+        isViewingActiveMatchMap = false
         meetingProposal = nil
         messages = []
         showHistory = true

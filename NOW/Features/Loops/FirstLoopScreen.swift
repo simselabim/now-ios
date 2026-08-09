@@ -336,19 +336,43 @@ private enum LoopVideoProcessingError: LocalizedError {
 
 struct LoopVideoPlayer: View {
     @StateObject private var model: LoopingVideoPlayerModel
+    @State private var isMuted: Bool
+    private let togglesAudioOnTap: Bool
 
-    init(url: URL) {
+    init(url: URL, startsMuted: Bool = false, togglesAudioOnTap: Bool = false) {
         _model = StateObject(wrappedValue: LoopingVideoPlayerModel(url: url))
+        _isMuted = State(initialValue: startsMuted)
+        self.togglesAudioOnTap = togglesAudioOnTap
     }
 
     var body: some View {
         LoopPlayerSurface(player: model.player)
             .background(Color.black)
             .onAppear {
+                model.setMuted(isMuted)
                 model.play()
+            }
+            .onChange(of: isMuted) { _, newValue in
+                model.setMuted(newValue)
             }
             .onDisappear {
                 model.stop()
+            }
+            .onTapGesture {
+                guard togglesAudioOnTap else { return }
+                isMuted.toggle()
+            }
+            .overlay(alignment: .bottomTrailing) {
+                if togglesAudioOnTap {
+                    Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                        .font(.caption.weight(.black))
+                        .foregroundStyle(NOWColor.surface)
+                        .padding(8)
+                        .background(NOWColor.ink.opacity(0.68))
+                        .clipShape(Circle())
+                        .padding(10)
+                        .allowsHitTesting(false)
+                }
             }
     }
 }
@@ -358,9 +382,11 @@ struct CircularLoopPlayer: View {
     let diameter: CGFloat
     var strokeColor: Color = NOWColor.laOrange
     var lineWidth: CGFloat = 3
+    var startsMuted = false
+    var togglesAudioOnTap = false
 
     var body: some View {
-        LoopVideoPlayer(url: url)
+        LoopVideoPlayer(url: url, startsMuted: startsMuted, togglesAudioOnTap: togglesAudioOnTap)
             .frame(width: diameter, height: diameter)
             .clipShape(Circle())
             .overlay(
@@ -385,6 +411,10 @@ private final class LoopingVideoPlayerModel: ObservableObject {
 
     func play() {
         player.play()
+    }
+
+    func setMuted(_ isMuted: Bool) {
+        player.isMuted = isMuted
     }
 
     func stop() {

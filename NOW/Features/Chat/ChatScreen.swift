@@ -18,7 +18,7 @@ struct ChatScreen: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
                     NOWBackButton {
-                        appState.goBackForTesting()
+                        appState.showActiveMatchMap()
                     }
 
                     BundlePhoto(name: NOWPhoto.person)
@@ -56,7 +56,11 @@ struct ChatScreen: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
                         if let loopURL = appState.theirFirstLoopURL {
-                            LoopMessage(url: loopURL)
+                            LoopMessage(url: loopURL, sender: .them)
+                        }
+
+                        if let loopURL = appState.myFirstLoopURL {
+                            LoopMessage(url: loopURL, sender: .me)
                         }
 
                         ForEach(appState.messages) { message in
@@ -128,15 +132,18 @@ struct ChatScreen: View {
 
 private struct LoopMessage: View {
     let url: URL
+    let sender: MessageSender
 
     var body: some View {
         CircularLoopPlayer(
             url: url,
             diameter: 180,
-            strokeColor: NOWColor.laOrange,
-            lineWidth: 3
+            strokeColor: sender == .me ? NOWColor.laCoral : NOWColor.laOrange,
+            lineWidth: 3,
+            startsMuted: true,
+            togglesAudioOnTap: true
         )
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: sender == .me ? .trailing : .leading)
     }
 }
 

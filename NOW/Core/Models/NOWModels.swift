@@ -31,6 +31,17 @@ enum Plan: String, CaseIterable, Identifiable {
     case activity = "Activity"
 
     var id: String { rawValue }
+
+    static let goOnlineOptions: [Plan] = [.lunch, .walk, .activity]
+
+    var goOnlineLabel: String {
+        switch self {
+        case .lunch:
+            return "Food"
+        default:
+            return rawValue
+        }
+    }
 }
 
 struct MeetingSuggestion {
@@ -129,6 +140,8 @@ enum Intent: String, CaseIterable, Identifiable {
     case openMinded = "Open-minded"
 
     var id: String { rawValue }
+
+    static let goOnlineOptions: [Intent] = [.friendly, .romantic, .openMinded]
 }
 
 enum TimeWindow: String, CaseIterable, Identifiable {
@@ -138,6 +151,8 @@ enum TimeWindow: String, CaseIterable, Identifiable {
     case evening = "Evening"
 
     var id: String { rawValue }
+
+    static let goOnlineOptions: [TimeWindow] = [.now, .lunch, .evening]
 }
 
 struct DemoAccount: Identifiable, Equatable {
