@@ -61,13 +61,19 @@ struct ChatScreen: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
-                        if let loopURL = appState.theirFirstLoopURL {
-                            LoopMessage(url: loopURL, sender: .them)
+                        HStack(alignment: .top, spacing: 16) {
+                            LoopSlot(
+                                url: appState.myFirstLoopURL,
+                                label: "You",
+                                sender: .me
+                            )
+                            LoopSlot(
+                                url: appState.theirFirstLoopURL,
+                                label: appState.activeMatch?.profile.name ?? "Them",
+                                sender: .them
+                            )
                         }
-
-                        if let loopURL = appState.myFirstLoopURL {
-                            LoopMessage(url: loopURL, sender: .me)
-                        }
+                        .frame(maxWidth: .infinity)
 
                         ForEach(appState.messages) { message in
                             Bubble(text: message.text, sender: message.sender)
@@ -136,20 +142,54 @@ struct ChatScreen: View {
     }
 }
 
-private struct LoopMessage: View {
-    let url: URL
+private struct LoopSlot: View {
+    let url: URL?
+    let label: String
     let sender: MessageSender
 
     var body: some View {
-        CircularLoopPlayer(
-            url: url,
-            diameter: 180,
-            strokeColor: sender == .me ? NOWColor.laCoral : NOWColor.laOrange,
-            lineWidth: 3,
-            startsMuted: true,
-            togglesAudioOnTap: true
-        )
-        .frame(maxWidth: .infinity, alignment: sender == .me ? .trailing : .leading)
+        VStack(spacing: 7) {
+            if let url {
+                CircularLoopPlayer(
+                    url: url,
+                    diameter: 132,
+                    strokeColor: strokeColor,
+                    lineWidth: 3,
+                    startsMuted: true,
+                    togglesAudioOnTap: true
+                )
+            } else {
+                ZStack {
+                    Circle()
+                        .fill(NOWColor.surface)
+                        .overlay(
+                            Circle()
+                                .stroke(strokeColor.opacity(0.72), style: StrokeStyle(lineWidth: 3, dash: [8, 7]))
+                        )
+
+                    VStack(spacing: 6) {
+                        ProgressView()
+                            .tint(strokeColor)
+                        Text("Waiting\nfor loop")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(NOWColor.inkSoft)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .frame(width: 132, height: 132)
+            }
+
+            Text(label)
+                .font(.caption.weight(.heavy))
+                .foregroundStyle(NOWColor.laBrown)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var strokeColor: Color {
+        sender == .me ? NOWColor.laCoral : NOWColor.laOrange
     }
 }
 
