@@ -33,6 +33,7 @@ final class AppState: ObservableObject {
     private var cachedLoopFiles: [String: URL] = [:]
     private var activeMatchEventsTask: Task<Void, Never>?
     private var activeMatchEventsMatchId: UUID?
+    private var profilePreviewRequestID: UUID?
 
     init(apiClient: NOWAPIClient = NOWAPIClient()) {
         self.apiClient = apiClient
@@ -468,12 +469,16 @@ final class AppState: ObservableObject {
         selectedPoint = point
         updatePoint(point.id, state: point.state == .unseen ? .viewed : point.state)
 
+        let requestID = UUID()
+        profilePreviewRequestID = requestID
+
         Task {
-            await openPointWithBackend(point)
+            await openPointWithBackend(point, requestID: requestID)
         }
     }
 
     func closeProfilePreview() {
+        profilePreviewRequestID = nil
         selectedPoint = nil
     }
 
@@ -917,9 +922,14 @@ final class AppState: ObservableObject {
         }
     }
 
-    private func openPointWithBackend(_ point: MapPoint) async {
+    private func openPointWithBackend(_ point: MapPoint, requestID: UUID) async {
         await runLoading {
             let response = try await self.apiClient.openMapPoint(point.id)
+            guard self.profilePreviewRequestID == requestID,
+                  self.selectedPoint?.id == point.id else {
+                return
+            }
+
             self.selectedPoint = self.mapPoint(response.point, profile: response.profile)
             self.updatePoint(point.id, state: .viewed)
         }
