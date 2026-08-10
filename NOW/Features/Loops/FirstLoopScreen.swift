@@ -335,12 +335,15 @@ private enum LoopVideoProcessingError: LocalizedError {
 }
 
 struct LoopVideoPlayer: View {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var model: LoopingVideoPlayerModel
+    @ObservedObject private var audioCoordinator: LoopAudioCoordinator
     @State private var isMuted: Bool
     private let togglesAudioOnTap: Bool
 
     init(url: URL, startsMuted: Bool = false, togglesAudioOnTap: Bool = false) {
         _model = StateObject(wrappedValue: LoopingVideoPlayerModel(url: url))
+        _audioCoordinator = ObservedObject(wrappedValue: .shared)
         _isMuted = State(initialValue: startsMuted)
         self.togglesAudioOnTap = togglesAudioOnTap
     }
@@ -355,12 +358,28 @@ struct LoopVideoPlayer: View {
             .onChange(of: isMuted) { _, newValue in
                 model.setMuted(newValue)
             }
+            .onChange(of: audioCoordinator.activePlayerID) { _, activePlayerID in
+                if activePlayerID != model.id, !isMuted {
+                    isMuted = true
+                }
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase != .active {
+                    muteAndDeactivate()
+                }
+            }
             .onDisappear {
+                muteAndDeactivate()
                 model.stop()
             }
             .onTapGesture {
                 guard togglesAudioOnTap else { return }
-                isMuted.toggle()
+                if isMuted {
+                    audioCoordinator.activate(model.id)
+                    isMuted = false
+                } else {
+                    muteAndDeactivate()
+                }
             }
             .overlay(alignment: .bottomTrailing) {
                 if togglesAudioOnTap {
@@ -374,6 +393,12 @@ struct LoopVideoPlayer: View {
                         .allowsHitTesting(false)
                 }
             }
+            .accessibilityLabel(isMuted ? "Play loop with sound" : "Mute loop")
+    }
+
+    private func muteAndDeactivate() {
+        isMuted = true
+        audioCoordinator.deactivate(model.id)
     }
 }
 
@@ -398,6 +423,7 @@ struct CircularLoopPlayer: View {
 }
 
 private final class LoopingVideoPlayerModel: ObservableObject {
+    let id = UUID()
     let player: AVQueuePlayer
     private var looper: AVPlayerLooper?
 
@@ -420,6 +446,23 @@ private final class LoopingVideoPlayerModel: ObservableObject {
     func stop() {
         player.pause()
         player.seek(to: .zero)
+    }
+}
+
+private final class LoopAudioCoordinator: ObservableObject {
+    static let shared = LoopAudioCoordinator()
+
+    @Published private(set) var activePlayerID: UUID?
+
+    private init() {}
+
+    func activate(_ playerID: UUID) {
+        activePlayerID = playerID
+    }
+
+    func deactivate(_ playerID: UUID) {
+        guard activePlayerID == playerID else { return }
+        activePlayerID = nil
     }
 }
 
