@@ -244,6 +244,7 @@ struct UserProfile: Identifiable, Equatable {
     let sharedInterests: [String]
     let prompt: String
     let mainPhotoURL: URL?
+    let introLoopURL: URL?
 }
 
 struct TodayIntent {

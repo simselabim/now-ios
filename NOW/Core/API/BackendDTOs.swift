@@ -79,8 +79,17 @@ struct ProfileDTO: Codable, Identifiable, Equatable {
     let isPublishable: Bool
     let publishedAt: String?
     let photos: [PhotoDTO]
+    let introLoop: IntroLoopDTO?
     let createdAt: String
     let updatedAt: String
+}
+
+struct IntroLoopDTO: Codable, Identifiable, Equatable {
+    let id: UUID
+    let userId: UUID
+    let storageKey: String
+    let durationMs: Int
+    let createdAt: String
 }
 
 struct UploadPhotoRequestDTO: Encodable {
@@ -92,6 +101,15 @@ struct UploadPhotoRequestDTO: Encodable {
 struct UploadPhotoResponseDTO: Decodable {
     let photo: PhotoDTO
     let isProfilePublishable: Bool
+}
+
+struct UploadIntroLoopRequestDTO: Encodable {
+    let storageKey: String
+    let durationMs: Int
+}
+
+struct UploadIntroLoopResponseDTO: Decodable {
+    let introLoop: IntroLoopDTO
 }
 
 struct PhotoDTO: Codable, Identifiable, Equatable {

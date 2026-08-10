@@ -1341,7 +1341,8 @@ final class AppState: ObservableObject {
                 interests: dto.interests,
                 sharedInterests: Array(dto.interests.prefix(3)),
                 prompt: dto.bio,
-                mainPhotoURL: mainPhotoURL(from: dto.photos)
+                mainPhotoURL: mainPhotoURL(from: dto.photos),
+                introLoopURL: dto.introLoop.flatMap { APIEnvironment.appDefault.mediaURL(storageKey: $0.storageKey) }
             )
         }
 
@@ -1357,7 +1358,8 @@ final class AppState: ObservableObject {
             interests: [],
             sharedInterests: [],
             prompt: "Open to meet today.",
-            mainPhotoURL: fallback?.mainPhotoStorageKey.flatMap(APIEnvironment.appDefault.mediaURL)
+            mainPhotoURL: fallback?.mainPhotoStorageKey.flatMap(APIEnvironment.appDefault.mediaURL),
+            introLoopURL: nil
         )
     }
 

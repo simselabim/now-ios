@@ -112,10 +112,71 @@ struct PhotoSurface: View {
 
 struct ProfilePhoto: View {
     let profile: UserProfile
-    var fallbackName = NOWPhoto.person
 
     var body: some View {
-        RemoteOrBundlePhoto(url: profile.mainPhotoURL, fallbackName: fallbackName)
+        RemoteProfilePhoto(url: profile.mainPhotoURL)
+    }
+}
+
+struct ProfilePhotoSurface: View {
+    let url: URL?
+    var height: CGFloat
+    var cornerRadius: CGFloat = 22
+    var overlay = LinearGradient(
+        colors: [.clear, Color.black.opacity(0.58)],
+        startPoint: .center,
+        endPoint: .bottom
+    )
+
+    var body: some View {
+        RemoteProfilePhoto(url: url)
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .overlay(overlay)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+}
+
+private struct RemoteProfilePhoto: View {
+    let url: URL?
+
+    var body: some View {
+        if let url {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                case .empty:
+                    profilePhotoPlaceholder(message: "Loading photo…", showProgress: true)
+                case .failure:
+                    profilePhotoPlaceholder(message: "Photo unavailable", showProgress: false)
+                @unknown default:
+                    profilePhotoPlaceholder(message: "Photo unavailable", showProgress: false)
+                }
+            }
+        } else {
+            profilePhotoPlaceholder(message: "No profile photo", showProgress: false)
+        }
+    }
+
+    private func profilePhotoPlaceholder(message: String, showProgress: Bool) -> some View {
+        ZStack {
+            NOWColor.paper
+            VStack(spacing: 8) {
+                if showProgress {
+                    ProgressView()
+                        .tint(NOWColor.laOrange)
+                } else {
+                    Image(systemName: "person.crop.circle")
+                        .font(.title2.weight(.bold))
+                }
+                Text(message)
+                    .font(.caption2.weight(.bold))
+            }
+            .foregroundStyle(NOWColor.inkSoft)
+        }
     }
 }
 

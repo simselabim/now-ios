@@ -913,7 +913,7 @@ private struct LoopAvatar: View {
             ZStack(alignment: .bottomTrailing) {
                 Group {
                     if let profile {
-                        ProfilePhoto(profile: profile, fallbackName: imageName)
+                        ProfilePhoto(profile: profile)
                     } else {
                         BundlePhoto(name: imageName)
                     }

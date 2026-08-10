@@ -87,6 +87,14 @@ final class NOWAPIClient {
         )
     }
 
+    func uploadIntroLoop(storageKey: String, durationMs: Int) async throws -> UploadIntroLoopResponseDTO {
+        try await send(
+            path: "/profiles/me/intro-loop",
+            method: "POST",
+            body: UploadIntroLoopRequestDTO(storageKey: storageKey, durationMs: durationMs)
+        )
+    }
+
     func createUploadIntent(
         kind: UploadKindDTO,
         contentType: String,

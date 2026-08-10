@@ -14,7 +14,8 @@ enum MockData {
         interests: ["Films", "Coffee", "Surfing", "Food", "Travel"],
         sharedInterests: ["Films", "Coffee", "Travel"],
         prompt: "I know the best breakfast places and too much about films.",
-        mainPhotoURL: nil
+        mainPhotoURL: nil,
+        introLoopURL: nil
     )
 
     static let ren = UserProfile(
@@ -29,7 +30,8 @@ enum MockData {
         interests: ["Design", "Walking", "Music", "Startups"],
         sharedInterests: ["Music"],
         prompt: "A good first meeting is simple, public, and easy to leave.",
-        mainPhotoURL: nil
+        mainPhotoURL: nil,
+        introLoopURL: nil
     )
 
     static let ana = UserProfile(
@@ -44,7 +46,8 @@ enum MockData {
         interests: ["Food", "Dancing", "Beach", "Photography"],
         sharedInterests: ["Food", "Beach"],
         prompt: "Dinner, honest conversation, no pressure.",
-        mainPhotoURL: nil
+        mainPhotoURL: nil,
+        introLoopURL: nil
     )
 
     static let leo = UserProfile(
@@ -59,7 +62,8 @@ enum MockData {
         interests: ["Architecture", "Lunch", "Jazz", "Cities"],
         sharedInterests: ["Lunch", "Cities"],
         prompt: "Free for a quick lunch and a proper city walk after.",
-        mainPhotoURL: nil
+        mainPhotoURL: nil,
+        introLoopURL: nil
     )
 
     static let lina = UserProfile(
@@ -74,7 +78,8 @@ enum MockData {
         interests: ["Galleries", "Pilates", "Wine", "Books"],
         sharedInterests: ["Galleries", "Books"],
         prompt: "I prefer a plan with a little movement and no interview energy.",
-        mainPhotoURL: nil
+        mainPhotoURL: nil,
+        introLoopURL: nil
     )
 
     static let ethan = UserProfile(
@@ -89,7 +94,8 @@ enum MockData {
         interests: ["Coffee", "Running", "Cinema", "Markets"],
         sharedInterests: ["Coffee", "Cinema"],
         prompt: "Coffee first. If it works, we can decide the second stop together.",
-        mainPhotoURL: nil
+        mainPhotoURL: nil,
+        introLoopURL: nil
     )
 
     static let nora = UserProfile(
@@ -104,7 +110,8 @@ enum MockData {
         interests: ["Parks", "Poetry", "Design", "Dessert"],
         sharedInterests: ["Parks", "Design"],
         prompt: "A walk, one good question, and maybe dessert if there is a spark.",
-        mainPhotoURL: nil
+        mainPhotoURL: nil,
+        introLoopURL: nil
     )
 
     static let mapPoints: [MapPoint] = [

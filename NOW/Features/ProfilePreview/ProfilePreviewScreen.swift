@@ -31,7 +31,7 @@ struct ProfilePreviewScreen: View {
                         }
 
                         ZStack(alignment: .bottomLeading) {
-                            PhotoSurface(name: NOWPhoto.person, remoteURL: point.profile.mainPhotoURL, height: 390, blur: 0, cornerRadius: 24)
+                            ProfilePhotoSurface(url: point.profile.mainPhotoURL, height: 390, cornerRadius: 24)
                             VStack(alignment: .leading, spacing: 7) {
                                 Text("\(point.profile.name), \(point.profile.age)")
                                     .font(.system(size: 32, weight: .heavy, design: .rounded))
@@ -43,7 +43,7 @@ struct ProfilePreviewScreen: View {
                             }
                             .padding(18)
 
-                            LoopBadge(loopURL: loopURL(for: point.profile))
+                            LoopBadge(loopURL: point.profile.introLoopURL)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
                                 .padding(.trailing, 16)
                                 .padding(.bottom, 32)
@@ -93,10 +93,6 @@ struct ProfilePreviewScreen: View {
         }
     }
 
-    private func loopURL(for profile: UserProfile) -> URL? {
-        guard appState.activeMatch?.profile.id == profile.id else { return nil }
-        return appState.theirFirstLoopURL
-    }
 }
 
 private func likeButtonTitle(for profile: UserProfile) -> String {
@@ -125,19 +121,18 @@ private struct LoopBadge: View {
                     togglesAudioOnTap: true
                 )
             } else {
-                ZStack {
-                    Circle()
-                        .fill(NOWColor.laBrown.opacity(0.62))
-                        .frame(width: 68, height: 68)
-                        .overlay(Circle().stroke(NOWColor.laOrange, lineWidth: 3))
-                    Image(systemName: "play.fill")
-                        .font(.headline.weight(.black))
-                        .foregroundStyle(NOWColor.surface)
-                }
+                Image(systemName: "video.slash.fill")
+                    .font(.headline.weight(.black))
+                    .foregroundStyle(NOWColor.surface.opacity(0.9))
+                    .frame(width: 68, height: 68)
+                    .background(NOWColor.laBrown.opacity(0.62))
+                    .clipShape(Circle())
             }
-            Text("10s loop")
+            Text(loopURL == nil ? "No intro loop yet" : "10s loop")
                 .font(.caption2.weight(.heavy))
                 .foregroundStyle(NOWColor.laGold)
+                .multilineTextAlignment(.center)
         }
+        .accessibilityLabel(loopURL == nil ? "No intro loop yet" : "Play 10 second intro loop")
     }
 }
