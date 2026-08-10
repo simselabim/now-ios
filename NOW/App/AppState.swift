@@ -31,6 +31,7 @@ final class AppState: ObservableObject {
     private let apiClient: NOWAPIClient
     private let locationService: LocationService
     private var cachedLoopFiles: [String: URL] = [:]
+    private var loopDownloadTasks: [String: Task<URL?, Never>] = [:]
     private var activeMatchEventsTask: Task<Void, Never>?
     private var activeMatchEventsMatchId: UUID?
     private var profilePreviewRequestID: UUID?
@@ -1046,7 +1047,7 @@ final class AppState: ObservableObject {
         isViewingActiveMatchMap = false
         myFirstLoopURL = nil
         theirFirstLoopURL = nil
-        cachedLoopFiles = [:]
+        clearLoopMediaCache()
         meetingProposal = nil
         messages = []
     }
@@ -1105,25 +1106,63 @@ final class AppState: ObservableObject {
 
     private func playbackURL(for loop: LoopDTO?) async -> URL? {
         guard let loop else { return nil }
-        if let cachedURL = cachedLoopFiles[loop.storageKey] {
+        if let cachedURL = cachedLoopFiles[loop.storageKey],
+           FileManager.default.fileExists(atPath: cachedURL.path) {
             return cachedURL
         }
+        cachedLoopFiles[loop.storageKey] = nil
+
+        if let downloadTask = loopDownloadTasks[loop.storageKey] {
+            return await downloadTask.value
+        }
+
         guard let remoteURL = APIEnvironment.appDefault.mediaURL(storageKey: loop.storageKey) else {
             return nil
         }
 
+        let downloadTask = Task<URL?, Never> {
+            do {
+                let data = try await MediaUploadService().download(from: remoteURL.absoluteString)
+                let fileExtension = remoteURL.pathExtension.isEmpty ? "mp4" : remoteURL.pathExtension
+                let localURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("now-loop-\(loop.id.uuidString).\(fileExtension)")
+                try data.write(to: localURL, options: .atomic)
+                return localURL
+            } catch {
+                return nil
+            }
+        }
+        loopDownloadTasks[loop.storageKey] = downloadTask
+
+        let localURL = await downloadTask.value
+        loopDownloadTasks[loop.storageKey] = nil
+        if let localURL {
+            cachedLoopFiles[loop.storageKey] = localURL
+        }
+        return localURL
+    }
+
+    private func cacheLocalLoopFile(_ sourceURL: URL, for loop: LoopDTO) -> URL? {
+        let fileExtension = sourceURL.pathExtension.isEmpty ? "mp4" : sourceURL.pathExtension
+        let localURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("now-loop-\(loop.id.uuidString).\(fileExtension)")
+
         do {
-            let data = try await MediaUploadService().download(from: remoteURL.absoluteString)
-            let fileExtension = remoteURL.pathExtension.isEmpty ? "mp4" : remoteURL.pathExtension
-            let localURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent("now-loop-\(loop.id.uuidString).\(fileExtension)")
-            try data.write(to: localURL, options: .atomic)
+            if sourceURL.standardizedFileURL != localURL.standardizedFileURL {
+                try? FileManager.default.removeItem(at: localURL)
+                try FileManager.default.copyItem(at: sourceURL, to: localURL)
+            }
             cachedLoopFiles[loop.storageKey] = localURL
             return localURL
         } catch {
-            // Retry the download on the next server sync.
             return nil
         }
+    }
+
+    private func clearLoopMediaCache() {
+        loopDownloadTasks.values.forEach { $0.cancel() }
+        loopDownloadTasks = [:]
+        cachedLoopFiles = [:]
     }
 
     private func sendFirstLoopWithBackend(_ match: Match, videoURL: URL) async {
@@ -1165,12 +1204,24 @@ final class AppState: ObservableObject {
                 stage = "uploading the video"
                 _ = try await MediaUploadService().upload(fileURL: uploadURL, intent: intent)
                 stage = "attaching the video to the match"
-                _ = try await self.apiClient.sendFirstLoop(
+                let response = try await self.apiClient.sendFirstLoop(
                     matchId: match.id,
                     storageKey: intent.storageKey,
                     durationMs: Int(durationSeconds * 1_000)
                 )
-                try await self.loadActiveMatchDetail()
+
+                guard self.activeMatch?.id == match.id else { return }
+
+                let localPlaybackURL = self.cacheLocalLoopFile(
+                    uploadURL,
+                    for: response.loopItem
+                ) ?? videoURL
+                self.cachedLoopFiles[response.loopItem.storageKey] = localPlaybackURL
+                self.myFirstLoopURL = localPlaybackURL
+                self.activeMatch?.myFirstLoopSent = true
+                if response.chatUnlocked {
+                    self.activeMatch?.theirFirstLoopReceived = true
+                }
             } catch {
                 self.errorMessage = "First Loop failed while \(stage): \(self.uploadErrorDetail(error))"
             }
@@ -1260,7 +1311,7 @@ final class AppState: ObservableObject {
         selectedAppTab = .search
         myFirstLoopURL = nil
         theirFirstLoopURL = nil
-        cachedLoopFiles = [:]
+        clearLoopMediaCache()
     }
 
     private func authenticationErrorMessage(_ error: Error, registering: Bool) -> String {
