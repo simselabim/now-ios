@@ -4,6 +4,8 @@ import AVFoundation
 
 @MainActor
 final class AppState: ObservableObject {
+    private static let activeMatchEventFreshnessWindow: TimeInterval = 6
+
     @Published var isAuthenticated = false
     @Published var isProfileComplete = false
     @Published var isOnline = false
@@ -34,6 +36,7 @@ final class AppState: ObservableObject {
     private var loopDownloadTasks: [String: Task<URL?, Never>] = [:]
     private var activeMatchEventsTask: Task<Void, Never>?
     private var activeMatchEventsMatchId: UUID?
+    private var lastActiveMatchEventAt: Date?
     private var profilePreviewRequestID: UUID?
 
     init(apiClient: NOWAPIClient = NOWAPIClient()) {
@@ -371,8 +374,17 @@ final class AppState: ObservableObject {
             do {
                 let hadActiveMatch = activeMatch != nil
 
-                if activeMatch != nil {
+                if let match = activeMatch {
+                    if activeMatchEventsMatchId == match.id,
+                       activeMatchEventsTask != nil,
+                       !hasFreshActiveMatchEvent() {
+                        stopActiveMatchEvents(matchId: match.id)
+                    }
                     startActiveMatchEventsIfNeeded()
+
+                    if !hasFreshActiveMatchEvent() {
+                        try await loadActiveMatchDetail()
+                    }
                     continue
                 }
 
@@ -1064,6 +1076,7 @@ final class AppState: ObservableObject {
 
         stopActiveMatchEvents()
         activeMatchEventsMatchId = match.id
+        lastActiveMatchEventAt = nil
         activeMatchEventsTask = Task { [weak self] in
             guard let self else { return }
             do {
@@ -1072,7 +1085,7 @@ final class AppState: ObservableObject {
                     await self.applyActiveMatchEvent(event, matchId: match.id)
                 }
             } catch {
-                await self.stopActiveMatchEvents(matchId: match.id)
+                self.stopActiveMatchEvents(matchId: match.id)
             }
         }
     }
@@ -1084,6 +1097,7 @@ final class AppState: ObservableObject {
         activeMatchEventsTask?.cancel()
         activeMatchEventsTask = nil
         activeMatchEventsMatchId = nil
+        lastActiveMatchEventAt = nil
     }
 
     private func applyActiveMatchEvent(_ event: MatchEventDTO, matchId: UUID) async {
@@ -1091,6 +1105,8 @@ final class AppState: ObservableObject {
             stopActiveMatchEvents(matchId: matchId)
             return
         }
+
+        lastActiveMatchEventAt = Date()
 
         switch event {
         case .snapshot(let detail):
@@ -1101,6 +1117,25 @@ final class AppState: ObservableObject {
             try? await loadDiscoveryMap()
         case .error:
             stopActiveMatchEvents(matchId: matchId)
+        }
+    }
+
+    private func hasFreshActiveMatchEvent(now: Date = Date()) -> Bool {
+        guard let lastActiveMatchEventAt else { return false }
+        return now.timeIntervalSince(lastActiveMatchEventAt) < Self.activeMatchEventFreshnessWindow
+    }
+
+    private func refreshActiveMatchInBackground(matchId: UUID) {
+        Task { [weak self] in
+            guard let self else { return }
+
+            do {
+                let response = try await self.apiClient.activeMatchDetail()
+                guard self.isAuthenticated, self.activeMatch?.id == matchId else { return }
+                await self.applyActiveMatchDetail(response)
+            } catch {
+                // The regular sync loop remains the fallback for transient failures.
+            }
         }
     }
 
@@ -1221,6 +1256,9 @@ final class AppState: ObservableObject {
                 self.activeMatch?.myFirstLoopSent = true
                 if response.chatUnlocked {
                     self.activeMatch?.theirFirstLoopReceived = true
+                    if self.theirFirstLoopURL == nil {
+                        self.refreshActiveMatchInBackground(matchId: match.id)
+                    }
                 }
             } catch {
                 self.errorMessage = "First Loop failed while \(stage): \(self.uploadErrorDetail(error))"
