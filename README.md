@@ -203,6 +203,8 @@ Welcome
 Meeting proposal, meeting mode, and history use the same backend-driven state.
 Meeting proposals use Apple Maps autocomplete and require the user to select a
 resolved place with a real name, address, and coordinate before submission.
+The place picker also loads nearby cafes onto an interactive map; tapping a
+marker selects that real venue for the proposal.
 
 ## Backend Integration Layer
 

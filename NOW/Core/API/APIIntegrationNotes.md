@@ -10,7 +10,7 @@ This folder contains the first real backend integration layer for NOW iOS.
 - `UserDefaultsAuthTokenStore`: current local token store. Replace with Keychain before production.
 - `BackendDTOs.swift`: request and response models matching the Rust backend.
 - `MediaUploadService`: uploads bytes to the `upload_url` returned by `/media/upload-intent`.
-- `PlaceSearchField`: resolves Apple Maps autocomplete results into a confirmed name, address, and coordinate before a meeting proposal can be sent.
+- `PlaceSearchField`: shows nearby cafes as Apple Maps markers and resolves map or autocomplete selection into a confirmed name, address, and coordinate before a meeting proposal can be sent.
 
 ## Configured Backend
 

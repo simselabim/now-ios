@@ -1,10 +1,14 @@
 import MapKit
 import SwiftUI
 
-struct MeetingPlace: Equatable {
+struct MeetingPlace: Equatable, Identifiable {
     let name: String
     let address: String
     let coordinate: CLLocationCoordinate2D
+
+    var id: String {
+        "\(coordinate.latitude),\(coordinate.longitude),\(name)"
+    }
 
     static func == (lhs: MeetingPlace, rhs: MeetingPlace) -> Bool {
         lhs.name == rhs.name
@@ -35,22 +39,40 @@ private final class PlaceSearchService: NSObject, ObservableObject, MKLocalSearc
         }
     }
     @Published private(set) var suggestions: [PlaceSearchSuggestion] = []
+    @Published private(set) var mapPlaces: [MeetingPlace] = []
+    @Published private(set) var isSearchingMap = false
     @Published private(set) var isResolving = false
     @Published private(set) var errorMessage: String?
 
     private let completer = MKLocalSearchCompleter()
+    private let searchRegion: MKCoordinateRegion?
+    private var hasLoadedNearbyCafes = false
 
     init(regionCenter: CLLocationCoordinate2D?) {
+        searchRegion = regionCenter.map {
+            MKCoordinateRegion(
+                center: $0,
+                latitudinalMeters: 12_000,
+                longitudinalMeters: 12_000
+            )
+        }
         super.init()
         completer.delegate = self
         completer.resultTypes = [.address, .pointOfInterest]
-        if let regionCenter {
-            completer.region = MKCoordinateRegion(
-                center: regionCenter,
-                latitudinalMeters: 40_000,
-                longitudinalMeters: 40_000
-            )
+        if let searchRegion {
+            completer.region = searchRegion
         }
+    }
+
+    func loadNearbyCafes() async {
+        guard !hasLoadedNearbyCafes else { return }
+        hasLoadedNearbyCafes = true
+        await searchMap(for: "Cafe")
+    }
+
+    func searchMapForCurrentQuery() async {
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        await searchMap(for: trimmedQuery.isEmpty ? "Cafe" : trimmedQuery)
     }
 
     func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
@@ -80,14 +102,12 @@ private final class PlaceSearchService: NSObject, ObservableObject, MKLocalSearc
                 return nil
             }
 
-            let name = item.name?.trimmingCharacters(in: .whitespacesAndNewlines)
-            let address = item.placemark.title?.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard let name, !name.isEmpty, let address, !address.isEmpty else {
+            guard let place = meetingPlace(from: item) else {
                 errorMessage = "This place does not have a confirmed name and address."
                 return nil
             }
 
-            return MeetingPlace(name: name, address: address, coordinate: item.placemark.coordinate)
+            return place
         } catch {
             errorMessage = "Could not confirm this place. Try another result."
             return nil
@@ -97,6 +117,9 @@ private final class PlaceSearchService: NSObject, ObservableObject, MKLocalSearc
     func select(_ place: MeetingPlace) {
         query = place.name
         suggestions = []
+        if !mapPlaces.contains(place) {
+            mapPlaces.insert(place, at: 0)
+        }
         errorMessage = nil
     }
 
@@ -105,15 +128,57 @@ private final class PlaceSearchService: NSObject, ObservableObject, MKLocalSearc
         suggestions = []
         errorMessage = nil
     }
+
+    private func searchMap(for query: String) async {
+        isSearchingMap = true
+        errorMessage = nil
+        defer { isSearchingMap = false }
+
+        do {
+            let request = MKLocalSearch.Request()
+            request.naturalLanguageQuery = query
+            request.resultTypes = .pointOfInterest
+            if let searchRegion {
+                request.region = searchRegion
+            }
+
+            let response = try await MKLocalSearch(request: request).start()
+            mapPlaces = Array(response.mapItems.compactMap(meetingPlace(from:)).prefix(20))
+            if mapPlaces.isEmpty {
+                errorMessage = "No matching places found in this area."
+            }
+        } catch {
+            errorMessage = "Could not load places on the map. Try again."
+        }
+    }
+
+    private func meetingPlace(from item: MKMapItem) -> MeetingPlace? {
+        let name = item.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let address = item.placemark.title?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let name, !name.isEmpty, let address, !address.isEmpty else { return nil }
+        return MeetingPlace(name: name, address: address, coordinate: item.placemark.coordinate)
+    }
 }
 
 struct PlaceSearchField: View {
     @Binding private var selectedPlace: MeetingPlace?
     @StateObject private var search: PlaceSearchService
+    @State private var mapPosition: MapCameraPosition
 
     init(selectedPlace: Binding<MeetingPlace?>, regionCenter: CLLocationCoordinate2D?) {
         _selectedPlace = selectedPlace
         _search = StateObject(wrappedValue: PlaceSearchService(regionCenter: regionCenter))
+        _mapPosition = State(
+            initialValue: regionCenter.map {
+                .region(
+                    MKCoordinateRegion(
+                        center: $0,
+                        latitudinalMeters: 5_000,
+                        longitudinalMeters: 5_000
+                    )
+                )
+            } ?? .automatic
+        )
     }
 
     var body: some View {
@@ -156,6 +221,48 @@ struct PlaceSearchField: View {
                 .padding(11)
                 .background(NOWColor.paper)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .submitLabel(.search)
+                .onSubmit {
+                    Task { await search.searchMapForCurrentQuery() }
+                }
+
+                HStack {
+                    Text(search.query.isEmpty ? "Nearby cafes" : "Places on the map")
+                        .font(.caption.weight(.heavy))
+                        .foregroundStyle(NOWColor.laBrown)
+                    Spacer()
+                    if search.isSearchingMap {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                }
+
+                Map(position: $mapPosition, interactionModes: [.pan, .zoom]) {
+                    ForEach(search.mapPlaces) { place in
+                        Annotation(place.name, coordinate: place.coordinate, anchor: .bottom) {
+                            Button {
+                                choose(place)
+                            } label: {
+                                Image(systemName: "cup.and.saucer.fill")
+                                    .font(.caption.weight(.black))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 32, height: 32)
+                                    .background(NOWColor.laCoral)
+                                    .clipShape(Circle())
+                                    .overlay(Circle().stroke(.white, lineWidth: 2))
+                                    .shadow(color: .black.opacity(0.2), radius: 3, y: 2)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Select \(place.name), \(place.address)")
+                        }
+                    }
+                }
+                .frame(height: 210)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(NOWColor.laBrown.opacity(0.18), lineWidth: 1)
+                )
 
                 if search.isResolving {
                     ProgressView("Confirming place…")
@@ -166,8 +273,7 @@ struct PlaceSearchField: View {
                     Button {
                         Task {
                             if let place = await search.resolve(suggestion) {
-                                selectedPlace = place
-                                search.select(place)
+                                choose(place)
                             }
                         }
                     } label: {
@@ -198,5 +304,20 @@ struct PlaceSearchField: View {
                     .foregroundStyle(NOWColor.laCoral)
             }
         }
+        .task {
+            await search.loadNearbyCafes()
+        }
+    }
+
+    private func choose(_ place: MeetingPlace) {
+        selectedPlace = place
+        search.select(place)
+        mapPosition = .region(
+            MKCoordinateRegion(
+                center: place.coordinate,
+                latitudinalMeters: 1_200,
+                longitudinalMeters: 1_200
+            )
+        )
     }
 }
