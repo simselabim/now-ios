@@ -53,16 +53,18 @@ let detail = try await client.activeMatchDetail()
 
 ```text
 Welcome
- -> Demo Login
+ -> Login or registration
  -> /app/bootstrap
+ -> /events WebSocket
  -> /discover/map
  -> /discover/points/{point_id}
  -> like/pass
- -> /matches/active/detail when a match exists
+ -> event-driven active match state
 ```
 
-The temporary chat, meeting proposal, meeting mode, and history screens still keep
-their mock-first behavior until their UI flows are wired to `NOWAPIClient`.
+After reconnect or foreground activation, `AppState` fetches
+`/matches/active/detail` once to reconcile the authoritative state. It does not
+poll the active match while the WebSocket is healthy.
 
 ## Backend Docs
 

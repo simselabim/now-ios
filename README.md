@@ -107,10 +107,9 @@ For local-only development, override `NOW_API_BASE_URL` to `http://127.0.0.1:808
 and start the backend:
 
 ```bash
-cd /Users/dim4egster/Projects/now_back
+cd /Users/dim4egster/my_projects/now_back
 make db-up
 make migrate
-make seed-demo
 make run
 ```
 

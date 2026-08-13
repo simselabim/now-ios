@@ -192,20 +192,22 @@ Safety API
 Preferred endpoint:
 
 ```text
-WebSocket /matches/{match_id}/events
+WebSocket /events
 ```
 
 Events:
 
 ```text
-message.created
-loop.uploaded
-chat.unlocked
-meeting.proposed
-meeting.accepted
-meeting.status_changed
-match.cancelled
-match.expired
-we_met.requested
-safety.triggered
+snapshot
+match_created
+match_updated
+first_loop_received
+message_created
+meeting_status_updated
+discovery_changed
+match_closed
 ```
+
+Each event includes `event_id` and `version`. The client sends ping frames,
+reconnects with exponential backoff, deduplicates event IDs, and fetches one
+authoritative REST snapshot after reconnect or foreground activation.

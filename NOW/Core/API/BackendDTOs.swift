@@ -270,36 +270,25 @@ struct ActiveMatchDetailResponseDTO: Decodable {
     let matchItem: ActiveMatchDetailDTO?
 }
 
-enum MatchEventDTO: Decodable {
-    case snapshot(ActiveMatchDetailResponseDTO)
-    case matchClosed
-    case error(String)
+struct RealtimeEventDTO: Decodable {
+    let eventId: UUID
+    let version: UInt64
+    let type: RealtimeEventTypeDTO
+    let matchId: UUID?
+    let detail: ActiveMatchDetailResponseDTO?
+    let message: String?
+}
 
-    private enum CodingKeys: String, CodingKey {
-        case type
-        case detail
-        case message
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let type = try container.decode(String.self, forKey: .type)
-
-        switch type {
-        case "snapshot":
-            self = .snapshot(try container.decode(ActiveMatchDetailResponseDTO.self, forKey: .detail))
-        case "match_closed":
-            self = .matchClosed
-        case "error":
-            self = .error(try container.decodeIfPresent(String.self, forKey: .message) ?? "Realtime sync failed.")
-        default:
-            throw DecodingError.dataCorruptedError(
-                forKey: .type,
-                in: container,
-                debugDescription: "Unsupported match event type: \(type)"
-            )
-        }
-    }
+enum RealtimeEventTypeDTO: String, Decodable {
+    case snapshot
+    case matchCreated = "match_created"
+    case matchUpdated = "match_updated"
+    case firstLoopReceived = "first_loop_received"
+    case messageCreated = "message_created"
+    case meetingStatusUpdated = "meeting_status_updated"
+    case discoveryChanged = "discovery_changed"
+    case matchClosed = "match_closed"
+    case error
 }
 
 struct ActiveMatchDetailDTO: Decodable {

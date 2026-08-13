@@ -147,8 +147,8 @@ final class NOWAPIClient {
         try await send(path: "/matches/active/detail")
     }
 
-    func activeMatchEvents(matchId: UUID) async throws -> AsyncThrowingStream<MatchEventDTO, Error> {
-        guard let url = environment.webSocketURL(path: "/matches/\(matchId.uuidString)/events") else {
+    func realtimeEvents() async throws -> AsyncThrowingStream<RealtimeEventDTO, Error> {
+        guard let url = environment.webSocketURL(path: "/events") else {
             throw APIError.invalidURL
         }
         guard let token = await tokenStore.getAccessToken() else {
@@ -161,19 +161,35 @@ final class NOWAPIClient {
         socket.resume()
 
         return AsyncThrowingStream { continuation in
-            let task = Task {
+            let streamTask = Task {
                 do {
-                    while !Task.isCancelled {
-                        let message = try await socket.receive()
-                        switch message {
-                        case .string(let value):
-                            guard let data = value.data(using: .utf8) else { continue }
-                            continuation.yield(try self.decoder.decode(MatchEventDTO.self, from: data))
-                        case .data(let data):
-                            continuation.yield(try self.decoder.decode(MatchEventDTO.self, from: data))
-                        @unknown default:
-                            continue
+                    try await withThrowingTaskGroup(of: Void.self) { group in
+                        group.addTask {
+                            while !Task.isCancelled {
+                                let message = try await socket.receive()
+                                switch message {
+                                case .string(let value):
+                                    guard let data = value.data(using: .utf8) else { continue }
+                                    continuation.yield(
+                                        try self.decoder.decode(RealtimeEventDTO.self, from: data)
+                                    )
+                                case .data(let data):
+                                    continuation.yield(
+                                        try self.decoder.decode(RealtimeEventDTO.self, from: data)
+                                    )
+                                @unknown default:
+                                    continue
+                                }
+                            }
                         }
+                        group.addTask {
+                            while !Task.isCancelled {
+                                try await Task.sleep(for: .seconds(20))
+                                try await self.sendPing(on: socket)
+                            }
+                        }
+                        _ = try await group.next()
+                        group.cancelAll()
                     }
                     continuation.finish()
                 } catch {
@@ -182,8 +198,20 @@ final class NOWAPIClient {
             }
 
             continuation.onTermination = { _ in
-                task.cancel()
+                streamTask.cancel()
                 socket.cancel(with: .goingAway, reason: nil)
+            }
+        }
+    }
+
+    private func sendPing(on socket: URLSessionWebSocketTask) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            socket.sendPing { error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume()
+                }
             }
         }
     }

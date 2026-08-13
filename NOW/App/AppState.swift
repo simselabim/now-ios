@@ -4,8 +4,6 @@ import AVFoundation
 
 @MainActor
 final class AppState: ObservableObject {
-    private static let activeMatchEventFreshnessWindow: TimeInterval = 6
-
     @Published var isAuthenticated = false
     @Published var isProfileComplete = false
     @Published var isOnline = false
@@ -34,9 +32,11 @@ final class AppState: ObservableObject {
     private let locationService: LocationService
     private var cachedLoopFiles: [String: URL] = [:]
     private var loopDownloadTasks: [String: Task<URL?, Never>] = [:]
-    private var activeMatchEventsTask: Task<Void, Never>?
-    private var activeMatchEventsMatchId: UUID?
-    private var lastActiveMatchEventAt: Date?
+    private var realtimeConnectionTask: Task<Void, Never>?
+    private var realtimeConnectionID: UUID?
+    private var processedRealtimeEventIds: Set<UUID> = []
+    private var processedRealtimeEventOrder: [UUID] = []
+    private var lastRealtimeVersion: UInt64?
     private var profilePreviewRequestID: UUID?
 
     init(apiClient: NOWAPIClient = NOWAPIClient()) {
@@ -367,43 +367,29 @@ final class AppState: ObservableObject {
     }
 
     func runServerSync() async {
+        defer { stopRealtimeConnection() }
+
         while !Task.isCancelled {
-            try? await Task.sleep(for: .seconds(2))
-            guard isAuthenticated, isProfileComplete, !isLoading else { continue }
-
-            do {
-                let hadActiveMatch = activeMatch != nil
-
-                if let match = activeMatch {
-                    if activeMatchEventsMatchId == match.id,
-                       activeMatchEventsTask != nil,
-                       !hasFreshActiveMatchEvent() {
-                        stopActiveMatchEvents(matchId: match.id)
-                    }
-                    startActiveMatchEventsIfNeeded()
-
-                    if !hasFreshActiveMatchEvent() {
-                        try await loadActiveMatchDetail()
-                    }
-                    continue
-                }
-
-                try await loadActiveMatchDetail()
-
-                if activeMatch != nil {
-                    isOnline = false
-                    startActiveMatchEventsIfNeeded()
-                } else if hadActiveMatch {
-                    isViewingActiveMatchMap = false
-                    selectedPoint = nil
-                    isOnline = true
-                    try await loadDiscoveryMap()
-                } else if isOnline, selectedPoint == nil {
-                    try await loadDiscoveryMap()
-                }
-            } catch {
-                // Polling preserves the last usable screen. Explicit refresh still surfaces errors.
+            if isAuthenticated, isProfileComplete, currentUserId != nil {
+                startRealtimeConnectionIfNeeded()
+            } else {
+                stopRealtimeConnection()
             }
+            try? await Task.sleep(for: .seconds(1))
+        }
+    }
+
+    func applicationDidBecomeActive() {
+        guard isAuthenticated, isProfileComplete, currentUserId != nil else { return }
+
+        stopRealtimeConnection()
+        Task {
+            do {
+                try await reconcileAfterRealtimeConnect()
+            } catch {
+                // The reconnecting WebSocket will deliver an authoritative snapshot.
+            }
+            startRealtimeConnectionIfNeeded()
         }
     }
 
@@ -1050,11 +1036,9 @@ final class AppState: ObservableObject {
         } else {
             meetingProposal = nil
         }
-        startActiveMatchEventsIfNeeded()
     }
 
     private func clearActiveMatchState() {
-        stopActiveMatchEvents()
         activeMatch = nil
         isViewingActiveMatchMap = false
         myFirstLoopURL = nil
@@ -1064,65 +1048,116 @@ final class AppState: ObservableObject {
         messages = []
     }
 
-    private func startActiveMatchEventsIfNeeded() {
-        guard currentUserId != nil, let match = activeMatch else {
-            stopActiveMatchEvents()
+    private func startRealtimeConnectionIfNeeded() {
+        guard realtimeConnectionTask == nil,
+              isAuthenticated,
+              isProfileComplete,
+              currentUserId != nil else {
             return
         }
 
-        if activeMatchEventsMatchId == match.id, activeMatchEventsTask != nil {
-            return
-        }
-
-        stopActiveMatchEvents()
-        activeMatchEventsMatchId = match.id
-        lastActiveMatchEventAt = nil
-        activeMatchEventsTask = Task { [weak self] in
+        let connectionID = UUID()
+        realtimeConnectionID = connectionID
+        realtimeConnectionTask = Task { [weak self] in
             guard let self else { return }
+            await self.consumeRealtimeEvents(connectionID: connectionID)
+        }
+    }
+
+    private func stopRealtimeConnection() {
+        realtimeConnectionTask?.cancel()
+        realtimeConnectionTask = nil
+        realtimeConnectionID = nil
+        resetRealtimeOrdering()
+    }
+
+    private func consumeRealtimeEvents(connectionID: UUID) async {
+        var retryDelaySeconds = 1.0
+
+        while !Task.isCancelled, isAuthenticated, isProfileComplete, currentUserId != nil {
             do {
-                let events = try await self.apiClient.activeMatchEvents(matchId: match.id)
+                resetRealtimeOrdering()
+                let events = try await apiClient.realtimeEvents()
+                retryDelaySeconds = 1
+                try await reconcileAfterRealtimeConnect()
                 for try await event in events {
-                    await self.applyActiveMatchEvent(event, matchId: match.id)
+                    guard !Task.isCancelled, isAuthenticated else { break }
+                    await applyRealtimeEvent(event)
                 }
             } catch {
-                self.stopActiveMatchEvents(matchId: match.id)
+                // Reconnect below while preserving the last usable screen.
             }
+
+            guard !Task.isCancelled, isAuthenticated else { break }
+            try? await Task.sleep(for: .seconds(retryDelaySeconds))
+            retryDelaySeconds = min(retryDelaySeconds * 2, 30)
+        }
+
+        if realtimeConnectionID == connectionID {
+            realtimeConnectionTask = nil
+            realtimeConnectionID = nil
         }
     }
 
-    private func stopActiveMatchEvents(matchId: UUID? = nil) {
-        if let matchId, activeMatchEventsMatchId != matchId {
-            return
-        }
-        activeMatchEventsTask?.cancel()
-        activeMatchEventsTask = nil
-        activeMatchEventsMatchId = nil
-        lastActiveMatchEventAt = nil
-    }
+    private func applyRealtimeEvent(_ event: RealtimeEventDTO) async {
+        guard shouldApplyRealtimeEvent(event) else { return }
 
-    private func applyActiveMatchEvent(_ event: MatchEventDTO, matchId: UUID) async {
-        guard activeMatch?.id == matchId else {
-            stopActiveMatchEvents(matchId: matchId)
-            return
-        }
-
-        lastActiveMatchEventAt = Date()
-
-        switch event {
-        case .snapshot(let detail):
+        switch event.type {
+        case .snapshot, .matchCreated, .matchUpdated, .firstLoopReceived,
+             .messageCreated, .meetingStatusUpdated:
+            guard let detail = event.detail else { return }
             await applyActiveMatchDetail(detail)
+        case .discoveryChanged:
+            if activeMatch == nil, isOnline, selectedPoint == nil {
+                try? await loadDiscoveryMap()
+            }
         case .matchClosed:
+            let keepHistoryVisible = showHistory
             clearActiveMatchState()
-            isOnline = true
-            try? await loadDiscoveryMap()
+            if !keepHistoryVisible {
+                isOnline = true
+                try? await loadDiscoveryMap()
+            }
         case .error:
-            stopActiveMatchEvents(matchId: matchId)
+            errorMessage = event.message ?? "Realtime sync failed. Reconnecting…"
         }
     }
 
-    private func hasFreshActiveMatchEvent(now: Date = Date()) -> Bool {
-        guard let lastActiveMatchEventAt else { return false }
-        return now.timeIntervalSince(lastActiveMatchEventAt) < Self.activeMatchEventFreshnessWindow
+    private func shouldApplyRealtimeEvent(_ event: RealtimeEventDTO) -> Bool {
+        guard !processedRealtimeEventIds.contains(event.eventId) else { return false }
+        if event.type != .snapshot,
+           let lastRealtimeVersion,
+           event.version <= lastRealtimeVersion {
+            return false
+        }
+
+        processedRealtimeEventIds.insert(event.eventId)
+        processedRealtimeEventOrder.append(event.eventId)
+        if processedRealtimeEventOrder.count > 256 {
+            let expired = processedRealtimeEventOrder.removeFirst()
+            processedRealtimeEventIds.remove(expired)
+        }
+        lastRealtimeVersion = event.version
+        return true
+    }
+
+    private func resetRealtimeOrdering() {
+        processedRealtimeEventIds.removeAll(keepingCapacity: true)
+        processedRealtimeEventOrder.removeAll(keepingCapacity: true)
+        lastRealtimeVersion = nil
+    }
+
+    private func reconcileAfterRealtimeConnect() async throws {
+        let hadActiveMatch = activeMatch != nil
+        try await loadActiveMatchDetail()
+        guard activeMatch == nil else { return }
+
+        if hadActiveMatch {
+            isOnline = true
+        }
+        if isOnline, selectedPoint == nil {
+            try await loadDiscoveryMap()
+        }
     }
 
     private func refreshActiveMatchInBackground(matchId: UUID) {
@@ -1134,7 +1169,7 @@ final class AppState: ObservableObject {
                 guard self.isAuthenticated, self.activeMatch?.id == matchId else { return }
                 await self.applyActiveMatchDetail(response)
             } catch {
-                // The regular sync loop remains the fallback for transient failures.
+                // The realtime reconnect snapshot remains the fallback for transient failures.
             }
         }
     }
@@ -1332,7 +1367,7 @@ final class AppState: ObservableObject {
     }
 
     private func resetAuthenticatedState() {
-        stopActiveMatchEvents()
+        stopRealtimeConnection()
         errorMessage = nil
         isAuthenticated = false
         isProfileComplete = false
