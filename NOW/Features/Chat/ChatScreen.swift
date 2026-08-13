@@ -123,6 +123,11 @@ struct ChatScreen: View {
             }
             .padding(14)
         }
+        .onAppear {
+            if meetingPlace == nil {
+                meetingPlace = appState.preferredMeetingPlace
+            }
+        }
     }
 }
 

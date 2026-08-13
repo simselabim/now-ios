@@ -14,6 +14,7 @@ final class AppState: ObservableObject {
     @Published var currentCoordinate: CLLocationCoordinate2D?
     @Published var currentLocationAccuracyM: Int?
     @Published var selectedPoint: MapPoint?
+    @Published var preferredMeetingPlace: MeetingPlace?
     @Published var activeMatch: Match?
     @Published var isViewingActiveMatchMap = false
     @Published private(set) var myFirstLoopURL: URL?
@@ -256,9 +257,14 @@ final class AppState: ObservableObject {
                 _ = try await self.apiClient.goOffline()
                 self.isOnline = false
                 self.selectedPoint = nil
+                self.preferredMeetingPlace = nil
                 self.mapPoints = []
             }
         }
+    }
+
+    func selectPreferredMeetingPlace(_ place: MeetingPlace?) {
+        preferredMeetingPlace = place
     }
 
     func refreshActiveMatch() {
@@ -421,6 +427,7 @@ final class AppState: ObservableObject {
                     )
                 )
                 self.meetingProposal = self.mapMeetingProposal(proposal)
+                self.preferredMeetingPlace = nil
             }
         }
     }
@@ -615,6 +622,7 @@ final class AppState: ObservableObject {
         let selectedIntent = todayIntent
         isLoading = true
         errorMessage = nil
+        preferredMeetingPlace = nil
 
         let deviceLocation: DeviceLocation
         do {
@@ -1093,6 +1101,7 @@ final class AppState: ObservableObject {
         currentUserEmail = nil
         myProfile = nil
         selectedPoint = nil
+        preferredMeetingPlace = nil
         activeMatch = nil
         meetingProposal = nil
         messages = []

@@ -200,6 +200,11 @@ Welcome
  -> Temporary Chat
 ```
 
+After going online, the discovery map centers on the user's real location and
+automatically loads nearby cafes and restaurants from Apple Maps. A venue can
+be selected directly from its marker without using text search; that selection
+is carried into the meeting proposal composer after a match.
+
 Meeting proposal, meeting mode, and history use the same backend-driven state.
 Meeting proposals use Apple Maps autocomplete and require the user to select a
 resolved place with a real name, address, and coordinate before submission.

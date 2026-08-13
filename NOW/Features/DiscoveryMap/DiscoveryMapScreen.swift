@@ -4,15 +4,20 @@ import SwiftUI
 struct DiscoveryMapScreen: View {
     @EnvironmentObject private var appState: AppState
     @State private var cameraPosition: MapCameraPosition = .automatic
+    @StateObject private var venueStore = NearbyVenueStore()
 
     var body: some View {
         LiveDiscoveryMap(
             points: mapPoints,
+            venues: nearbyVenues,
             userCoordinate: appState.currentCoordinate,
             cameraPosition: $cameraPosition,
-            activeMatchProfileId: appState.isViewingActiveMatchMap ? appState.activeMatch?.profile.id : nil
+            activeMatchProfileId: appState.isViewingActiveMatchMap ? appState.activeMatch?.profile.id : nil,
+            selectedVenueID: appState.preferredMeetingPlace?.id
         ) { point in
             appState.viewPoint(point)
+        } onVenueTap: { venue in
+            appState.selectPreferredMeetingPlace(venue)
         }
         .ignoresSafeArea(edges: .top)
         .onAppear {
@@ -20,6 +25,19 @@ struct DiscoveryMapScreen: View {
         }
         .onChange(of: cameraKey) { _, _ in
             reframeMap()
+        }
+        .onChange(of: venueStore.venues.count) { _, count in
+            if count > 0, !appState.isViewingActiveMatchMap {
+                recenterOnUser()
+            }
+        }
+        .task(id: venueSearchKey) {
+            guard !appState.isViewingActiveMatchMap,
+                  let coordinate = appState.currentCoordinate else {
+                venueStore.clear()
+                return
+            }
+            await venueStore.load(around: coordinate)
         }
         .overlay(alignment: .top) {
             MapHeader(isLoading: appState.isLoading, isLockedToActiveMatch: appState.isViewingActiveMatchMap, back: {
@@ -50,7 +68,19 @@ struct DiscoveryMapScreen: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
 
-                LAPill(text: "Live nearby", icon: nil)
+                if let venue = appState.preferredMeetingPlace,
+                   !appState.isViewingActiveMatchMap {
+                    SelectedVenueCard(venue: venue) {
+                        appState.selectPreferredMeetingPlace(nil)
+                    }
+                }
+
+                LAPill(
+                    text: venueStore.isLoading
+                        ? "Loading cafes and restaurants…"
+                        : "People, cafes and restaurants nearby",
+                    icon: nil
+                )
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.horizontal, 18)
@@ -60,6 +90,15 @@ struct DiscoveryMapScreen: View {
 
     private var mapPoints: [MapPoint] {
         appState.isViewingActiveMatchMap ? appState.activeMatchMapPoints : appState.visibleMapPoints
+    }
+
+    private var nearbyVenues: [MeetingPlace] {
+        appState.isViewingActiveMatchMap ? [] : venueStore.venues
+    }
+
+    private var venueSearchKey: String {
+        guard let coordinate = appState.currentCoordinate else { return "none" }
+        return "\(rounded(coordinate.latitude)):\(rounded(coordinate.longitude)):\(appState.isViewingActiveMatchMap)"
     }
 
     private var cameraKey: String {
@@ -78,7 +117,8 @@ struct DiscoveryMapScreen: View {
         if let currentCoordinate = appState.currentCoordinate {
             let region = MKCoordinateRegion(
                 center: currentCoordinate,
-                span: MKCoordinateSpan(latitudeDelta: 0.018, longitudeDelta: 0.018)
+                latitudinalMeters: 5_000,
+                longitudinalMeters: 5_000
             )
             withAnimation(.easeInOut(duration: 0.35)) {
                 cameraPosition = .region(region)
@@ -193,16 +233,31 @@ private struct MapHeader: View {
 
 private struct LiveDiscoveryMap: View {
     let points: [MapPoint]
+    let venues: [MeetingPlace]
     let userCoordinate: CLLocationCoordinate2D?
     @Binding var cameraPosition: MapCameraPosition
     let activeMatchProfileId: UUID?
+    let selectedVenueID: String?
     let onTap: (MapPoint) -> Void
+    let onVenueTap: (MeetingPlace) -> Void
 
     var body: some View {
         Map(position: $cameraPosition, interactionModes: [.pan, .zoom, .rotate]) {
             if let userCoordinate {
                 Annotation("You", coordinate: userCoordinate, anchor: .center) {
                     LAUserLocationMarker()
+                }
+            }
+
+            ForEach(venues) { venue in
+                Annotation(venue.name, coordinate: venue.coordinate, anchor: .bottom) {
+                    Button {
+                        onVenueTap(venue)
+                    } label: {
+                        LAVenueMarker(isSelected: venue.id == selectedVenueID)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Choose \(venue.name), \(venue.address)")
                 }
             }
 
@@ -237,12 +292,125 @@ private struct LiveDiscoveryMap: View {
                 .allowsHitTesting(false)
         }
         .overlay {
-            if points.isEmpty {
+            if points.isEmpty && venues.isEmpty {
                 EmptyMapState()
                     .padding(.horizontal, 24)
                     .allowsHitTesting(false)
             }
         }
+    }
+}
+
+@MainActor
+private final class NearbyVenueStore: ObservableObject {
+    @Published private(set) var venues: [MeetingPlace] = []
+    @Published private(set) var isLoading = false
+
+    private var lastCoordinateKey: String?
+
+    func load(around coordinate: CLLocationCoordinate2D) async {
+        let coordinateKey = String(format: "%.4f:%.4f", coordinate.latitude, coordinate.longitude)
+        guard coordinateKey != lastCoordinateKey else { return }
+
+        lastCoordinateKey = coordinateKey
+        isLoading = true
+        defer { isLoading = false }
+
+        var loadedVenues: [MeetingPlace] = []
+        for query in ["cafe", "restaurant"] {
+            let request = MKLocalSearch.Request()
+            request.naturalLanguageQuery = query
+            request.region = MKCoordinateRegion(
+                center: coordinate,
+                latitudinalMeters: 5_000,
+                longitudinalMeters: 5_000
+            )
+            request.resultTypes = .pointOfInterest
+            request.pointOfInterestFilter = MKPointOfInterestFilter(
+                including: [.cafe, .restaurant]
+            )
+
+            if let response = try? await MKLocalSearch(request: request).start() {
+                loadedVenues.append(contentsOf: response.mapItems.compactMap(meetingPlace(from:)))
+            }
+        }
+
+        let uniqueVenues = Dictionary(loadedVenues.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let origin = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        venues = Array(
+            uniqueVenues.values
+                .sorted {
+                    origin.distance(from: CLLocation(latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude))
+                        < origin.distance(from: CLLocation(latitude: $1.coordinate.latitude, longitude: $1.coordinate.longitude))
+                }
+                .prefix(30)
+        )
+    }
+
+    func clear() {
+        venues = []
+        lastCoordinateKey = nil
+    }
+
+    private func meetingPlace(from item: MKMapItem) -> MeetingPlace? {
+        let name = item.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let address = item.placemark.title?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let name, !name.isEmpty, let address, !address.isEmpty else { return nil }
+        return MeetingPlace(name: name, address: address, coordinate: item.placemark.coordinate)
+    }
+}
+
+private struct LAVenueMarker: View {
+    let isSelected: Bool
+
+    var body: some View {
+        Image(systemName: "fork.knife")
+            .font(.caption.weight(.black))
+            .foregroundStyle(.white)
+            .frame(width: isSelected ? 40 : 34, height: isSelected ? 40 : 34)
+            .background(isSelected ? NOWColor.laOrange : NOWColor.laCoral)
+            .clipShape(Circle())
+            .overlay(Circle().stroke(.white, lineWidth: isSelected ? 3 : 2))
+            .shadow(color: NOWColor.ink.opacity(0.22), radius: 5, y: 3)
+    }
+}
+
+private struct SelectedVenueCard: View {
+    let venue: MeetingPlace
+    let clear: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "fork.knife")
+                .font(.caption.weight(.black))
+                .foregroundStyle(.white)
+                .frame(width: 36, height: 36)
+                .background(NOWColor.laCoral)
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Meeting place selected")
+                    .font(.caption2.weight(.heavy))
+                    .foregroundStyle(NOWColor.laCoral)
+                Text(venue.name)
+                    .font(.subheadline.weight(.heavy))
+                    .foregroundStyle(NOWColor.laBrown)
+                    .lineLimit(1)
+                Text(venue.address)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(NOWColor.inkSoft)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+
+            Button("Clear", action: clear)
+                .font(.caption.weight(.heavy))
+                .foregroundStyle(NOWColor.laCoral)
+        }
+        .padding(12)
+        .background(NOWColor.surface.opacity(0.96))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 
