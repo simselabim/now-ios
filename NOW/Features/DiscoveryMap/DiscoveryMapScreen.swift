@@ -40,7 +40,7 @@ struct DiscoveryMapScreen: View {
             await venueStore.load(around: coordinate)
         }
         .overlay(alignment: .top) {
-            MapHeader(isLoading: appState.isLoading, isLockedToActiveMatch: appState.isViewingActiveMatchMap, back: {
+            MapHeader(isLoading: appState.isLoading, isLockedToActiveMatch: appState.isViewingActiveMatchMap, discoveryRadiusM: appState.discoveryRadiusM, back: {
                 if appState.isViewingActiveMatchMap {
                     appState.returnToActiveMatch()
                 } else {
@@ -145,6 +145,7 @@ struct DiscoveryMapScreen: View {
 private struct MapHeader: View {
     let isLoading: Bool
     let isLockedToActiveMatch: Bool
+    let discoveryRadiusM: Int?
     let back: () -> Void
     let recenter: () -> Void
     let refresh: () -> Void
@@ -224,10 +225,20 @@ private struct MapHeader: View {
             LAPill(
                 text: isLockedToActiveMatch
                     ? "Meeting mode · active match only"
-                    : "Nearby · within 50 km",
+                    : discoveryRadiusText,
                 icon: nil
             )
         }
+    }
+
+    private var discoveryRadiusText: String {
+        guard let discoveryRadiusM else {
+            return "Discovering people nearby…"
+        }
+        if discoveryRadiusM.isMultiple(of: 1_000) {
+            return "Discovering people within \(discoveryRadiusM / 1_000) km"
+        }
+        return "Discovering people within \(discoveryRadiusM) m"
     }
 }
 

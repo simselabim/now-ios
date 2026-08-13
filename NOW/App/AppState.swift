@@ -11,6 +11,7 @@ final class AppState: ObservableObject {
     @Published var errorMessage: String?
     @Published var todayIntent = TodayIntent(plan: .coffee, intent: .date, timeWindow: .evening)
     @Published var mapPoints: [MapPoint] = []
+    @Published private(set) var discoveryRadiusM: Int?
     @Published var currentCoordinate: CLLocationCoordinate2D?
     @Published var currentLocationAccuracyM: Int?
     @Published var selectedPoint: MapPoint?
@@ -259,6 +260,7 @@ final class AppState: ObservableObject {
                 self.selectedPoint = nil
                 self.preferredMeetingPlace = nil
                 self.mapPoints = []
+                self.discoveryRadiusM = nil
             }
         }
     }
@@ -666,9 +668,10 @@ final class AppState: ObservableObject {
     }
 
     private func loadDiscoveryMap() async throws {
-        let response = try await apiClient.discoverMap(radiusM: 50_000)
+        let response = try await apiClient.discoverMap()
         let mappedPoints = response.points.map(mapPoint)
         mapPoints = mappedPoints
+        discoveryRadiusM = response.radiusM
         isOnline = true
         if response.discoveryLocked {
             errorMessage = "Discovery is locked while an active match is open."

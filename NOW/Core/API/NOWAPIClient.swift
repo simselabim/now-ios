@@ -127,8 +127,8 @@ final class NOWAPIClient {
         try await send(path: "/online", method: "DELETE")
     }
 
-    func discoverMap(radiusM: Int = 2_000) async throws -> DiscoverMapResponseDTO {
-        try await send(path: "/discover/map?radius_m=\(radiusM)")
+    func discoverMap() async throws -> DiscoverMapResponseDTO {
+        try await send(path: "/discover/map")
     }
 
     func openMapPoint(_ pointId: UUID) async throws -> MapPointProfileResponseDTO {
