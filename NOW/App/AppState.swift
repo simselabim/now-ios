@@ -681,7 +681,16 @@ final class AppState: ObservableObject {
 
     private func openPointWithBackend(_ point: MapPoint, requestID: UUID) async {
         await runLoading {
-            let response = try await self.apiClient.openMapPoint(point.id)
+            let response: MapPointProfileResponseDTO
+            do {
+                response = try await self.apiClient.openMapPoint(point.id)
+            } catch APIError.server(statusCode: 404, message: _) {
+                self.profilePreviewRequestID = nil
+                self.selectedPoint = nil
+                try? await self.loadDiscoveryMap()
+                self.errorMessage = "This person is no longer available nearby. The map has been refreshed."
+                return
+            }
             guard self.profilePreviewRequestID == requestID else {
                 return
             }
