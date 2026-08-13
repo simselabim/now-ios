@@ -10,14 +10,12 @@
 		100000000000000000000101 /* NOWApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000201 /* NOWApp.swift */; };
 		100000000000000000000102 /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000202 /* AppRouter.swift */; };
 		100000000000000000000103 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000203 /* AppState.swift */; };
-		100000000000000000000104 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000204 /* APIClient.swift */; };
 		100000000000000000000105 /* APIEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000205 /* APIEnvironment.swift */; };
 		100000000000000000000106 /* APIError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000206 /* APIError.swift */; };
 		100000000000000000000107 /* BackendDTOs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000207 /* BackendDTOs.swift */; };
 		100000000000000000000108 /* NOWAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000208 /* NOWAPIClient.swift */; };
 		100000000000000000000109 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000209 /* DesignTokens.swift */; };
 		10000000000000000000010A /* MediaUploadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020A /* MediaUploadService.swift */; };
-		10000000000000000000010B /* MockData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020B /* MockData.swift */; };
 		10000000000000000000010C /* NOWModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020C /* NOWModels.swift */; };
 		10000000000000000000010D /* AuthTokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020D /* AuthTokenStore.swift */; };
 		10000000000000000000010E /* WelcomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020E /* WelcomeScreen.swift */; };
@@ -31,29 +29,24 @@
 		100000000000000000000116 /* CreateProfileScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000216 /* CreateProfileScreen.swift */; };
 		100000000000000000000117 /* ProfilePreviewScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000217 /* ProfilePreviewScreen.swift */; };
 		100000000000000000000118 /* GoOnlineScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000218 /* GoOnlineScreen.swift */; };
-		100000000000000000000119 /* human-city-person-woman.png in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021B /* human-city-person-woman.png */; };
-		10000000000000000000011A /* human-city-cafe-meet.png in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021C /* human-city-cafe-meet.png */; };
-		10000000000000000000011B /* human-city-street-coffee.png in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021D /* human-city-street-coffee.png */; };
 		10000000000000000000011C /* human-city-park-walk-blur.png in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021E /* human-city-park-walk-blur.png */; };
-		10000000000000000000011D /* human-city-cafe-table-blur.png in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021F /* human-city-cafe-table-blur.png */; };
 		10000000000000000000011E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000220 /* Assets.xcassets */; };
 		10000000000000000000011F /* now-logo-live-signal.png in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000221 /* now-logo-live-signal.png */; };
 		100000000000000000000120 /* now-logo-o-variants.png in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000222 /* now-logo-o-variants.png */; };
 		100000000000000000000121 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000223 /* LocationService.swift */; };
+		100000000000000000000122 /* PlaceSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000224 /* PlaceSearch.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		100000000000000000000201 /* NOWApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NOWApp.swift; sourceTree = "<group>"; };
 		100000000000000000000202 /* AppRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRouter.swift; sourceTree = "<group>"; };
 		100000000000000000000203 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
-		100000000000000000000204 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		100000000000000000000205 /* APIEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIEnvironment.swift; sourceTree = "<group>"; };
 		100000000000000000000206 /* APIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIError.swift; sourceTree = "<group>"; };
 		100000000000000000000207 /* BackendDTOs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendDTOs.swift; sourceTree = "<group>"; };
 		100000000000000000000208 /* NOWAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NOWAPIClient.swift; sourceTree = "<group>"; };
 		100000000000000000000209 /* DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.swift; sourceTree = "<group>"; };
 		10000000000000000000020A /* MediaUploadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaUploadService.swift; sourceTree = "<group>"; };
-		10000000000000000000020B /* MockData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockData.swift; sourceTree = "<group>"; };
 		10000000000000000000020C /* NOWModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NOWModels.swift; sourceTree = "<group>"; };
 		10000000000000000000020D /* AuthTokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthTokenStore.swift; sourceTree = "<group>"; };
 		10000000000000000000020E /* WelcomeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeScreen.swift; sourceTree = "<group>"; };
@@ -69,15 +62,12 @@
 		100000000000000000000218 /* GoOnlineScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoOnlineScreen.swift; sourceTree = "<group>"; };
 		100000000000000000000219 /* NOW.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NOW.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		10000000000000000000021A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		10000000000000000000021B /* human-city-person-woman.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "human-city-person-woman.png"; sourceTree = "<group>"; };
-		10000000000000000000021C /* human-city-cafe-meet.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "human-city-cafe-meet.png"; sourceTree = "<group>"; };
-		10000000000000000000021D /* human-city-street-coffee.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "human-city-street-coffee.png"; sourceTree = "<group>"; };
 		10000000000000000000021E /* human-city-park-walk-blur.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "human-city-park-walk-blur.png"; sourceTree = "<group>"; };
-		10000000000000000000021F /* human-city-cafe-table-blur.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "human-city-cafe-table-blur.png"; sourceTree = "<group>"; };
 		100000000000000000000220 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		100000000000000000000221 /* now-logo-live-signal.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "now-logo-live-signal.png"; sourceTree = "<group>"; };
 		100000000000000000000222 /* now-logo-o-variants.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "now-logo-o-variants.png"; sourceTree = "<group>"; };
 		100000000000000000000223 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
+		100000000000000000000224 /* PlaceSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearch.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -162,7 +152,6 @@
 		100000000000000000000407 /* API */ = {
 			isa = PBXGroup;
 			children = (
-				100000000000000000000204 /* APIClient.swift */,
 				100000000000000000000205 /* APIEnvironment.swift */,
 				100000000000000000000206 /* APIError.swift */,
 				100000000000000000000207 /* BackendDTOs.swift */,
@@ -190,7 +179,6 @@
 		10000000000000000000040A /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				10000000000000000000020B /* MockData.swift */,
 				10000000000000000000020C /* NOWModels.swift */,
 			);
 			path = Models;
@@ -305,11 +293,7 @@
 		100000000000000000000418 /* Images */ = {
 			isa = PBXGroup;
 			children = (
-				10000000000000000000021B /* human-city-person-woman.png */,
-				10000000000000000000021C /* human-city-cafe-meet.png */,
-				10000000000000000000021D /* human-city-street-coffee.png */,
 				10000000000000000000021E /* human-city-park-walk-blur.png */,
-				10000000000000000000021F /* human-city-cafe-table-blur.png */,
 				100000000000000000000221 /* now-logo-live-signal.png */,
 				100000000000000000000222 /* now-logo-o-variants.png */,
 			);
@@ -320,6 +304,7 @@
 			isa = PBXGroup;
 			children = (
 				100000000000000000000223 /* LocationService.swift */,
+				100000000000000000000224 /* PlaceSearch.swift */,
 			);
 			path = Location;
 			sourceTree = "<group>";
@@ -382,11 +367,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				100000000000000000000119 /* human-city-person-woman.png in Resources */,
-				10000000000000000000011A /* human-city-cafe-meet.png in Resources */,
-				10000000000000000000011B /* human-city-street-coffee.png in Resources */,
 				10000000000000000000011C /* human-city-park-walk-blur.png in Resources */,
-				10000000000000000000011D /* human-city-cafe-table-blur.png in Resources */,
 				10000000000000000000011E /* Assets.xcassets in Resources */,
 				10000000000000000000011F /* now-logo-live-signal.png in Resources */,
 				100000000000000000000120 /* now-logo-o-variants.png in Resources */,
@@ -403,17 +384,16 @@
 				100000000000000000000101 /* NOWApp.swift in Sources */,
 				100000000000000000000102 /* AppRouter.swift in Sources */,
 				100000000000000000000103 /* AppState.swift in Sources */,
-				100000000000000000000104 /* APIClient.swift in Sources */,
 				100000000000000000000105 /* APIEnvironment.swift in Sources */,
 				100000000000000000000106 /* APIError.swift in Sources */,
 				100000000000000000000107 /* BackendDTOs.swift in Sources */,
 				100000000000000000000108 /* NOWAPIClient.swift in Sources */,
 				100000000000000000000109 /* DesignTokens.swift in Sources */,
 				10000000000000000000010A /* MediaUploadService.swift in Sources */,
-				10000000000000000000010B /* MockData.swift in Sources */,
 				10000000000000000000010C /* NOWModels.swift in Sources */,
 				10000000000000000000010D /* AuthTokenStore.swift in Sources */,
 				100000000000000000000121 /* LocationService.swift in Sources */,
+				100000000000000000000122 /* PlaceSearch.swift in Sources */,
 				10000000000000000000010E /* WelcomeScreen.swift in Sources */,
 				10000000000000000000010F /* ChatScreen.swift in Sources */,
 				100000000000000000000110 /* DiscoveryMapScreen.swift in Sources */,

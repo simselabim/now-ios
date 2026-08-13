@@ -1,7 +1,11 @@
+import MapKit
 import SwiftUI
 
 struct MeetingProposalScreen: View {
     @EnvironmentObject private var appState: AppState
+    @State private var isEditingProposal = false
+    @State private var editedPlace: MeetingPlace?
+    @State private var editedTime = Date().addingTimeInterval(30 * 60)
 
     private var isMyProposal: Bool {
         guard let currentUserId = appState.currentUserId,
@@ -17,10 +21,11 @@ struct MeetingProposalScreen: View {
             NOWColor.laCream.ignoresSafeArea()
             LATopStripe()
 
-            VStack(alignment: .leading, spacing: 18) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
                 HStack(alignment: .top, spacing: 12) {
                     NOWBackButton {
-                        appState.goBackForTesting()
+                        appState.showActiveMatchMap()
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
@@ -32,21 +37,42 @@ struct MeetingProposalScreen: View {
                             .foregroundStyle(NOWColor.inkSoft)
                     }
                     Spacer()
-                    LAPill(text: "19:15", icon: nil)
+                    if let proposal = appState.meetingProposal {
+                        LAPill(text: proposal.time, icon: nil)
+                    }
                 }
 
-                ZStack(alignment: .bottomLeading) {
-                    PhotoSurface(name: NOWPhoto.cafeMeet, height: 320, blur: 0, cornerRadius: 24)
-                    if let proposal = appState.meetingProposal {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(proposal.placeName)
-                                .font(.system(size: 32, weight: .heavy, design: .rounded))
-                                .foregroundStyle(.white)
-                            Text("\(proposal.dateLabel) · \(proposal.time) · public place · busy at this hour")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.white.opacity(0.9))
+                if let proposal = appState.meetingProposal {
+                    VStack(alignment: .leading, spacing: 10) {
+                        if let coordinate = proposal.coordinate {
+                            Map(
+                                initialPosition: .region(
+                                    MKCoordinateRegion(
+                                        center: coordinate,
+                                        latitudinalMeters: 1_200,
+                                        longitudinalMeters: 1_200
+                                    )
+                                ),
+                                interactionModes: [.pan, .zoom]
+                            ) {
+                                Marker(proposal.placeName, coordinate: coordinate)
+                                    .tint(NOWColor.laCoral)
+                            }
+                            .frame(height: 190)
+                            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                         }
-                        .padding(18)
+
+                        Text(proposal.placeName)
+                            .font(.title2.weight(.heavy))
+                            .foregroundStyle(NOWColor.laBrown)
+                        if let address = proposal.placeAddress {
+                            Text(address)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(NOWColor.inkSoft)
+                        }
+                        Text("\(proposal.dateLabel) · \(proposal.time)")
+                            .font(.subheadline.weight(.heavy))
+                            .foregroundStyle(NOWColor.laCoral)
                     }
                 }
 
@@ -76,20 +102,55 @@ struct MeetingProposalScreen: View {
                     .buttonStyle(PrimaryButtonStyle())
                 }
 
-                Button("Suggest another place") {
-                    appState.suggestAnotherMeetingPlace()
+                if isEditingProposal {
+                    VStack(alignment: .leading, spacing: 10) {
+                        PlaceSearchField(
+                            selectedPlace: $editedPlace,
+                            regionCenter: appState.currentCoordinate
+                        )
+                        DatePicker(
+                            "Date and time",
+                            selection: $editedTime,
+                            in: Date()...,
+                            displayedComponents: [.date, .hourAndMinute]
+                        )
+                        Button("Save new proposal") {
+                            guard let editedPlace else { return }
+                            appState.updateMeetingProposal(place: editedPlace, proposedTime: editedTime)
+                            isEditingProposal = false
+                        }
+                        .disabled(editedPlace == nil || appState.isLoading)
+                        .buttonStyle(PrimaryButtonStyle())
+                    }
+                } else {
+                    Button("Suggest another place") {
+                        isEditingProposal = true
+                    }
+                    .buttonStyle(SecondaryButtonStyle())
                 }
-                .buttonStyle(SecondaryButtonStyle())
 
                 Button("Close kindly") {
                     appState.cancelMatch()
                 }
                 .buttonStyle(DangerButtonStyle())
 
-                Spacer()
+                }
+                .padding(22)
+                .padding(.top, 10)
             }
-            .padding(22)
-            .padding(.top, 10)
+        }
+        .onAppear {
+            guard let proposal = appState.meetingProposal else { return }
+            if let address = proposal.placeAddress, let coordinate = proposal.coordinate {
+                editedPlace = MeetingPlace(
+                    name: proposal.placeName,
+                    address: address,
+                    coordinate: coordinate
+                )
+            }
+            if let proposedAt = proposal.proposedAt {
+                editedTime = max(proposedAt, Date())
+            }
         }
     }
 }

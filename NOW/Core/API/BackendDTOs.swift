@@ -204,6 +204,11 @@ struct OnlineResponseDTO: Decodable {
     let todayIntent: TodayIntentDTO
 }
 
+struct OfflineResponseDTO: Decodable {
+    let status: String
+    let closedSessions: UInt64
+}
+
 struct OnlineSessionDTO: Codable, Identifiable, Equatable {
     let id: UUID
     let userId: UUID
@@ -294,6 +299,7 @@ enum RealtimeEventTypeDTO: String, Decodable {
 struct ActiveMatchDetailDTO: Decodable {
     let matchItem: MatchDTO
     let otherProfile: ProfileDTO
+    let otherTodayIntent: TodayIntentDTO?
     let loops: [LoopDTO]
     let chatUnlocked: Bool
     let messages: [MessageDTO]
@@ -425,6 +431,7 @@ struct MessageDTO: Codable, Identifiable, Equatable {
 
 struct CreateProposalRequestDTO: Encodable {
     let placeName: String
+    let placeAddress: String
     let placeLat: Double?
     let placeLng: Double?
     let proposedTime: String
@@ -447,6 +454,7 @@ struct MeetingProposalDTO: Codable, Identifiable, Equatable {
     let matchId: UUID
     let proposerUserId: UUID
     let placeName: String
+    let placeAddress: String?
     let placeLat: Double?
     let placeLng: Double?
     let proposedTime: String
@@ -491,6 +499,31 @@ struct HistoryItemDTO: Codable, Identifiable, Equatable {
     let result: String
     let title: String
     let occurredAt: String
+    let otherDisplayName: String?
+    let otherMainPhotoStorageKey: String?
+}
+
+struct LocationPayloadDTO: Codable, Equatable {
+    let lat: Double
+    let lng: Double
+    let accuracyM: Int?
+}
+
+struct CreateSafetyEventRequestDTO: Encodable {
+    let eventType: String
+    let payload: LocationPayloadDTO?
+}
+
+struct EmergencyRequestDTO: Encodable {
+    let payload: LocationPayloadDTO?
+}
+
+struct SafetyEventResponseDTO: Decodable {
+    let id: UUID
+    let matchId: UUID
+    let userId: UUID
+    let eventType: String
+    let createdAt: String
 }
 
 struct BlockUserRequestDTO: Encodable {

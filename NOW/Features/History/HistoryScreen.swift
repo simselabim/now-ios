@@ -37,14 +37,25 @@ struct HistoryScreen: View {
                 }
 
                 ForEach(appState.history) { item in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(item.name)
-                            .font(.headline)
-                        Text(item.detail)
-                            .foregroundStyle(NOWColor.inkSoft)
-                        Text(item.status)
+                    HStack(spacing: 12) {
+                        UserPhoto(url: item.otherMainPhotoURL)
+                            .frame(width: 54, height: 54)
+                            .clipShape(Circle())
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(item.otherDisplayName ?? "Previous match")
+                                .font(.headline)
+                            Text(item.title)
+                                .foregroundStyle(NOWColor.inkSoft)
+                            HStack(spacing: 8) {
+                                Text(resultLabel(item.result))
+                                if let occurredAt = item.occurredAt {
+                                    Text(occurredAt.formatted(date: .abbreviated, time: .shortened))
+                                }
+                            }
                             .font(.caption.weight(.bold))
                             .foregroundStyle(NOWColor.laOrange)
+                        }
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -55,5 +66,15 @@ struct HistoryScreen: View {
             .padding(20)
         }
         .background(NOWColor.laCream.ignoresSafeArea())
+    }
+
+    private func resultLabel(_ result: String) -> String {
+        switch result {
+        case "we_met": "Met"
+        case "cancelled": "Cancelled"
+        case "expired": "Expired"
+        case "blocked": "Blocked"
+        default: result.replacingOccurrences(of: "_", with: " ").capitalized
+        }
     }
 }

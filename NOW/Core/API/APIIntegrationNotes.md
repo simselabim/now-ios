@@ -5,24 +5,19 @@ This folder contains the first real backend integration layer for NOW iOS.
 ## Main Types
 
 - `NOWAPIClient`: URLSession-based backend client.
-- `APIEnvironment`: base URL config for simulator, Android reference, or physical device.
+- `APIEnvironment`: base URL config from the built app's `NOWAPIBaseURL` value.
 - `AuthTokenStoring`: async token storage protocol.
 - `UserDefaultsAuthTokenStore`: current local token store. Replace with Keychain before production.
 - `BackendDTOs.swift`: request and response models matching the Rust backend.
 - `MediaUploadService`: uploads bytes to the `upload_url` returned by `/media/upload-intent`.
+- `PlaceSearchField`: resolves Apple Maps autocomplete results into a confirmed name, address, and coordinate before a meeting proposal can be sent.
 
-## Local Backend
+## Configured Backend
 
-Default iOS simulator base URL:
-
-```swift
-let client = NOWAPIClient(environment: .iOSSimulator)
-```
-
-Physical device on the same Wi-Fi:
+Use the backend embedded into the app build:
 
 ```swift
-let client = NOWAPIClient(environment: .physicalDevice(macLANIP: "192.168.1.10"))
+let client = NOWAPIClient(environment: .appDefault)
 ```
 
 ## Minimal Flow
@@ -31,7 +26,7 @@ let client = NOWAPIClient(environment: .physicalDevice(macLANIP: "192.168.1.10")
 let client = NOWAPIClient()
 let media = MediaUploadService()
 
-try await client.login(email: "demo.ava@example.com", password: "password123")
+try await client.register(email: "person@example.com", password: "test-password")
 
 let bootstrap = try await client.bootstrap()
 
@@ -60,6 +55,8 @@ Welcome
  -> /discover/points/{point_id}
  -> like/pass
  -> event-driven active match state
+ -> Apple Maps place search
+ -> meeting proposal with confirmed place details
 ```
 
 After reconnect or foreground activation, `AppState` fetches

@@ -123,6 +123,10 @@ final class NOWAPIClient {
         )
     }
 
+    func goOffline() async throws -> OfflineResponseDTO {
+        try await send(path: "/online", method: "DELETE")
+    }
+
     func discoverMap(radiusM: Int = 2_000) async throws -> DiscoverMapResponseDTO {
         try await send(path: "/discover/map?radius_m=\(radiusM)")
     }
@@ -306,6 +310,22 @@ final class NOWAPIClient {
 
     func history() async throws -> HistoryResponseDTO {
         try await send(path: "/history")
+    }
+
+    func saveMeetingLocation(matchId: UUID, location: LocationPayloadDTO) async throws -> SafetyEventResponseDTO {
+        try await send(
+            path: "/matches/\(matchId.uuidString)/safety-events",
+            method: "POST",
+            body: CreateSafetyEventRequestDTO(eventType: "location", payload: location)
+        )
+    }
+
+    func triggerEmergency(matchId: UUID, location: LocationPayloadDTO?) async throws -> SafetyEventResponseDTO {
+        try await send(
+            path: "/matches/\(matchId.uuidString)/emergency",
+            method: "POST",
+            body: EmergencyRequestDTO(payload: location)
+        )
     }
 
     private func send<Response: Decodable>(

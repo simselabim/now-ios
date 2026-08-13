@@ -3,7 +3,7 @@ import SwiftUI
 
 struct DiscoveryMapScreen: View {
     @EnvironmentObject private var appState: AppState
-    @State private var cameraPosition: MapCameraPosition = .region(.nowFallback)
+    @State private var cameraPosition: MapCameraPosition = .automatic
 
     var body: some View {
         LiveDiscoveryMap(
@@ -16,16 +16,18 @@ struct DiscoveryMapScreen: View {
         }
         .ignoresSafeArea(edges: .top)
         .onAppear {
-            cameraPosition = .region(.fitting(points: mapPoints, userCoordinate: appState.currentCoordinate))
+            reframeMap()
         }
         .onChange(of: cameraKey) { _, _ in
-            withAnimation(.easeInOut(duration: 0.35)) {
-                cameraPosition = .region(.fitting(points: mapPoints, userCoordinate: appState.currentCoordinate))
-            }
+            reframeMap()
         }
         .overlay(alignment: .top) {
             MapHeader(isLoading: appState.isLoading, isLockedToActiveMatch: appState.isViewingActiveMatchMap, back: {
-                appState.goBackForTesting()
+                if appState.isViewingActiveMatchMap {
+                    appState.returnToActiveMatch()
+                } else {
+                    appState.goOffline()
+                }
             }, recenter: {
                 recenterOnUser()
             }, refresh: {
@@ -48,7 +50,7 @@ struct DiscoveryMapScreen: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
 
-                LAPill(text: "Golden hour · 1 h 16 m of daylight left", icon: nil)
+                LAPill(text: "Live nearby", icon: nil)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.horizontal, 18)
@@ -73,14 +75,25 @@ struct DiscoveryMapScreen: View {
     }
 
     private func recenterOnUser() {
-        let region: MKCoordinateRegion
         if let currentCoordinate = appState.currentCoordinate {
-            region = MKCoordinateRegion(
+            let region = MKCoordinateRegion(
                 center: currentCoordinate,
                 span: MKCoordinateSpan(latitudeDelta: 0.018, longitudeDelta: 0.018)
             )
+            withAnimation(.easeInOut(duration: 0.35)) {
+                cameraPosition = .region(region)
+            }
         } else {
-            region = .fitting(points: mapPoints, userCoordinate: appState.currentCoordinate)
+            reframeMap()
+        }
+    }
+
+    private func reframeMap() {
+        guard let region = MKCoordinateRegion.fitting(
+            points: mapPoints,
+            userCoordinate: appState.currentCoordinate
+        ) else {
+            return
         }
 
         withAnimation(.easeInOut(duration: 0.35)) {
@@ -168,24 +181,12 @@ private struct MapHeader: View {
                 }
             }
 
-            HStack(spacing: 8) {
-                LAPill(
-                    text: isLockedToActiveMatch
-                        ? "Meeting mode · active match only"
-                        : "Nearby · within 50 km · sunset 18:17",
-                    icon: nil
-                )
-
-                Button("Swipe") {}
-                    .font(.caption.weight(.heavy))
-                    .foregroundStyle(NOWColor.laBrownSoft.opacity(0.55))
-                    .padding(.horizontal, 13)
-                    .padding(.vertical, 9)
-                    .background(NOWColor.surface.opacity(0.72))
-                    .clipShape(Capsule())
-                    .disabled(true)
-                    .accessibilityHint("Coming soon")
-            }
+            LAPill(
+                text: isLockedToActiveMatch
+                    ? "Meeting mode · active match only"
+                    : "Nearby · within 50 km",
+                icon: nil
+            )
         }
     }
 }
@@ -246,16 +247,11 @@ private struct LiveDiscoveryMap: View {
 }
 
 private extension MKCoordinateRegion {
-    static let nowFallback = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: -8.667630, longitude: 115.139708),
-        span: MKCoordinateSpan(latitudeDelta: 0.025, longitudeDelta: 0.025)
-    )
-
-    static func fitting(points: [MapPoint], userCoordinate: CLLocationCoordinate2D?) -> MKCoordinateRegion {
+    static func fitting(points: [MapPoint], userCoordinate: CLLocationCoordinate2D?) -> MKCoordinateRegion? {
         let coordinates = ([userCoordinate].compactMap { $0 }) + points.map(\.approximateCoordinate)
 
         guard !coordinates.isEmpty else {
-            return .nowFallback
+            return nil
         }
 
         guard coordinates.count > 1 else {

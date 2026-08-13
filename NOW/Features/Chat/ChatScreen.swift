@@ -1,13 +1,14 @@
+import CoreLocation
 import SwiftUI
 
 struct ChatScreen: View {
     @EnvironmentObject private var appState: AppState
     @State private var draft = ""
+    @State private var meetingPlace: MeetingPlace?
+    @State private var meetingTime = Date().addingTimeInterval(30 * 60)
 
-    private var activePlan: Plan { appState.activeMatch?.profile.plan ?? .coffee }
-    private var suggestion: MeetingSuggestion { activePlan.primaryMeetingSuggestion }
-    private var isExtendedForTomorrow: Bool {
-        appState.activeMatch?.tomorrowExtension.status == .accepted
+    private var chatDayLabel: String {
+        appState.activeMatch?.tomorrowExtension.status == .accepted ? "Until tomorrow" : "Today"
     }
 
     var body: some View {
@@ -21,29 +22,23 @@ struct ChatScreen: View {
                         appState.showActiveMatchMap()
                     }
 
-                    Group {
-                        if let profile = appState.activeMatch?.profile {
-                            ProfilePhoto(profile: profile)
-                        } else {
-                            BundlePhoto(name: NOWPhoto.person)
-                        }
-                    }
+                    UserPhoto(url: appState.activeMatch?.profile.mainPhotoURL)
                     .frame(width: 42, height: 42)
                     .clipShape(Circle())
                     .overlay(Circle().stroke(NOWColor.laOrange, lineWidth: 2))
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(appState.activeMatch?.profile.name ?? "Maya")
+                        Text(appState.activeMatch?.profile.name ?? "Match")
                             .font(.headline.weight(.heavy))
                             .foregroundStyle(NOWColor.laBrown)
-                        Text("online until sunset · 19:58")
+                        Text("Temporary chat")
                             .font(.caption2.weight(.bold))
                             .foregroundStyle(NOWColor.inkSoft)
                     }
 
                     Spacer()
 
-                    Text("1 h 08 m")
+                    Text(chatDayLabel)
                         .font(.caption.weight(.heavy))
                         .foregroundStyle(NOWColor.laCoral)
                         .padding(.horizontal, 13)
@@ -89,31 +84,20 @@ struct ChatScreen: View {
                             )
                         }
 
-                        PlaceSuggestionCard(
-                            suggestion: suggestion,
-                            dateLabel: isExtendedForTomorrow ? "Tomorrow" : "Today"
+                        MeetingProposalComposer(
+                            place: $meetingPlace,
+                            proposedTime: $meetingTime,
+                            regionCenter: appState.currentCoordinate,
+                            isLoading: appState.isLoading
                         ) {
-                            appState.createMeetingProposal()
+                            guard let meetingPlace else { return }
+                            appState.createMeetingProposal(place: meetingPlace, proposedTime: meetingTime)
                         }
                     }
                     .padding(.vertical, 8)
                 }
 
                 HStack(spacing: 10) {
-                    Button {
-                        appState.sendMessage("Loop")
-                    } label: {
-                        Circle()
-                            .fill(NOWColor.laCoral)
-                            .frame(width: 48, height: 48)
-                            .overlay(
-                                Circle()
-                                    .fill(NOWColor.surface)
-                                    .frame(width: 14, height: 14)
-                            )
-                    }
-                    .buttonStyle(.plain)
-
                     TextField("Message...", text: $draft)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(NOWColor.laBrown)
@@ -209,55 +193,46 @@ private struct Bubble: View {
     }
 }
 
-private struct PlaceSuggestionCard: View {
-    let suggestion: MeetingSuggestion
-    let dateLabel: String
+private struct MeetingProposalComposer: View {
+    @Binding var place: MeetingPlace?
+    @Binding var proposedTime: Date
+    let regionCenter: CLLocationCoordinate2D?
+    let isLoading: Bool
     let confirm: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            BundlePhoto(name: NOWPhoto.cafeMeet)
-                .frame(height: 108)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Propose a real meeting place")
+                .font(.headline.weight(.black))
+                .foregroundStyle(NOWColor.laBrown)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text(suggestion.placeName)
-                    .font(.headline.weight(.black))
-                    .foregroundStyle(NOWColor.laBrown)
-                Text("\(dateLabel) \(suggestion.time) · 12 min walk for both")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(NOWColor.inkSoft)
-                    .lineLimit(2)
+            PlaceSearchField(selectedPlace: $place, regionCenter: regionCenter)
 
-                HStack(spacing: 10) {
-                    Button("Propose") {
-                        confirm()
-                    }
-                    .font(.caption.weight(.heavy))
-                    .foregroundStyle(NOWColor.surface)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 11)
-                    .background(NOWColor.laCoral)
-                    .clipShape(Capsule())
+            DatePicker(
+                "Date and time",
+                selection: $proposedTime,
+                in: Date()...,
+                displayedComponents: [.date, .hourAndMinute]
+            )
+            .font(.caption.weight(.semibold))
 
-                    Button("Change") {}
-                        .font(.caption.weight(.heavy))
-                        .foregroundStyle(NOWColor.laBrown)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 11)
-                        .background(NOWColor.paper)
-                        .clipShape(Capsule())
-                }
+            Button("Propose", action: confirm)
+                .disabled(place == nil || isLoading)
+                .font(.caption.weight(.heavy))
+                .foregroundStyle(NOWColor.surface)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 11)
+                .background(NOWColor.laCoral)
+                .clipShape(Capsule())
             }
-            .padding(12)
-        }
+        .padding(12)
         .background(NOWColor.surface)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(NOWColor.laBrown.opacity(0.22), lineWidth: 1)
         )
-        .frame(maxWidth: 260, alignment: .leading)
+        .frame(maxWidth: 320, alignment: .leading)
     }
 }
 

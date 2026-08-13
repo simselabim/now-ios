@@ -170,7 +170,7 @@ private struct AccountScreen: View {
     @EnvironmentObject private var appState: AppState
 
     @State private var displayName = ""
-    @State private var birthDate = "1995-01-01"
+    @State private var birthDate = ""
     @State private var gender = ""
     @State private var bio = ""
     @State private var interests = ""

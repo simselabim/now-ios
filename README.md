@@ -38,7 +38,7 @@ NOW/
 
   Core/
     API/
-      APIClient.swift
+      NOWAPIClient.swift
       Endpoint.swift
       AuthInterceptor.swift
     Models/
@@ -139,18 +139,6 @@ xcrun simctl install booted "$APP_PATH"
 xcrun simctl launch booted com.sim.now
 ```
 
-Debug smoke launch with automatic demo login:
-
-```bash
-xcrun simctl launch booted com.sim.now --auto-demo-login
-```
-
-Debug smoke launch directly into the discovery map:
-
-```bash
-xcrun simctl launch booted com.sim.now --auto-open-map
-```
-
 ## Physical iPhone Staging Build
 
 The app is configured to use the public staging backend by default:
@@ -203,7 +191,7 @@ The current target is a backend-driven navigation prototype:
 
 ```text
 Welcome
- -> Demo Login
+ -> Login or registration
  -> Bootstrap
  -> Discovery Map
  -> Profile Preview
@@ -212,8 +200,9 @@ Welcome
  -> Temporary Chat
 ```
 
-Meeting proposal, meeting mode, and history screens still exist and are ready to
-be wired to the backend next.
+Meeting proposal, meeting mode, and history use the same backend-driven state.
+Meeting proposals use Apple Maps autocomplete and require the user to select a
+resolved place with a real name, address, and coordinate before submission.
 
 ## Backend Integration Layer
 
@@ -228,16 +217,7 @@ NOW/Core/Media/
 Start with `NOWAPIClient`, `APIEnvironment`, `AuthTokenStore`, backend DTOs, and
 `MediaUploadService`. The default backend is `http://68.183.179.8:8080`.
 
-Demo login:
-
-```text
-demo.ava@example.com / password123
-```
-
-`AppState` already uses this API layer for demo login, bootstrap, discovery map,
-profile preview open, like/pass, first loop upload, temporary message sending,
-and active match detail refresh.
-
-`--auto-demo-login` and `--auto-open-map` are Debug-only launch arguments. They
-let us verify the live backend path and the real MapKit discovery map without
-relying on macOS Accessibility permissions for Simulator clicks.
+`AppState` uses this API layer for authentication, bootstrap, discovery map,
+profile preview, like/pass, First Loop upload, chat, meeting state, history,
+and realtime active-match updates. API failures remain visible and never switch
+the app to locally fabricated user state.

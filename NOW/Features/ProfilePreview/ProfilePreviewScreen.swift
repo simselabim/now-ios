@@ -15,12 +15,12 @@ struct ProfilePreviewScreen: View {
                             NOWBackButton {
                                 appState.closeProfilePreview()
                             }
-                            Text("NOW · LA")
+                            Text("NOW")
                                 .font(.subheadline.weight(.heavy))
                                 .tracking(1.4)
                                 .foregroundStyle(NOWColor.laCoral)
                             Spacer()
-                            Text("Echo Park · \(point.profile.distance)")
+                            Text("Nearby · \(point.profile.distance)")
                                 .font(.caption.weight(.heavy))
                                 .foregroundStyle(NOWColor.laBrown)
                                 .padding(.horizontal, 14)
@@ -33,26 +33,20 @@ struct ProfilePreviewScreen: View {
                         ZStack(alignment: .bottomLeading) {
                             ProfilePhotoSurface(url: point.profile.mainPhotoURL, height: 390, cornerRadius: 24)
                             VStack(alignment: .leading, spacing: 7) {
-                                Text("\(point.profile.name), \(point.profile.age)")
+                                Text(profileTitle(point.profile))
                                     .font(.system(size: 32, weight: .heavy, design: .rounded))
                                     .foregroundStyle(.white)
-                                Text("\(point.profile.plan.rawValue), vintage stores, sunset from the reservoir.")
+                                Text("\(point.profile.plan.rawValue) · \(point.profile.intent.rawValue)")
                                     .font(.subheadline.weight(.bold))
                                     .foregroundStyle(.white.opacity(0.92))
                                     .lineLimit(3)
                             }
                             .padding(18)
-
-                            LoopBadge(loopURL: point.profile.introLoopURL)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-                                .padding(.trailing, 16)
-                                .padding(.bottom, 32)
                         }
 
                         HStack(spacing: 8) {
                             NOWChip(text: point.profile.plan.rawValue, active: true)
-                            NOWChip(text: "Hike")
-                            ForEach(point.profile.sharedInterests.prefix(1), id: \.self) { interest in
+                            ForEach(point.profile.sharedInterests.prefix(2), id: \.self) { interest in
                                 NOWChip(text: interest)
                             }
                         }
@@ -93,46 +87,9 @@ struct ProfilePreviewScreen: View {
         }
     }
 
-}
-
-private func likeButtonTitle(for profile: UserProfile) -> String {
-    let gender = profile.occupation.lowercased()
-    if ["female", "woman", "women"].contains(gender) || ["Maya", "Ana", "Lina", "Sofia", "Nora"].contains(profile.name) {
-        return "Like her"
+    private func profileTitle(_ profile: UserProfile) -> String {
+        guard let age = profile.age else { return profile.name }
+        return "\(profile.name), \(age)"
     }
-    if ["male", "man", "men"].contains(gender) || ["Ren", "Leo", "Noah", "Ethan"].contains(profile.name) {
-        return "Like him"
-    }
-    return "Like \(profile.name)"
-}
 
-private struct LoopBadge: View {
-    let loopURL: URL?
-
-    var body: some View {
-        VStack(spacing: 5) {
-            if let loopURL {
-                CircularLoopPlayer(
-                    url: loopURL,
-                    diameter: 68,
-                    strokeColor: NOWColor.laOrange,
-                    lineWidth: 3,
-                    startsMuted: true,
-                    togglesAudioOnTap: true
-                )
-            } else {
-                Image(systemName: "video.slash.fill")
-                    .font(.headline.weight(.black))
-                    .foregroundStyle(NOWColor.surface.opacity(0.9))
-                    .frame(width: 68, height: 68)
-                    .background(NOWColor.laBrown.opacity(0.62))
-                    .clipShape(Circle())
-            }
-            Text(loopURL == nil ? "No intro loop yet" : "10s loop")
-                .font(.caption2.weight(.heavy))
-                .foregroundStyle(NOWColor.laGold)
-                .multilineTextAlignment(.center)
-        }
-        .accessibilityLabel(loopURL == nil ? "No intro loop yet" : "Play 10 second intro loop")
-    }
 }

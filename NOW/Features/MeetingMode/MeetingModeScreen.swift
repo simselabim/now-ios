@@ -3,12 +3,8 @@ import SwiftUI
 
 struct MeetingModeScreen: View {
     @EnvironmentObject private var appState: AppState
-    @State private var cameraPosition: MapCameraPosition = .region(
-        MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: -8.667630, longitude: 115.139708),
-            span: MKCoordinateSpan(latitudeDelta: 0.014, longitudeDelta: 0.014)
-        )
-    )
+    @State private var cameraPosition: MapCameraPosition = .automatic
+    @State private var showSafetyConfirmation = false
 
     private var meetingStatusText: String {
         switch appState.activeMatch?.meetingStatus {
@@ -26,8 +22,9 @@ struct MeetingModeScreen: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             Map(position: $cameraPosition, interactionModes: [.pan, .zoom]) {
-                if let proposal = appState.meetingProposal {
-                    Annotation(proposal.placeName, coordinate: proposal.coordinate, anchor: .center) {
+                if let proposal = appState.meetingProposal,
+                   let coordinate = proposal.coordinate {
+                    Annotation(proposal.placeName, coordinate: coordinate, anchor: .center) {
                         VStack(spacing: 4) {
                             ZStack {
                                 Circle()
@@ -48,12 +45,10 @@ struct MeetingModeScreen: View {
                     }
                 }
 
-                Annotation("You", coordinate: CLLocationCoordinate2D(latitude: -8.668730, longitude: 115.138208), anchor: .center) {
-                    MeetingAvatar(image: NOWPhoto.streetCoffee, label: "You · 6 min")
-                }
-
-                Annotation(appState.activeMatch?.profile.name ?? "Maya", coordinate: CLLocationCoordinate2D(latitude: -8.666330, longitude: 115.141608), anchor: .center) {
-                    MeetingAvatar(image: NOWPhoto.person, label: "\(appState.activeMatch?.profile.name ?? "Maya") · 9 min")
+                if let currentCoordinate = appState.currentCoordinate {
+                    Annotation("You", coordinate: currentCoordinate, anchor: .center) {
+                        MeetingAvatar(photoURL: appState.myProfilePhotoURL, label: "You")
+                    }
                 }
             }
             .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
@@ -78,15 +73,18 @@ struct MeetingModeScreen: View {
                     .padding(.top, 10)
 
                 HStack(spacing: 12) {
-                    BundlePhoto(name: NOWPhoto.cafeMeet)
+                    Image(systemName: "mappin.and.ellipse")
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(NOWColor.laOrange)
                         .frame(width: 54, height: 54)
+                        .background(NOWColor.paper)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(appState.meetingProposal?.placeName ?? "Dayglow · Sunset Blvd")
+                        Text(appState.meetingProposal?.placeName ?? "Meeting place")
                             .font(.headline.weight(.heavy))
                             .foregroundStyle(NOWColor.laBrown)
-                        Text("\(appState.meetingProposal?.time ?? "19:15") · public place · busy at this hour")
+                        Text("\(appState.meetingProposal?.time ?? "Time pending") · public place")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(NOWColor.inkSoft)
                             .lineLimit(2)
@@ -108,10 +106,19 @@ struct MeetingModeScreen: View {
                 }
 
                 HStack(spacing: 8) {
-                    MeetingStatusButton(title: "Share my route", active: false, disabled: appState.isLoading) {}
-                    MeetingStatusButton(title: "SOS", active: false, danger: true) {
-                        appState.cancelMatch()
+                    MeetingStatusButton(title: "Save my location", active: false, disabled: appState.isLoading) {
+                        appState.saveMeetingLocation()
                     }
+                    MeetingStatusButton(title: "Safety alert", active: false, disabled: appState.isLoading, danger: true) {
+                        showSafetyConfirmation = true
+                    }
+                }
+
+                if let safetyMessage = appState.safetyMessage {
+                    Text(safetyMessage)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(NOWColor.inkSoft)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 Button("We met ✓") {
@@ -125,16 +132,24 @@ struct MeetingModeScreen: View {
             .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
             .shadow(color: NOWColor.ink.opacity(0.14), radius: 22, x: 0, y: -8)
         }
+        .alert("Record a safety alert?", isPresented: $showSafetyConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Record alert", role: .destructive) {
+                appState.triggerSafetyAlert()
+            }
+        } message: {
+            Text("NOW will record this alert on the backend. This does not contact emergency services.")
+        }
     }
 }
 
 private struct MeetingAvatar: View {
-    let image: String
+    let photoURL: URL?
     let label: String
 
     var body: some View {
         VStack(spacing: 4) {
-            BundlePhoto(name: image)
+            UserPhoto(url: photoURL)
                 .frame(width: 50, height: 50)
                 .clipShape(Circle())
                 .overlay(Circle().stroke(NOWColor.surface, lineWidth: 3))

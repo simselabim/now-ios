@@ -28,7 +28,7 @@ struct FirstLoopScreen: View {
                         .foregroundStyle(NOWColor.laEspresso.opacity(0.82))
 
                     HStack(spacing: -14) {
-                        LoopAvatar(imageName: NOWPhoto.streetCoffee, name: "You")
+                        LoopAvatar(photoURL: appState.myProfilePhotoURL, name: "You")
                         ZStack {
                             Circle()
                                 .fill(NOWColor.surface)
@@ -38,7 +38,7 @@ struct FirstLoopScreen: View {
                                 .foregroundStyle(NOWColor.laCoral)
                         }
                         .zIndex(2)
-                        LoopAvatar(imageName: NOWPhoto.person, name: match.profile.name, profile: match.profile)
+                        LoopAvatar(photoURL: match.profile.mainPhotoURL, name: match.profile.name)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
@@ -904,20 +904,13 @@ private enum LoopRecorderError: LocalizedError {
 }
 
 private struct LoopAvatar: View {
-    let imageName: String
+    let photoURL: URL?
     let name: String
-    var profile: UserProfile?
 
     var body: some View {
         VStack(spacing: 10) {
             ZStack(alignment: .bottomTrailing) {
-                Group {
-                    if let profile {
-                        ProfilePhoto(profile: profile)
-                    } else {
-                        BundlePhoto(name: imageName)
-                    }
-                }
+                UserPhoto(url: photoURL)
                     .frame(width: 108, height: 108)
                     .clipShape(Circle())
                     .overlay(Circle().stroke(NOWColor.surface, lineWidth: 5))

@@ -60,11 +60,7 @@ enum LAGradient {
 }
 
 enum NOWPhoto {
-    static let person = "human-city-person-woman"
-    static let cafeMeet = "human-city-cafe-meet"
-    static let streetCoffee = "human-city-street-coffee"
     static let parkWalkBlur = "human-city-park-walk-blur"
-    static let cafeTableBlur = "human-city-cafe-table-blur"
 }
 
 struct NOWLogo: View {
@@ -115,6 +111,14 @@ struct ProfilePhoto: View {
 
     var body: some View {
         RemoteProfilePhoto(url: profile.mainPhotoURL)
+    }
+}
+
+struct UserPhoto: View {
+    let url: URL?
+
+    var body: some View {
+        RemoteProfilePhoto(url: url)
     }
 }
 

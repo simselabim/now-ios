@@ -44,95 +44,6 @@ enum Plan: String, CaseIterable, Identifiable {
     }
 }
 
-struct MeetingSuggestion {
-    let placeName: String
-    let coordinate: CLLocationCoordinate2D
-    let time: String
-    let descriptor: String
-}
-
-extension Plan {
-    var primaryMeetingSuggestion: MeetingSuggestion {
-        switch self {
-        case .coffee:
-            return MeetingSuggestion(
-                placeName: "Cafe Luna",
-                coordinate: CLLocationCoordinate2D(latitude: -8.667630, longitude: 115.139708),
-                time: "13:30",
-                descriptor: "public cafe"
-            )
-        case .walk:
-            return MeetingSuggestion(
-                placeName: "City Garden Gate",
-                coordinate: CLLocationCoordinate2D(latitude: -8.669330, longitude: 115.136808),
-                time: "16:00",
-                descriptor: "open public walk"
-            )
-        case .lunch:
-            return MeetingSuggestion(
-                placeName: "Market Hall",
-                coordinate: CLLocationCoordinate2D(latitude: -8.666630, longitude: 115.135608),
-                time: "12:30",
-                descriptor: "busy public lunch spot"
-            )
-        case .dinner:
-            return MeetingSuggestion(
-                placeName: "Garden Bar",
-                coordinate: CLLocationCoordinate2D(latitude: -8.666030, longitude: 115.142108),
-                time: "19:00",
-                descriptor: "public dinner place"
-            )
-        case .activity:
-            return MeetingSuggestion(
-                placeName: "Gallery Courtyard",
-                coordinate: CLLocationCoordinate2D(latitude: -8.670230, longitude: 115.143208),
-                time: "17:30",
-                descriptor: "public activity spot"
-            )
-        }
-    }
-
-    var alternateMeetingSuggestion: MeetingSuggestion {
-        switch self {
-        case .coffee:
-            return MeetingSuggestion(
-                placeName: "Park Kiosk",
-                coordinate: CLLocationCoordinate2D(latitude: -8.671330, longitude: 115.140508),
-                time: "14:15",
-                descriptor: "public fallback cafe"
-            )
-        case .walk:
-            return MeetingSuggestion(
-                placeName: "Beach Path Entrance",
-                coordinate: CLLocationCoordinate2D(latitude: -8.663930, longitude: 115.137908),
-                time: "16:30",
-                descriptor: "open public route"
-            )
-        case .lunch:
-            return MeetingSuggestion(
-                placeName: "Corner Deli",
-                coordinate: CLLocationCoordinate2D(latitude: -8.669330, longitude: 115.136808),
-                time: "13:15",
-                descriptor: "public lunch fallback"
-            )
-        case .dinner:
-            return MeetingSuggestion(
-                placeName: "Lantern Terrace",
-                coordinate: CLLocationCoordinate2D(latitude: -8.667630, longitude: 115.139708),
-                time: "19:30",
-                descriptor: "public dinner fallback"
-            )
-        case .activity:
-            return MeetingSuggestion(
-                placeName: "Bookshop Steps",
-                coordinate: CLLocationCoordinate2D(latitude: -8.666030, longitude: 115.142108),
-                time: "18:00",
-                descriptor: "public activity fallback"
-            )
-        }
-    }
-}
-
 enum Intent: String, CaseIterable, Identifiable {
     case friendly = "Friendly"
     case date = "Date"
@@ -153,24 +64,6 @@ enum TimeWindow: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 
     static let goOnlineOptions: [TimeWindow] = [.now, .lunch, .evening]
-}
-
-struct DemoAccount: Identifiable, Equatable {
-    let email: String
-    let displayName: String
-
-    var id: String { email }
-
-    static let all: [DemoAccount] = [
-        DemoAccount(email: "demo.ava@example.com", displayName: "Dima"),
-        DemoAccount(email: "demo.maya@example.com", displayName: "Maya"),
-        DemoAccount(email: "demo.nina@example.com", displayName: "Nina"),
-        DemoAccount(email: "demo.ethan@example.com", displayName: "Ethan"),
-        DemoAccount(email: "demo.liam@example.com", displayName: "Liam"),
-        DemoAccount(email: "demo.sofia@example.com", displayName: "Sofia")
-    ]
-
-    static let defaultAccount = all[0]
 }
 
 enum MapPointState: String {
@@ -234,7 +127,7 @@ enum MessageSender {
 struct UserProfile: Identifiable, Equatable {
     let id: UUID
     let name: String
-    let age: Int
+    let age: Int?
     let distance: String
     let plan: Plan
     let intent: Intent
@@ -258,7 +151,6 @@ struct MapPoint: Identifiable, Equatable {
     let profile: UserProfile
     let approximateCoordinate: CLLocationCoordinate2D
     var state: MapPointState
-    let isMutualMock: Bool
 
     static func == (lhs: MapPoint, rhs: MapPoint) -> Bool {
         lhs.id == rhs.id
@@ -279,7 +171,7 @@ struct Message: Identifiable {
     let id: UUID
     let sender: MessageSender
     let text: String
-    let createdAt: Date
+    let createdAt: Date?
 }
 
 struct MeetingProposal: Identifiable {
@@ -287,7 +179,9 @@ struct MeetingProposal: Identifiable {
     let matchId: UUID
     var proposerUserId: UUID?
     var placeName: String
-    var coordinate: CLLocationCoordinate2D
+    var placeAddress: String?
+    var coordinate: CLLocationCoordinate2D?
+    var proposedAt: Date?
     var time: String
     var dateLabel: String
     var status: MeetingProposalStatus
@@ -295,7 +189,9 @@ struct MeetingProposal: Identifiable {
 
 struct HistoryItem: Identifiable {
     let id: UUID
-    let name: String
-    let detail: String
-    let status: String
+    let title: String
+    let result: String
+    let occurredAt: Date?
+    let otherDisplayName: String?
+    let otherMainPhotoURL: URL?
 }

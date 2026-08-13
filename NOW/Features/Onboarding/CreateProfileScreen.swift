@@ -6,9 +6,7 @@ struct CreateProfileScreen: View {
     @EnvironmentObject private var appState: AppState
 
     @State private var displayName = ""
-    @State private var birthDate = Calendar.current.date(
-        from: DateComponents(year: 1995, month: 1, day: 1)
-    ) ?? Date()
+    @State private var birthDate: Date?
     @State private var gender = ""
     @State private var bio = ""
     @State private var selectedPhotoItem: PhotosPickerItem?
@@ -35,18 +33,28 @@ struct CreateProfileScreen: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     fieldLabel("Birth date")
-                    DatePicker(
-                        "Birth date",
-                        selection: $birthDate,
-                        in: ...Date(),
-                        displayedComponents: .date
-                    )
-                    .labelsHidden()
-                    .datePickerStyle(.compact)
-                    .padding(14)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(NOWColor.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    if birthDate != nil {
+                        DatePicker(
+                            "Birth date",
+                            selection: Binding(
+                                get: { birthDate ?? Date() },
+                                set: { birthDate = $0 }
+                            ),
+                            in: ...Date(),
+                            displayedComponents: .date
+                        )
+                        .labelsHidden()
+                        .datePickerStyle(.compact)
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(NOWColor.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    } else {
+                        Button("Choose birth date") {
+                            birthDate = Calendar.current.date(byAdding: .year, value: -18, to: Date())
+                        }
+                        .buttonStyle(SecondaryButtonStyle())
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -149,6 +157,7 @@ struct CreateProfileScreen: View {
 
     private var canSubmit: Bool {
         photoData != nil
+            && birthDate != nil
             && !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !gender.isEmpty
             && !bio.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -161,6 +170,7 @@ struct CreateProfileScreen: View {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         formatter.dateFormat = "yyyy-MM-dd"
+        guard let birthDate else { return "" }
         return formatter.string(from: birthDate)
     }
 
