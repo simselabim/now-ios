@@ -69,3 +69,4 @@ The backend source of truth lives in:
 
 - `now_back/docs/openapi.yaml`
 - `now_back/docs/mobile-dev-notes.md`
+- [`now_back/docs/product-configuration.md`](https://github.com/simselabim/now_back/blob/main/docs/product-configuration.md)

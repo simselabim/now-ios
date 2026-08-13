@@ -1,9 +1,22 @@
 import MapKit
 import SwiftUI
 
+private enum DiscoveryMapConfig {
+    static let initialViewportSpanM: CLLocationDistance = 5_000
+    static let venueSearchRadiusM: CLLocationDistance = 5_000
+    static let venueSearchDebounceMilliseconds = 300
+    static let venueResultLimit = 30
+    static let venueQueryTerms = ["cafe", "restaurant"]
+
+    static var venueRadiusLabel: String {
+        "\(Int(venueSearchRadiusM / 1_000)) km"
+    }
+}
+
 struct DiscoveryMapScreen: View {
     @EnvironmentObject private var appState: AppState
     @State private var cameraPosition: MapCameraPosition = .automatic
+    @State private var venueSearchCenter: CLLocationCoordinate2D?
     @StateObject private var venueStore = NearbyVenueStore()
 
     var body: some View {
@@ -18,25 +31,26 @@ struct DiscoveryMapScreen: View {
             appState.viewPoint(point)
         } onVenueTap: { venue in
             appState.selectPreferredMeetingPlace(venue)
+        } onCameraSettled: { center in
+            venueSearchCenter = center
         }
         .ignoresSafeArea(edges: .top)
         .onAppear {
-            reframeMap()
+            venueSearchCenter = appState.currentCoordinate
+            recenterOnUser()
         }
         .onChange(of: cameraKey) { _, _ in
             reframeMap()
         }
-        .onChange(of: venueStore.venues.count) { _, count in
-            if count > 0, !appState.isViewingActiveMatchMap {
-                recenterOnUser()
-            }
-        }
         .task(id: venueSearchKey) {
             guard !appState.isViewingActiveMatchMap,
-                  let coordinate = appState.currentCoordinate else {
+                  let coordinate = venueSearchCenter ?? appState.currentCoordinate else {
                 venueStore.clear()
                 return
             }
+
+            try? await Task.sleep(for: .milliseconds(DiscoveryMapConfig.venueSearchDebounceMilliseconds))
+            guard !Task.isCancelled else { return }
             await venueStore.load(around: coordinate)
         }
         .overlay(alignment: .top) {
@@ -77,8 +91,8 @@ struct DiscoveryMapScreen: View {
 
                 LAPill(
                     text: venueStore.isLoading
-                        ? "Loading cafes and restaurants…"
-                        : "People, cafes and restaurants nearby",
+                        ? "Finding cafes within \(DiscoveryMapConfig.venueRadiusLabel) of map center…"
+                        : "Cafes and restaurants within \(DiscoveryMapConfig.venueRadiusLabel) of map center",
                     icon: nil
                 )
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -97,7 +111,7 @@ struct DiscoveryMapScreen: View {
     }
 
     private var venueSearchKey: String {
-        guard let coordinate = appState.currentCoordinate else { return "none" }
+        guard let coordinate = venueSearchCenter ?? appState.currentCoordinate else { return "none" }
         return "\(rounded(coordinate.latitude)):\(rounded(coordinate.longitude)):\(appState.isViewingActiveMatchMap)"
     }
 
@@ -117,8 +131,8 @@ struct DiscoveryMapScreen: View {
         if let currentCoordinate = appState.currentCoordinate {
             let region = MKCoordinateRegion(
                 center: currentCoordinate,
-                latitudinalMeters: 5_000,
-                longitudinalMeters: 5_000
+                latitudinalMeters: DiscoveryMapConfig.initialViewportSpanM,
+                longitudinalMeters: DiscoveryMapConfig.initialViewportSpanM
             )
             withAnimation(.easeInOut(duration: 0.35)) {
                 cameraPosition = .region(region)
@@ -251,6 +265,7 @@ private struct LiveDiscoveryMap: View {
     let selectedVenueID: String?
     let onTap: (MapPoint) -> Void
     let onVenueTap: (MeetingPlace) -> Void
+    let onCameraSettled: (CLLocationCoordinate2D) -> Void
 
     var body: some View {
         Map(position: $cameraPosition, interactionModes: [.pan, .zoom, .rotate]) {
@@ -294,6 +309,9 @@ private struct LiveDiscoveryMap: View {
             MapCompass()
             MapScaleView()
         }
+        .onMapCameraChange(frequency: .onEnd) { context in
+            onCameraSettled(context.region.center)
+        }
         .tint(NOWColor.lime)
         .overlay(LAGradient.mapWash.blendMode(.multiply).allowsHitTesting(false))
         .overlay {
@@ -318,23 +336,25 @@ private final class NearbyVenueStore: ObservableObject {
     @Published private(set) var isLoading = false
 
     private var lastCoordinateKey: String?
+    private var requestID = UUID()
 
     func load(around coordinate: CLLocationCoordinate2D) async {
         let coordinateKey = String(format: "%.4f:%.4f", coordinate.latitude, coordinate.longitude)
         guard coordinateKey != lastCoordinateKey else { return }
 
         lastCoordinateKey = coordinateKey
+        let currentRequestID = UUID()
+        requestID = currentRequestID
         isLoading = true
-        defer { isLoading = false }
 
         var loadedVenues: [MeetingPlace] = []
-        for query in ["cafe", "restaurant"] {
+        for query in DiscoveryMapConfig.venueQueryTerms {
             let request = MKLocalSearch.Request()
             request.naturalLanguageQuery = query
             request.region = MKCoordinateRegion(
                 center: coordinate,
-                latitudinalMeters: 5_000,
-                longitudinalMeters: 5_000
+                latitudinalMeters: DiscoveryMapConfig.venueSearchRadiusM * 2,
+                longitudinalMeters: DiscoveryMapConfig.venueSearchRadiusM * 2
             )
             request.resultTypes = .pointOfInterest
             request.pointOfInterestFilter = MKPointOfInterestFilter(
@@ -346,21 +366,30 @@ private final class NearbyVenueStore: ObservableObject {
             }
         }
 
+        guard currentRequestID == requestID else { return }
+
         let uniqueVenues = Dictionary(loadedVenues.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let origin = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
         venues = Array(
             uniqueVenues.values
+                .filter {
+                    origin.distance(from: CLLocation(latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude))
+                        <= DiscoveryMapConfig.venueSearchRadiusM
+                }
                 .sorted {
                     origin.distance(from: CLLocation(latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude))
                         < origin.distance(from: CLLocation(latitude: $1.coordinate.latitude, longitude: $1.coordinate.longitude))
                 }
-                .prefix(30)
+                .prefix(DiscoveryMapConfig.venueResultLimit)
         )
+        isLoading = false
     }
 
     func clear() {
+        requestID = UUID()
         venues = []
         lastCoordinateKey = nil
+        isLoading = false
     }
 
     private func meetingPlace(from item: MKMapItem) -> MeetingPlace? {

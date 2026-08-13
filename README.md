@@ -228,3 +228,7 @@ Start with `NOWAPIClient`, `APIEnvironment`, `AuthTokenStore`, backend DTOs, and
 profile preview, like/pass, First Loop upload, chat, meeting state, history,
 and realtime active-match updates. API failures remain visible and never switch
 the app to locally fabricated user state.
+
+Shared product parameters, their owners, units, and change procedure are kept in
+the canonical backend document:
+[`docs/product-configuration.md`](https://github.com/simselabim/now_back/blob/main/docs/product-configuration.md).
