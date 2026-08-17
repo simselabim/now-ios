@@ -5,6 +5,19 @@ struct MeetingModeScreen: View {
     @EnvironmentObject private var appState: AppState
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var showSafetyConfirmation = false
+    @State private var walkingRoute: MKRoute?
+    @State private var isLoadingRoute = false
+    @State private var routeErrorMessage: String?
+    @State private var routeRefreshToken = UUID()
+
+    private var routeTaskID: String {
+        guard let proposal = appState.meetingProposal,
+              let coordinate = proposal.coordinate else {
+            return "no-destination-\(routeRefreshToken.uuidString)"
+        }
+
+        return "\(proposal.id.uuidString)-\(coordinate.latitude)-\(coordinate.longitude)-\(routeRefreshToken.uuidString)"
+    }
 
     private var meetingStatusText: String {
         switch appState.activeMatch?.meetingStatus {
@@ -22,6 +35,11 @@ struct MeetingModeScreen: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             Map(position: $cameraPosition, interactionModes: [.pan, .zoom]) {
+                if let walkingRoute {
+                    MapPolyline(walkingRoute.polyline)
+                        .stroke(NOWColor.laCoral, style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round))
+                }
+
                 if let proposal = appState.meetingProposal,
                    let coordinate = proposal.coordinate {
                     Annotation(proposal.placeName, coordinate: coordinate, anchor: .center) {
@@ -93,6 +111,15 @@ struct MeetingModeScreen: View {
                     Spacer()
                 }
 
+                MeetingRouteSummary(
+                    route: walkingRoute,
+                    isLoading: isLoadingRoute,
+                    errorMessage: routeErrorMessage,
+                    retry: {
+                        routeRefreshToken = UUID()
+                    }
+                )
+
                 HStack(spacing: 8) {
                     MeetingStatusButton(title: "On my way", active: appState.activeMatch?.meetingStatus == .onMyWay, disabled: appState.isLoading) {
                         appState.updateMeetingStatus(.onMyWay)
@@ -140,6 +167,126 @@ struct MeetingModeScreen: View {
         } message: {
             Text("NOW will record this alert on the backend. This does not contact emergency services.")
         }
+        .task(id: routeTaskID) {
+            await loadWalkingRoute()
+        }
+    }
+
+    private func loadWalkingRoute() async {
+        guard let destinationCoordinate = appState.meetingProposal?.coordinate else {
+            walkingRoute = nil
+            routeErrorMessage = "The meeting place does not have coordinates yet."
+            return
+        }
+
+        isLoadingRoute = true
+        routeErrorMessage = nil
+        walkingRoute = nil
+        defer { isLoadingRoute = false }
+
+        do {
+            let sourceCoordinate = try await appState.currentLocationForMeetingRoute()
+            try Task.checkCancellation()
+
+            let request = MKDirections.Request()
+            request.source = MKMapItem(placemark: MKPlacemark(coordinate: sourceCoordinate))
+            request.destination = MKMapItem(placemark: MKPlacemark(coordinate: destinationCoordinate))
+            request.transportType = .walking
+            request.requestsAlternateRoutes = false
+
+            let response = try await MKDirections(request: request).calculate()
+            try Task.checkCancellation()
+
+            guard let route = response.routes.first else {
+                routeErrorMessage = "No walking route is available for this place."
+                return
+            }
+
+            walkingRoute = route
+            cameraPosition = .rect(paddedMapRect(for: route.polyline.boundingMapRect))
+        } catch is CancellationError {
+            return
+        } catch let error as LocalizedError {
+            routeErrorMessage = error.errorDescription ?? "Could not calculate a walking route."
+        } catch {
+            routeErrorMessage = "Could not calculate a walking route. Check your connection and try again."
+        }
+    }
+
+    private func paddedMapRect(for rect: MKMapRect) -> MKMapRect {
+        let horizontalPadding = max(rect.size.width * 0.18, 900)
+        let verticalPadding = max(rect.size.height * 0.24, 900)
+
+        return MKMapRect(
+            x: rect.origin.x - horizontalPadding,
+            y: rect.origin.y - verticalPadding,
+            width: rect.size.width + horizontalPadding * 2,
+            height: rect.size.height + verticalPadding * 2
+        )
+    }
+}
+
+private struct MeetingRouteSummary: View {
+    let route: MKRoute?
+    let isLoading: Bool
+    let errorMessage: String?
+    let retry: () -> Void
+
+    var body: some View {
+        Group {
+            if isLoading {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("Calculating walking route…")
+                }
+                .accessibilityElement(children: .combine)
+            } else if let route {
+                HStack(spacing: 8) {
+                    Image(systemName: "figure.walk")
+                        .foregroundStyle(NOWColor.laOrange)
+                    Text(routeSummary(route))
+                        .font(.caption.weight(.heavy))
+                        .foregroundStyle(NOWColor.laBrown)
+                    Spacer(minLength: 0)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Walking route, \(routeSummary(route))")
+            } else if let errorMessage {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(NOWColor.laOrange)
+                    Text(errorMessage)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(NOWColor.inkSoft)
+                    Spacer(minLength: 0)
+                    Button("Retry", action: retry)
+                        .font(.caption.weight(.heavy))
+                        .foregroundStyle(NOWColor.laCoral)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(NOWColor.paper)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func routeSummary(_ route: MKRoute) -> String {
+        let distance = formattedDistance(route.distance)
+        let minutes = max(1, Int((route.expectedTravelTime / 60).rounded()))
+        let arrival = Date()
+            .addingTimeInterval(route.expectedTravelTime)
+            .formatted(date: .omitted, time: .shortened)
+        return "\(distance) · \(minutes) min walk · arrive \(arrival)"
+    }
+
+    private func formattedDistance(_ meters: CLLocationDistance) -> String {
+        if meters < 1_000 {
+            return "\(Int(meters.rounded())) m"
+        }
+
+        return String(format: "%.1f km", meters / 1_000)
     }
 }
 

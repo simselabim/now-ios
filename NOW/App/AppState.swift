@@ -530,6 +530,13 @@ final class AppState: ObservableObject {
         }
     }
 
+    func currentLocationForMeetingRoute() async throws -> CLLocationCoordinate2D {
+        let location = try await locationService.currentLocation()
+        currentCoordinate = location.coordinate
+        currentLocationAccuracyM = location.accuracyM
+        return location.coordinate
+    }
+
     func triggerSafetyAlert() {
         guard let match = activeMatch else { return }
         let location = currentCoordinate.map {
