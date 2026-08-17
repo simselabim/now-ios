@@ -1,11 +1,21 @@
 import SwiftUI
+import UIKit
 
 struct WelcomeScreen: View {
+    private enum AuthField: Hashable {
+        case email
+        case password
+    }
+
     @EnvironmentObject private var appState: AppState
     @State private var email = ""
     @State private var password = ""
     @State private var isRegistering = false
     @State private var isPhilosophyPresented = false
+    @State private var emailError: String?
+    @State private var passwordError: String?
+    @State private var didAttemptRegistration = false
+    @FocusState private var focusedField: AuthField?
 
     var body: some View {
         ScrollView {
@@ -76,38 +86,54 @@ struct WelcomeScreen: View {
                         .foregroundStyle(NOWColor.ink)
                         .tint(NOWColor.laCoral)
                         .padding(14)
-                        .background(NOWColor.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .background(fieldBackground(hasError: emailError != nil))
+                        .focused($focusedField, equals: .email)
+                        .accessibilityHint(emailError.map { "Error: \($0)" } ?? "")
+
+                    if let emailError {
+                        Text(emailError)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(NOWColor.coral)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .accessibilityLabel("Email error: \(emailError)")
+                    }
 
                     SecureField("Password", text: $password)
                         .textContentType(isRegistering ? .newPassword : .password)
                         .foregroundStyle(NOWColor.ink)
                         .tint(NOWColor.laCoral)
                         .padding(14)
-                        .background(NOWColor.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .background(fieldBackground(hasError: passwordError != nil))
+                        .focused($focusedField, equals: .password)
+                        .accessibilityHint(passwordError.map { "Error: \($0)" } ?? "")
 
-                    if !password.isEmpty && password.count < 8 {
-                        Text("Password must be at least 8 characters.")
+                    if let passwordError {
+                        Text(passwordError)
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(NOWColor.coral)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .accessibilityLabel("Password error: \(passwordError)")
                     }
+                }
+                .onChange(of: email) { _, _ in
+                    guard isRegistering, didAttemptRegistration else { return }
+                    emailError = registrationEmailError
+                }
+                .onChange(of: password) { _, _ in
+                    guard isRegistering, didAttemptRegistration else { return }
+                    passwordError = registrationPasswordError
                 }
 
                 Button(appState.isLoading ? "Connecting..." : (isRegistering ? "Create account" : "Sign in")) {
-                    appState.authenticate(
-                        email: email.trimmingCharacters(in: .whitespacesAndNewlines),
-                        password: password,
-                        register: isRegistering
-                    )
+                    submitAuthentication()
                 }
-                .disabled(appState.isLoading || !canSubmit)
+                .disabled(appState.isLoading || (!isRegistering && !canSubmit))
                 .buttonStyle(PrimaryButtonStyle())
 
                 Button(isRegistering ? "Already have an account? Sign in" : "New here? Create account") {
                     isRegistering.toggle()
                     appState.errorMessage = nil
+                    clearFieldErrors()
                 }
                 .font(.footnote.weight(.bold))
                 .foregroundStyle(NOWColor.ink)
@@ -130,6 +156,87 @@ struct WelcomeScreen: View {
     private var canSubmit: Bool {
         !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && password.count >= 8
+    }
+
+    private var registrationEmailError: String? {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedEmail.isEmpty {
+            return "Email is required."
+        }
+        let pattern = #"^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$"#
+        if trimmedEmail.range(of: pattern, options: [.regularExpression, .caseInsensitive]) == nil {
+            return "Enter a valid email."
+        }
+        return nil
+    }
+
+    private var registrationPasswordError: String? {
+        if password.isEmpty {
+            return "Password is required."
+        }
+        if password.count < 8 {
+            return "Password must be at least 8 characters."
+        }
+        return nil
+    }
+
+    private func fieldBackground(hasError: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(NOWColor.surface)
+            .overlay {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(hasError ? NOWColor.coral : .clear, lineWidth: 2)
+            }
+    }
+
+    private func submitAuthentication() {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard isRegistering else {
+            appState.authenticate(email: trimmedEmail, password: password, register: false)
+            return
+        }
+
+        didAttemptRegistration = true
+        emailError = registrationEmailError
+        passwordError = registrationPasswordError
+
+        if let emailError {
+            focus(on: .email, message: emailError)
+            return
+        }
+        if let passwordError {
+            focus(on: .password, message: passwordError)
+            return
+        }
+
+        appState.authenticate(
+            email: trimmedEmail,
+            password: password,
+            register: true
+        ) { fieldError in
+            switch fieldError {
+            case let .email(message):
+                emailError = message
+                focus(on: .email, message: message)
+            case let .password(message):
+                passwordError = message
+                focus(on: .password, message: message)
+            }
+        }
+    }
+
+    private func focus(on field: AuthField, message: String) {
+        focusedField = field
+        let fieldName = field == .email ? "Email" : "Password"
+        UIAccessibility.post(notification: .announcement, argument: "\(fieldName) error: \(message)")
+    }
+
+    private func clearFieldErrors() {
+        emailError = nil
+        passwordError = nil
+        didAttemptRegistration = false
+        focusedField = nil
     }
 }
 

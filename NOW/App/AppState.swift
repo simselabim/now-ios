@@ -2,6 +2,11 @@ import Foundation
 import CoreLocation
 import AVFoundation
 
+enum AuthenticationFieldError {
+    case email(String)
+    case password(String)
+}
+
 @MainActor
 final class AppState: ObservableObject {
     @Published var isAuthenticated = false
@@ -89,7 +94,12 @@ final class AppState: ObservableObject {
         return visibleMapPoints.filter { $0.profile.id == activeMatch.profile.id }
     }
 
-    func authenticate(email: String, password: String, register: Bool) {
+    func authenticate(
+        email: String,
+        password: String,
+        register: Bool,
+        onFieldError: ((AuthenticationFieldError) -> Void)? = nil
+    ) {
         Task {
             isLoading = true
             errorMessage = nil
@@ -108,7 +118,12 @@ final class AppState: ObservableObject {
                 resetAuthenticatedState()
                 errorMessage = "Email or password is incorrect."
             } catch {
-                errorMessage = authenticationErrorMessage(error, registering: register)
+                if register, let fieldError = registrationFieldError(error) {
+                    errorMessage = nil
+                    onFieldError?(fieldError)
+                } else {
+                    errorMessage = authenticationErrorMessage(error, registering: register)
+                }
             }
         }
     }
@@ -1204,6 +1219,22 @@ final class AppState: ObservableObject {
         return registering
             ? "Could not create the account. Please try again."
             : "Could not sign in. Please try again."
+    }
+
+    private func registrationFieldError(_ error: Error) -> AuthenticationFieldError? {
+        guard case let APIError.server(statusCode, message) = error else { return nil }
+        let serverMessage = message?.lowercased() ?? ""
+
+        if statusCode == 409 || serverMessage.contains("already exists") {
+            return .email("An account with this email already exists. Sign in instead.")
+        }
+        if statusCode == 422, serverMessage.contains("password") {
+            return .password("Password must be at least 8 characters.")
+        }
+        if statusCode == 422, serverMessage.contains("email") {
+            return .email("Enter a valid email.")
+        }
+        return nil
     }
 
     private func profileCreationErrorMessage(_ error: Error) -> String {
