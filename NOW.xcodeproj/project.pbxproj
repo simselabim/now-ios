@@ -35,7 +35,18 @@
 		100000000000000000000120 /* now-logo-o-variants.png in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000222 /* now-logo-o-variants.png */; };
 		100000000000000000000121 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000223 /* LocationService.swift */; };
 		100000000000000000000122 /* PlaceSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000224 /* PlaceSearch.swift */; };
+		1D35E9D1D99477125BF88484 /* DiscoveryMapNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1DA24A812910AFEB97A5A8B /* DiscoveryMapNavigationTests.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		D3B68DBD38241B70B542628D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 100000000000000000000502 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 100000000000000000000501;
+			remoteInfo = NOW;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		100000000000000000000201 /* NOWApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NOWApp.swift; sourceTree = "<group>"; };
@@ -68,10 +79,19 @@
 		100000000000000000000222 /* now-logo-o-variants.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "now-logo-o-variants.png"; sourceTree = "<group>"; };
 		100000000000000000000223 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
 		100000000000000000000224 /* PlaceSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearch.swift; sourceTree = "<group>"; };
+		C1DA24A812910AFEB97A5A8B /* DiscoveryMapNavigationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DiscoveryMapNavigationTests.swift; sourceTree = "<group>"; };
+		FBB67CC14449612E3A6AB838 /* NOWTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NOWTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		100000000000000000000301 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7180BD6A50C15BD228401CDB /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -86,6 +106,7 @@
 			children = (
 				100000000000000000000402 /* NOW */,
 				100000000000000000000403 /* Products */,
+				2CE00F4F7552A8AA256AE52A /* NOWTests */,
 			);
 			sourceTree = "<group>";
 		};
@@ -104,6 +125,7 @@
 			isa = PBXGroup;
 			children = (
 				100000000000000000000219 /* NOW.app */,
+				FBB67CC14449612E3A6AB838 /* NOWTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -309,6 +331,14 @@
 			path = Location;
 			sourceTree = "<group>";
 		};
+		2CE00F4F7552A8AA256AE52A /* NOWTests */ = {
+			isa = PBXGroup;
+			children = (
+				C1DA24A812910AFEB97A5A8B /* DiscoveryMapNavigationTests.swift */,
+			);
+			path = NOWTests;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -329,6 +359,24 @@
 			productReference = 100000000000000000000219 /* NOW.app */;
 			productType = "com.apple.product-type.application";
 		};
+		F4CACDB29BB20CF12855C7C9 /* NOWTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DDE8558B0452988C2B7A2512 /* Build configuration list for PBXNativeTarget "NOWTests" */;
+			buildPhases = (
+				09829239F7481A7A6BB4B9B7 /* Sources */,
+				7180BD6A50C15BD228401CDB /* Frameworks */,
+				25DBADEDD5B57F6AB6A4098B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				2E09EF7DD9925A2C0172929F /* PBXTargetDependency */,
+			);
+			name = NOWTests;
+			productName = NOWTests;
+			productReference = FBB67CC14449612E3A6AB838 /* NOWTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -341,6 +389,10 @@
 				TargetAttributes = {
 					100000000000000000000501 = {
 						CreatedOnToolsVersion = 15.4;
+					};
+					F4CACDB29BB20CF12855C7C9 = {
+						CreatedOnToolsVersion = 15.4;
+						TestTargetID = 100000000000000000000501;
 					};
 				};
 			};
@@ -358,6 +410,7 @@
 			projectRoot = "";
 			targets = (
 				100000000000000000000501 /* NOW */,
+				F4CACDB29BB20CF12855C7C9 /* NOWTests */,
 			);
 		};
 /* End PBXProject section */
@@ -374,9 +427,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		25DBADEDD5B57F6AB6A4098B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		09829239F7481A7A6BB4B9B7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1D35E9D1D99477125BF88484 /* DiscoveryMapNavigationTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		100000000000000000000601 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -410,7 +478,35 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		2E09EF7DD9925A2C0172929F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = NOW;
+			target = 100000000000000000000501 /* NOW */;
+			targetProxy = D3B68DBD38241B70B542628D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		0FCD81BA11B7269E9A427017 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 5SMGL4C99T;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sim.now.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NOW.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NOW";
+			};
+			name = Debug;
+		};
 		100000000000000000000801 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -571,6 +667,26 @@
 			};
 			name = Release;
 		};
+		14FD1938894219B5B589AF24 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 5SMGL4C99T;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sim.now.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NOW.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NOW";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -588,6 +704,15 @@
 			buildConfigurations = (
 				100000000000000000000801 /* Debug */,
 				100000000000000000000802 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DDE8558B0452988C2B7A2512 /* Build configuration list for PBXNativeTarget "NOWTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				14FD1938894219B5B589AF24 /* Release */,
+				0FCD81BA11B7269E9A427017 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

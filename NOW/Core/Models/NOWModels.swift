@@ -163,6 +163,10 @@ struct MapPoint: Identifiable, Equatable {
 
     static func == (lhs: MapPoint, rhs: MapPoint) -> Bool {
         lhs.id == rhs.id
+            && lhs.profile == rhs.profile
+            && lhs.approximateCoordinate.latitude == rhs.approximateCoordinate.latitude
+            && lhs.approximateCoordinate.longitude == rhs.approximateCoordinate.longitude
+            && lhs.state == rhs.state
     }
 }
 

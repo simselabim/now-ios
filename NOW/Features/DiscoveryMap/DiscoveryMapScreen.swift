@@ -31,13 +31,15 @@ struct DiscoveryMapScreen: View {
             appState.viewPoint(point)
         } onVenueTap: { venue in
             appState.selectPreferredMeetingPlace(venue)
-        } onCameraSettled: { center in
-            venueSearchCenter = center
+        } onCameraSettled: { region in
+            venueSearchCenter = region.center
+            if !appState.isViewingActiveMatchMap {
+                appState.rememberDiscoveryMapRegion(region)
+            }
         }
         .ignoresSafeArea(edges: .top)
         .onAppear {
-            venueSearchCenter = appState.currentCoordinate
-            recenterOnUser()
+            restoreCameraPosition()
         }
         .onChange(of: cameraKey) { _, _ in
             reframeMap()
@@ -140,6 +142,23 @@ struct DiscoveryMapScreen: View {
         } else {
             reframeMap()
         }
+    }
+
+    private func restoreCameraPosition() {
+        if appState.isViewingActiveMatchMap {
+            venueSearchCenter = nil
+            reframeMap()
+            return
+        }
+
+        if let region = appState.discoveryMapRegion {
+            venueSearchCenter = region.center
+            cameraPosition = .region(region)
+            return
+        }
+
+        venueSearchCenter = appState.currentCoordinate
+        recenterOnUser()
     }
 
     private func reframeMap() {
@@ -265,7 +284,7 @@ private struct LiveDiscoveryMap: View {
     let selectedVenueID: String?
     let onTap: (MapPoint) -> Void
     let onVenueTap: (MeetingPlace) -> Void
-    let onCameraSettled: (CLLocationCoordinate2D) -> Void
+    let onCameraSettled: (MKCoordinateRegion) -> Void
 
     var body: some View {
         Map(position: $cameraPosition, interactionModes: [.pan, .zoom, .rotate]) {
@@ -310,7 +329,7 @@ private struct LiveDiscoveryMap: View {
             MapScaleView()
         }
         .onMapCameraChange(frequency: .onEnd) { context in
-            onCameraSettled(context.region.center)
+            onCameraSettled(context.region)
         }
         .tint(NOWColor.lime)
         .overlay(LAGradient.mapWash.blendMode(.multiply).allowsHitTesting(false))

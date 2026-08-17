@@ -1,6 +1,7 @@
 import Foundation
 import CoreLocation
 import AVFoundation
+import MapKit
 
 enum AuthenticationFieldError {
     case email(String)
@@ -17,6 +18,7 @@ final class AppState: ObservableObject {
     @Published var todayIntent = TodayIntent()
     @Published var mapPoints: [MapPoint] = []
     @Published private(set) var discoveryRadiusM: Int?
+    @Published private(set) var discoveryMapRegion: MKCoordinateRegion?
     @Published var currentCoordinate: CLLocationCoordinate2D?
     @Published var currentLocationAccuracyM: Int?
     @Published var selectedPoint: MapPoint?
@@ -279,6 +281,7 @@ final class AppState: ObservableObject {
                 self.preferredMeetingPlace = nil
                 self.mapPoints = []
                 self.discoveryRadiusM = nil
+                self.discoveryMapRegion = nil
             }
         }
     }
@@ -349,6 +352,19 @@ final class AppState: ObservableObject {
     func closeProfilePreview() {
         profilePreviewRequestID = nil
         selectedPoint = nil
+    }
+
+    func rememberDiscoveryMapRegion(_ region: MKCoordinateRegion) {
+        guard region.center.latitude.isFinite,
+              region.center.longitude.isFinite,
+              region.span.latitudeDelta.isFinite,
+              region.span.longitudeDelta.isFinite,
+              region.span.latitudeDelta > 0,
+              region.span.longitudeDelta > 0 else {
+            return
+        }
+
+        discoveryMapRegion = region
     }
 
     func showActiveMatchMap() {
@@ -684,6 +700,7 @@ final class AppState: ObservableObject {
         isLoading = true
         errorMessage = nil
         preferredMeetingPlace = nil
+        discoveryMapRegion = nil
 
         let deviceLocation: DeviceLocation
         do {
@@ -1189,6 +1206,7 @@ final class AppState: ObservableObject {
         currentUserId = nil
         currentUserEmail = nil
         myProfile = nil
+        discoveryMapRegion = nil
         selectedPoint = nil
         preferredMeetingPlace = nil
         activeMatch = nil
