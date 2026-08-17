@@ -31,7 +31,127 @@ final class DiscoveryMapNavigationTests: XCTestCase {
         XCTAssertNotEqual(makePoint(state: .unseen), makePoint(state: .viewed))
     }
 
-    private func makePoint(state: MapPointState) -> MapPoint {
+    func testMatchedPointReopensSameMatchOnlyOnceAfterRapidTaps() async throws {
+        let matchID = UUID(uuidString: "33333333-3333-3333-3333-333333333333")!
+        let otherUserID = UUID(uuidString: "44444444-4444-4444-4444-444444444444")!
+        let tokenStore = InMemoryAuthTokenStore()
+        await tokenStore.setAccessToken("test-token")
+        ReopenMatchURLProtocol.reset()
+        ReopenMatchURLProtocol.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("POST", "/matches/\(matchID.uuidString)/reopen"):
+                return Self.jsonResponse(
+                    for: request,
+                    body: """
+                    {
+                      "match_item": {
+                        "id": "\(matchID.uuidString)",
+                        "user_a_id": "55555555-5555-5555-5555-555555555555",
+                        "user_b_id": "\(otherUserID.uuidString)",
+                        "other_user_id": "\(otherUserID.uuidString)",
+                        "match_date": "2026-08-17",
+                        "status": "active",
+                        "created_at": "2026-08-17T08:00:00Z",
+                        "closed_at": null,
+                        "extended_until": null,
+                        "extension_accepted_at": null
+                      },
+                      "reopened": true
+                    }
+                    """
+                )
+            case ("GET", "/matches/active/detail"):
+                return Self.jsonResponse(
+                    for: request,
+                    body: """
+                    {
+                      "match_item": {
+                        "match_item": {
+                          "id": "\(matchID.uuidString)",
+                          "user_a_id": "55555555-5555-5555-5555-555555555555",
+                          "user_b_id": "\(otherUserID.uuidString)",
+                          "other_user_id": "\(otherUserID.uuidString)",
+                          "match_date": "2026-08-17",
+                          "status": "active",
+                          "created_at": "2026-08-17T08:00:00Z",
+                          "closed_at": null,
+                          "extended_until": null,
+                          "extension_accepted_at": null
+                        },
+                        "other_profile": {
+                          "id": "11111111-1111-1111-1111-111111111111",
+                          "user_id": "\(otherUserID.uuidString)",
+                          "display_name": "Nearby",
+                          "birth_date": "1996-01-01",
+                          "gender": "woman",
+                          "bio": "Hello",
+                          "interests": [],
+                          "is_publishable": true,
+                          "published_at": "2026-08-17T07:00:00Z",
+                          "photos": [],
+                          "intro_loop": null,
+                          "created_at": "2026-08-17T07:00:00Z",
+                          "updated_at": "2026-08-17T07:00:00Z"
+                        },
+                        "other_today_intent": {
+                          "id": "66666666-6666-6666-6666-666666666666",
+                          "user_id": "\(otherUserID.uuidString)",
+                          "intent_date": "2026-08-17",
+                          "plans": ["coffee"],
+                          "intents": ["friendly"],
+                          "times_today": ["now"],
+                          "created_at": "2026-08-17T07:00:00Z",
+                          "updated_at": "2026-08-17T07:00:00Z"
+                        },
+                        "loops": [],
+                        "chat_unlocked": false,
+                        "messages": [],
+                        "latest_meeting_proposal": null,
+                        "latest_meeting_status": null,
+                        "other_meeting_location": null,
+                        "meeting_location_config": null,
+                        "tomorrow_extension": null,
+                        "flags": {
+                          "can_send_message": false,
+                          "can_create_proposal": false,
+                          "can_confirm_we_met": false
+                        }
+                      }
+                    }
+                    """
+                )
+            default:
+                throw URLError(.badURL)
+            }
+        }
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ReopenMatchURLProtocol.self]
+        let client = NOWAPIClient(
+            environment: APIEnvironment(baseURL: URL(string: "https://now.test")!),
+            session: URLSession(configuration: configuration),
+            tokenStore: tokenStore
+        )
+        let state = AppState(apiClient: client)
+        let point = makePoint(state: .triedBefore, alreadyMatched: true, lastMatchID: matchID)
+
+        state.viewPoint(point)
+        state.viewPoint(point)
+
+        for _ in 0..<100 where state.activeMatch == nil {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        XCTAssertEqual(state.activeMatch?.id, matchID)
+        XCTAssertEqual(state.activeMatch?.profile.id, point.profile.id)
+        XCTAssertEqual(ReopenMatchURLProtocol.requestCount(path: "/matches/\(matchID.uuidString)/reopen"), 1)
+    }
+
+    private func makePoint(
+        state: MapPointState,
+        alreadyMatched: Bool = false,
+        lastMatchID: UUID? = nil
+    ) -> MapPoint {
         let profile = UserProfile(
             id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
             name: "Nearby",
@@ -52,7 +172,61 @@ final class DiscoveryMapNavigationTests: XCTestCase {
             id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
             profile: profile,
             approximateCoordinate: CLLocationCoordinate2D(latitude: -8.648, longitude: 115.139),
-            state: state
+            state: state,
+            alreadyMatched: alreadyMatched,
+            lastMatchID: lastMatchID
         )
     }
+
+    nonisolated private static func jsonResponse(
+        for request: URLRequest,
+        body: String
+    ) -> (HTTPURLResponse, Data) {
+        let response = HTTPURLResponse(
+            url: request.url!,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )!
+        return (response, Data(body.utf8))
+    }
+}
+
+private final class ReopenMatchURLProtocol: URLProtocol {
+    static var handler: ((URLRequest) throws -> (HTTPURLResponse, Data))?
+    private static let lock = NSLock()
+    private static var requestPaths: [String] = []
+
+    static func reset() {
+        lock.withLock {
+            requestPaths = []
+            handler = nil
+        }
+    }
+
+    static func requestCount(path: String) -> Int {
+        lock.withLock { requestPaths.filter { $0 == path }.count }
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        Self.lock.withLock {
+            Self.requestPaths.append(request.url?.path ?? "")
+        }
+
+        do {
+            guard let handler = Self.handler else { throw URLError(.badServerResponse) }
+            let (response, data) = try handler(request)
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
+        } catch {
+            client?.urlProtocol(self, didFailWithError: error)
+        }
+    }
+
+    override func stopLoading() {}
 }

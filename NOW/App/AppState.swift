@@ -50,6 +50,7 @@ final class AppState: ObservableObject {
     private var processedRealtimeEventOrder: [UUID] = []
     private var lastRealtimeVersion: UInt64?
     private var profilePreviewRequestID: UUID?
+    private var reopeningMatchID: UUID?
 
     init(apiClient: NOWAPIClient = NOWAPIClient()) {
         self.apiClient = apiClient
@@ -336,6 +337,11 @@ final class AppState: ObservableObject {
             }
 
             returnToActiveMatch()
+            return
+        }
+
+        if point.alreadyMatched, point.lastMatchID != nil {
+            reopenPreviousMatch(point)
             return
         }
 
@@ -776,6 +782,46 @@ final class AppState: ObservableObject {
 
             self.selectedPoint = self.mapPoint(response.point, profile: response.profile)
             self.updatePoint(point.id, state: .viewed)
+        }
+    }
+
+    private func reopenPreviousMatch(_ point: MapPoint) {
+        guard let matchID = point.lastMatchID, reopeningMatchID == nil else { return }
+        reopeningMatchID = matchID
+
+        Task {
+            isLoading = true
+            errorMessage = nil
+            defer {
+                reopeningMatchID = nil
+                isLoading = false
+            }
+
+            do {
+                let response = try await self.apiClient.reopenMatch(matchId: matchID)
+                self.activeMatch = Match(
+                    id: response.matchItem.id,
+                    profile: point.profile,
+                    status: self.mapMatchStatus(response.matchItem.status),
+                    myFirstLoopSent: false,
+                    theirFirstLoopReceived: false,
+                    meetingStatus: .none
+                )
+                self.selectedPoint = nil
+                self.isOnline = false
+                try await self.loadActiveMatchDetail()
+            } catch APIError.unauthorized {
+                await self.apiClient.logout()
+                self.resetAuthenticatedState()
+                self.errorMessage = "Your session expired. Please sign in again."
+            } catch APIError.server(statusCode: 404, message: _) {
+                try? await self.loadDiscoveryMap()
+                self.errorMessage = "This person is no longer available. The map has been refreshed."
+            } catch APIError.server(statusCode: 409, message: let message) {
+                self.errorMessage = self.reopenMatchConflictMessage(message)
+            } catch {
+                self.errorMessage = "Could not reopen this match. Please try again."
+            }
         }
     }
 
@@ -1295,8 +1341,21 @@ final class AppState: ObservableObject {
             id: dto.pointId,
             profile: profile.map { mapProfile($0, mapPoint: dto) } ?? mapProfile(dto),
             approximateCoordinate: CLLocationCoordinate2D(latitude: dto.lat, longitude: dto.lng),
-            state: mapPointState(dto.state)
+            state: mapPointState(dto.state),
+            alreadyMatched: dto.alreadyMatched,
+            lastMatchID: dto.lastMatchId
         )
+    }
+
+    private func reopenMatchConflictMessage(_ message: String?) -> String {
+        let message = message?.lowercased() ?? ""
+        if message.contains("offline") || message.contains("go online") {
+            return "Both people need to be online to reopen this match."
+        }
+        if message.contains("active match") {
+            return "One of you already has another active match."
+        }
+        return "This match can’t be reopened right now."
     }
 
     private func mapProfile(_ dto: MapPointDTO) -> UserProfile {

@@ -648,6 +648,10 @@ private struct LAMapPersonMarker: View {
             return "message.fill"
         }
 
+        if point.alreadyMatched {
+            return "heart.fill"
+        }
+
         switch point.state {
         case .interested:
             return "heart.fill"
@@ -663,6 +667,6 @@ private struct LAMapPersonMarker: View {
             return NOWColor.ink
         }
 
-        return point.state == .interested ? NOWColor.laCoral : NOWColor.laBrown
+        return point.alreadyMatched || point.state == .interested ? NOWColor.laCoral : NOWColor.laBrown
     }
 }

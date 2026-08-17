@@ -151,6 +151,10 @@ final class NOWAPIClient {
         try await send(path: "/matches/active/detail")
     }
 
+    func reopenMatch(matchId: UUID) async throws -> ReopenMatchResponseDTO {
+        try await send(path: "/matches/\(matchId.uuidString)/reopen", method: "POST")
+    }
+
     func realtimeEvents() async throws -> AsyncThrowingStream<RealtimeEventDTO, Error> {
         guard let url = environment.webSocketURL(path: "/events") else {
             throw APIError.invalidURL

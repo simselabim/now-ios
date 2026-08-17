@@ -245,6 +245,8 @@ struct MapPointDTO: Codable, Identifiable, Equatable {
     let lng: Double
     let distanceM: Int
     let state: MapPointStateDTO
+    let alreadyMatched: Bool
+    let lastMatchId: UUID?
     let lastSeenAt: String
 }
 
@@ -269,6 +271,11 @@ struct LikeProfileResponseDTO: Decodable {
 
 struct ActiveMatchResponseDTO: Decodable {
     let matchItem: MatchDTO?
+}
+
+struct ReopenMatchResponseDTO: Decodable {
+    let matchItem: MatchDTO
+    let reopened: Bool
 }
 
 struct ActiveMatchDetailResponseDTO: Decodable {

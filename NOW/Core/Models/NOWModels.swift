@@ -160,6 +160,8 @@ struct MapPoint: Identifiable, Equatable {
     let profile: UserProfile
     let approximateCoordinate: CLLocationCoordinate2D
     var state: MapPointState
+    let alreadyMatched: Bool
+    let lastMatchID: UUID?
 
     static func == (lhs: MapPoint, rhs: MapPoint) -> Bool {
         lhs.id == rhs.id
@@ -167,6 +169,8 @@ struct MapPoint: Identifiable, Equatable {
             && lhs.approximateCoordinate.latitude == rhs.approximateCoordinate.latitude
             && lhs.approximateCoordinate.longitude == rhs.approximateCoordinate.longitude
             && lhs.state == rhs.state
+            && lhs.alreadyMatched == rhs.alreadyMatched
+            && lhs.lastMatchID == rhs.lastMatchID
     }
 }
 
