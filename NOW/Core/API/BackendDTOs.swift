@@ -151,9 +151,9 @@ struct DevUploadResponseDTO: Decodable, Equatable {
 }
 
 struct UpdateTodayIntentRequestDTO: Encodable {
-    let plan: PlanDTO
-    let intent: IntentDTO
-    let timeToday: TimeTodayDTO
+    let plans: [PlanDTO]
+    let intents: [IntentDTO]
+    let timesToday: [TimeTodayDTO]
 }
 
 enum PlanDTO: String, Codable, CaseIterable {
@@ -186,9 +186,9 @@ struct TodayIntentDTO: Codable, Identifiable, Equatable {
     let id: UUID
     let userId: UUID
     let intentDate: String
-    let plan: PlanDTO
-    let intent: IntentDTO
-    let timeToday: TimeTodayDTO
+    let plans: [PlanDTO]
+    let intents: [IntentDTO]
+    let timesToday: [TimeTodayDTO]
     let createdAt: String
     let updatedAt: String
 }
@@ -238,9 +238,9 @@ struct MapPointDTO: Codable, Identifiable, Equatable {
     let userId: UUID
     let displayName: String
     let mainPhotoStorageKey: String?
-    let plan: PlanDTO
-    let intent: IntentDTO
-    let timeToday: TimeTodayDTO
+    let plans: [PlanDTO]
+    let intents: [IntentDTO]
+    let timesToday: [TimeTodayDTO]
     let lat: Double
     let lng: Double
     let distanceM: Int

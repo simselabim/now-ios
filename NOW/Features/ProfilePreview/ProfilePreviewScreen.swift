@@ -36,7 +36,7 @@ struct ProfilePreviewScreen: View {
                                 Text(profileTitle(point.profile))
                                     .font(.system(size: 32, weight: .heavy, design: .rounded))
                                     .foregroundStyle(.white)
-                                Text("\(point.profile.plan.rawValue) · \(point.profile.intent.rawValue)")
+                                Text("\(point.profile.planSummary) · \(point.profile.intentSummary)")
                                     .font(.subheadline.weight(.bold))
                                     .foregroundStyle(.white.opacity(0.92))
                                     .lineLimit(3)
@@ -45,7 +45,7 @@ struct ProfilePreviewScreen: View {
                         }
 
                         HStack(spacing: 8) {
-                            NOWChip(text: point.profile.plan.rawValue, active: true)
+                            NOWChip(text: point.profile.planSummary, active: true)
                             ForEach(point.profile.sharedInterests.prefix(2), id: \.self) { interest in
                                 NOWChip(text: interest)
                             }

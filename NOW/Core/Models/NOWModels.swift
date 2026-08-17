@@ -129,8 +129,8 @@ struct UserProfile: Identifiable, Equatable {
     let name: String
     let age: Int?
     let distance: String
-    let plan: Plan
-    let intent: Intent
+    let plans: [Plan]
+    let intents: [Intent]
     let occupation: String
     let languages: [String]
     let interests: [String]
@@ -138,12 +138,21 @@ struct UserProfile: Identifiable, Equatable {
     let prompt: String
     let mainPhotoURL: URL?
     let introLoopURL: URL?
+
+    var plan: Plan { plans.first ?? .activity }
+    var intent: Intent { intents.first ?? .friendly }
+    var planSummary: String {
+        plans.isEmpty ? "Any plan" : plans.map(\.rawValue).joined(separator: ", ")
+    }
+    var intentSummary: String {
+        intents.isEmpty ? "Any connection" : intents.map(\.rawValue).joined(separator: ", ")
+    }
 }
 
 struct TodayIntent {
-    var plan: Plan
-    var intent: Intent
-    var timeWindow: TimeWindow
+    var plans: Set<Plan> = []
+    var intents: Set<Intent> = []
+    var timeWindows: Set<TimeWindow> = []
 }
 
 struct MapPoint: Identifiable, Equatable {

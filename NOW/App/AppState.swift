@@ -14,7 +14,7 @@ final class AppState: ObservableObject {
     @Published var isOnline = false
     @Published var isLoading = false
     @Published var errorMessage: String?
-    @Published var todayIntent = TodayIntent(plan: .coffee, intent: .date, timeWindow: .evening)
+    @Published var todayIntent = TodayIntent()
     @Published var mapPoints: [MapPoint] = []
     @Published private(set) var discoveryRadiusM: Int?
     @Published var currentCoordinate: CLLocationCoordinate2D?
@@ -653,6 +653,11 @@ final class AppState: ObservableObject {
         currentUserId = bootstrap.user.id
         currentUserEmail = bootstrap.user.email
         myProfile = bootstrap.profile
+        if let restoredIntent = bootstrap.todayIntent {
+            todayIntent = mapTodayIntent(restoredIntent)
+        } else {
+            todayIntent = TodayIntent()
+        }
         isProfileComplete = !(bootstrap.requirements.profileRequired)
         isOnline = false
         activeMatch = nil
@@ -697,9 +702,9 @@ final class AppState: ObservableObject {
         do {
             _ = try await apiClient.updateTodayIntent(
                 UpdateTodayIntentRequestDTO(
-                    plan: mapPlan(selectedIntent.plan),
-                    intent: mapIntent(selectedIntent.intent),
-                    timeToday: mapTime(selectedIntent.timeWindow)
+                    plans: selectedIntent.plans.map(mapPlan).sorted { $0.rawValue < $1.rawValue },
+                    intents: selectedIntent.intents.map(mapIntent).sorted { $0.rawValue < $1.rawValue },
+                    timesToday: selectedIntent.timeWindows.map(mapTime).sorted { $0.rawValue < $1.rawValue }
                 )
             )
             _ = try await apiClient.goOnline(
@@ -1282,8 +1287,8 @@ final class AppState: ObservableObject {
             name: dto.displayName,
             age: nil,
             distance: "\(dto.distanceM) m",
-            plan: mapPlan(dto.plan),
-            intent: mapIntent(dto.intent),
+            plans: dto.plans.map(mapPlan),
+            intents: dto.intents.map(mapIntent),
             occupation: "",
             languages: [],
             interests: [],
@@ -1297,8 +1302,8 @@ final class AppState: ObservableObject {
     private func mapProfile(_ dto: ProfileDTO, mapPoint: MapPointDTO) -> UserProfile {
         mapProfile(
             dto,
-            plan: mapPlan(mapPoint.plan),
-            intent: mapIntent(mapPoint.intent),
+            plans: mapPoint.plans.map(mapPlan),
+            intents: mapPoint.intents.map(mapIntent),
             distance: "\(mapPoint.distanceM) m"
         )
     }
@@ -1306,20 +1311,25 @@ final class AppState: ObservableObject {
     private func mapProfile(_ dto: ProfileDTO, todayIntent: TodayIntentDTO) -> UserProfile {
         mapProfile(
             dto,
-            plan: mapPlan(todayIntent.plan),
-            intent: mapIntent(todayIntent.intent),
+            plans: todayIntent.plans.map(mapPlan),
+            intents: todayIntent.intents.map(mapIntent),
             distance: "nearby"
         )
     }
 
-    private func mapProfile(_ dto: ProfileDTO, plan: Plan, intent: Intent, distance: String) -> UserProfile {
+    private func mapProfile(
+        _ dto: ProfileDTO,
+        plans: [Plan],
+        intents: [Intent],
+        distance: String
+    ) -> UserProfile {
         UserProfile(
             id: dto.id,
             name: dto.displayName,
             age: age(from: dto.birthDate),
             distance: distance,
-            plan: plan,
-            intent: intent,
+            plans: plans,
+            intents: intents,
             occupation: dto.gender.capitalized,
             languages: [],
             interests: dto.interests,
@@ -1416,6 +1426,27 @@ final class AppState: ObservableObject {
         case .evening:
             return .evening
         }
+    }
+
+    private func mapTime(_ time: TimeTodayDTO) -> TimeWindow {
+        switch time {
+        case .now:
+            return .now
+        case .lunch:
+            return .lunch
+        case .afternoon:
+            return .afternoon
+        case .evening:
+            return .evening
+        }
+    }
+
+    private func mapTodayIntent(_ dto: TodayIntentDTO) -> TodayIntent {
+        TodayIntent(
+            plans: Set(dto.plans.map(mapPlan)),
+            intents: Set(dto.intents.map(mapIntent)),
+            timeWindows: Set(dto.timesToday.map(mapTime))
+        )
     }
 
     private func mapMatchStatus(_ status: MatchStatusDTO) -> MatchStatus {

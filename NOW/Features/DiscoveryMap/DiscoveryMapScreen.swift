@@ -563,7 +563,7 @@ private struct LAMapPersonMarker: View {
                 }
             }
 
-            Text("\(point.profile.name) · \(point.profile.plan.rawValue)")
+            Text("\(point.profile.name) · \(point.profile.planSummary)")
                 .font(.system(size: 9, weight: .heavy, design: .rounded))
                 .foregroundStyle(labelForeground)
                 .lineLimit(1)

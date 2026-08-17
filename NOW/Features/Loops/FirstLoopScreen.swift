@@ -23,7 +23,7 @@ struct FirstLoopScreen: View {
                         .foregroundStyle(NOWColor.laEspresso)
                         .lineSpacing(-4)
 
-                    Text("You and \(match.profile.name) both picked \(match.profile.plan.rawValue.lowercased()) today.\nOne match - make it count before sunset.")
+                    Text("You and \(match.profile.name) matched nearby today.\nOne match - make it count before sunset.")
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(NOWColor.laEspresso.opacity(0.82))
 

@@ -2,9 +2,9 @@ import SwiftUI
 
 struct GoOnlineScreen: View {
     @EnvironmentObject private var appState: AppState
-    @State private var selectedPlan: Plan?
-    @State private var selectedIntent: Intent?
-    @State private var selectedTimeWindow: TimeWindow?
+    @State private var selectedPlans: Set<Plan> = []
+    @State private var selectedIntents: Set<Intent> = []
+    @State private var selectedTimeWindows: Set<TimeWindow> = []
 
     var body: some View {
         ScrollView {
@@ -24,14 +24,14 @@ struct GoOnlineScreen: View {
                     Text("What feels right now?")
                         .font(.system(size: 29, weight: .black, design: .rounded))
                         .foregroundStyle(NOWColor.ink)
-                    Text("Choose all three to go online and meet nearby today.")
+                    Text("Choose any that feel right, or skip for now.")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(NOWColor.inkSoft)
                 }
 
-                CompactIntentPicker(title: "Plan", selection: $selectedPlan, values: Plan.goOnlineOptions) { $0.goOnlineLabel }
-                CompactIntentPicker(title: "Connection", selection: $selectedIntent, values: Intent.goOnlineOptions) { $0.rawValue }
-                CompactIntentPicker(title: "When today", selection: $selectedTimeWindow, values: TimeWindow.goOnlineOptions) { $0.rawValue }
+                CompactIntentPicker(title: "Plan", selection: $selectedPlans, values: Plan.goOnlineOptions) { $0.goOnlineLabel }
+                CompactIntentPicker(title: "Connection", selection: $selectedIntents, values: Intent.goOnlineOptions) { $0.rawValue }
+                CompactIntentPicker(title: "When today", selection: $selectedTimeWindows, values: TimeWindow.goOnlineOptions) { $0.rawValue }
 
                 if let error = appState.errorMessage {
                     Text(error)
@@ -46,9 +46,8 @@ struct GoOnlineScreen: View {
                 Button(appState.isLoading ? "Going online..." : "Go online") {
                     goOnline()
                 }
-                .disabled(!isReady || appState.isLoading)
+                .disabled(appState.isLoading)
                 .buttonStyle(PrimaryButtonStyle())
-                .opacity(isReady ? 1 : 0.45)
                 .overlay {
                     if appState.isLoading {
                         ProgressView()
@@ -69,18 +68,18 @@ struct GoOnlineScreen: View {
         .scrollBounceBehavior(.basedOnSize)
         .background(NOWColor.laCream.ignoresSafeArea())
         .overlay(alignment: .top) { LATopStripe() }
-    }
-
-    private var isReady: Bool {
-        selectedPlan != nil && selectedIntent != nil && selectedTimeWindow != nil
+        .onAppear {
+            selectedPlans = appState.todayIntent.plans
+            selectedIntents = appState.todayIntent.intents
+            selectedTimeWindows = appState.todayIntent.timeWindows
+        }
     }
 
     private func goOnline() {
-        guard let selectedPlan, let selectedIntent, let selectedTimeWindow else { return }
         appState.todayIntent = TodayIntent(
-            plan: selectedPlan,
-            intent: selectedIntent,
-            timeWindow: selectedTimeWindow
+            plans: selectedPlans,
+            intents: selectedIntents,
+            timeWindows: selectedTimeWindows
         )
         appState.goOnline()
     }
@@ -88,7 +87,7 @@ struct GoOnlineScreen: View {
 
 private struct CompactIntentPicker<T: RawRepresentable & Identifiable & Hashable>: View where T.RawValue == String {
     let title: String
-    @Binding var selection: T?
+    @Binding var selection: Set<T>
     let values: [T]
     let label: (T) -> String
 
@@ -112,21 +111,28 @@ private struct CompactIntentPicker<T: RawRepresentable & Identifiable & Hashable
 
 private struct CompactFlowLayout<T: RawRepresentable & Identifiable & Hashable>: View where T.RawValue == String {
     let values: [T]
-    @Binding var selection: T?
+    @Binding var selection: Set<T>
     let label: (T) -> String
 
     var body: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 7), count: 3), spacing: 7) {
             ForEach(values) { value in
                 Button(label(value)) {
-                    selection = value
+                    if selection.contains(value) {
+                        selection.remove(value)
+                    } else {
+                        selection.insert(value)
+                    }
                 }
                 .font(.caption.weight(.bold))
                 .padding(.vertical, 8)
                 .frame(maxWidth: .infinity)
-                .foregroundStyle(selection == value ? NOWColor.surface : NOWColor.inkSoft)
-                .background(selection == value ? NOWColor.laCoral : NOWColor.paper)
+                .foregroundStyle(selection.contains(value) ? NOWColor.surface : NOWColor.inkSoft)
+                .background(selection.contains(value) ? NOWColor.laCoral : NOWColor.paper)
                 .clipShape(Capsule())
+                .accessibilityLabel(label(value))
+                .accessibilityValue(selection.contains(value) ? "Selected" : "Not selected")
+                .accessibilityAddTraits(selection.contains(value) ? .isSelected : [])
             }
         }
     }
