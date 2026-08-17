@@ -187,6 +187,19 @@ struct MeetingProposal: Identifiable {
     var status: MeetingProposalStatus
 }
 
+struct PartnerMeetingLocation {
+    let coordinate: CLLocationCoordinate2D
+    let accuracyRadiusM: Int
+    let updatedAt: Date?
+    let expiresAt: Date?
+}
+
+struct MeetingLocationConfig {
+    let accuracyRadiusM: Int
+    let updateIntervalSeconds: Int
+    let ttlSeconds: Int
+}
+
 struct HistoryItem: Identifiable {
     let id: UUID
     let title: String

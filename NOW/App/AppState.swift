@@ -22,6 +22,9 @@ final class AppState: ObservableObject {
     @Published private(set) var theirFirstLoopURL: URL?
     @Published var messages: [Message] = []
     @Published var meetingProposal: MeetingProposal?
+    @Published private(set) var otherMeetingLocation: PartnerMeetingLocation?
+    @Published private(set) var meetingLocationConfig: MeetingLocationConfig?
+    @Published private(set) var meetingLocationError: String?
     @Published var history: [HistoryItem] = []
     @Published private(set) var safetyMessage: String?
     @Published var selectedAppTab: AppTab = .search
@@ -537,6 +540,35 @@ final class AppState: ObservableObject {
         return location.coordinate
     }
 
+    func publishMeetingLocation() async {
+        guard let match = activeMatch,
+              meetingProposal?.status == .accepted,
+              meetingLocationConfig != nil else {
+            return
+        }
+
+        do {
+            let location = try await locationService.currentLocation()
+            try Task.checkCancellation()
+            currentCoordinate = location.coordinate
+            currentLocationAccuracyM = location.accuracyM
+            _ = try await apiClient.updateMeetingLocation(
+                matchId: match.id,
+                location: UpdateMeetingLocationRequestDTO(
+                    lat: location.coordinate.latitude,
+                    lng: location.coordinate.longitude,
+                    accuracyM: location.accuracyM
+                )
+            )
+            meetingLocationError = nil
+        } catch is CancellationError {
+            return
+        } catch {
+            meetingLocationError = (error as? LocalizedError)?.errorDescription
+                ?? "Live location is temporarily unavailable."
+        }
+    }
+
     func triggerSafetyAlert() {
         guard let match = activeMatch else { return }
         let location = currentCoordinate.map {
@@ -784,6 +816,21 @@ final class AppState: ObservableObject {
         } else {
             meetingProposal = nil
         }
+        otherMeetingLocation = detail.otherMeetingLocation.map { location in
+            PartnerMeetingLocation(
+                coordinate: CLLocationCoordinate2D(latitude: location.lat, longitude: location.lng),
+                accuracyRadiusM: location.accuracyRadiusM,
+                updatedAt: date(from: location.updatedAt),
+                expiresAt: date(from: location.expiresAt)
+            )
+        }
+        meetingLocationConfig = detail.meetingLocationConfig.map { config in
+            MeetingLocationConfig(
+                accuracyRadiusM: config.accuracyRadiusM,
+                updateIntervalSeconds: config.updateIntervalSeconds,
+                ttlSeconds: config.ttlSeconds
+            )
+        }
     }
 
     private func clearActiveMatchState() {
@@ -793,6 +840,9 @@ final class AppState: ObservableObject {
         theirFirstLoopURL = nil
         clearLoopMediaCache()
         meetingProposal = nil
+        otherMeetingLocation = nil
+        meetingLocationConfig = nil
+        meetingLocationError = nil
         messages = []
         history = []
         safetyMessage = nil
@@ -854,7 +904,7 @@ final class AppState: ObservableObject {
 
         switch event.type {
         case .snapshot, .matchCreated, .matchUpdated, .firstLoopReceived,
-             .messageCreated, .meetingStatusUpdated:
+             .messageCreated, .meetingStatusUpdated, .meetingLocationUpdated:
             guard let detail = event.detail else { return }
             await applyActiveMatchDetail(detail)
         case .discoveryChanged:

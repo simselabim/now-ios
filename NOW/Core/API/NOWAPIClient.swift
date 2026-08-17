@@ -304,6 +304,17 @@ final class NOWAPIClient {
         )
     }
 
+    func updateMeetingLocation(
+        matchId: UUID,
+        location: UpdateMeetingLocationRequestDTO
+    ) async throws -> MeetingLocationUpdateResponseDTO {
+        try await send(
+            path: "/matches/\(matchId.uuidString)/meeting-location",
+            method: "POST",
+            body: location
+        )
+    }
+
     func weMet(matchId: UUID) async throws -> WeMetResponseDTO {
         try await send(path: "/matches/\(matchId.uuidString)/we-met", method: "POST")
     }

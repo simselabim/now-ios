@@ -32,7 +32,7 @@ enum LocationServiceError: LocalizedError {
 @MainActor
 final class LocationService: NSObject, @preconcurrency CLLocationManagerDelegate {
     private let manager = CLLocationManager()
-    private var continuation: CheckedContinuation<DeviceLocation, Error>?
+    private var continuations: [CheckedContinuation<DeviceLocation, Error>] = []
     private var timeoutTask: Task<Void, Never>?
 
     override init() {
@@ -46,15 +46,11 @@ final class LocationService: NSObject, @preconcurrency CLLocationManagerDelegate
             throw LocationServiceError.servicesDisabled
         }
 
-        if let continuation {
-            continuation.resume(throwing: LocationServiceError.unavailable)
-            self.continuation = nil
-            timeoutTask?.cancel()
-            timeoutTask = nil
-        }
-
         return try await withCheckedThrowingContinuation { continuation in
-            self.continuation = continuation
+            let shouldStartRequest = continuations.isEmpty
+            continuations.append(continuation)
+            guard shouldStartRequest else { return }
+
             self.startTimeout()
 
             switch manager.authorizationStatus {
@@ -73,7 +69,7 @@ final class LocationService: NSObject, @preconcurrency CLLocationManagerDelegate
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        guard continuation != nil else { return }
+        guard !continuations.isEmpty else { return }
 
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
@@ -120,11 +116,12 @@ final class LocationService: NSObject, @preconcurrency CLLocationManagerDelegate
     }
 
     private func finish(_ result: Result<DeviceLocation, Error>) {
-        guard let continuation else { return }
+        guard !continuations.isEmpty else { return }
 
-        self.continuation = nil
+        let pendingContinuations = continuations
+        continuations.removeAll()
         timeoutTask?.cancel()
         timeoutTask = nil
-        continuation.resume(with: result)
+        pendingContinuations.forEach { $0.resume(with: result) }
     }
 }

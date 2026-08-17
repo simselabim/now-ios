@@ -291,6 +291,7 @@ enum RealtimeEventTypeDTO: String, Decodable {
     case firstLoopReceived = "first_loop_received"
     case messageCreated = "message_created"
     case meetingStatusUpdated = "meeting_status_updated"
+    case meetingLocationUpdated = "meeting_location_updated"
     case discoveryChanged = "discovery_changed"
     case matchClosed = "match_closed"
     case error
@@ -305,8 +306,35 @@ struct ActiveMatchDetailDTO: Decodable {
     let messages: [MessageDTO]
     let latestMeetingProposal: MeetingProposalDTO?
     let latestMeetingStatus: MeetingStatusDTO?
+    let otherMeetingLocation: PartnerMeetingLocationDTO?
+    let meetingLocationConfig: MeetingLocationConfigDTO?
     let tomorrowExtension: TomorrowExtensionSummaryDTO?
     let flags: ActiveMatchFlagsDTO
+}
+
+struct UpdateMeetingLocationRequestDTO: Encodable {
+    let lat: Double
+    let lng: Double
+    let accuracyM: Int?
+}
+
+struct MeetingLocationUpdateResponseDTO: Decodable {
+    let accepted: Bool
+    let expiresAt: String
+}
+
+struct PartnerMeetingLocationDTO: Decodable {
+    let lat: Double
+    let lng: Double
+    let accuracyRadiusM: Int
+    let updatedAt: String
+    let expiresAt: String
+}
+
+struct MeetingLocationConfigDTO: Decodable {
+    let accuracyRadiusM: Int
+    let updateIntervalSeconds: Int
+    let ttlSeconds: Int
 }
 
 struct ActiveMatchFlagsDTO: Decodable, Equatable {

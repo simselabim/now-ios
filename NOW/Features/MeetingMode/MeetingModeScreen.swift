@@ -9,6 +9,21 @@ struct MeetingModeScreen: View {
     @State private var isLoadingRoute = false
     @State private var routeErrorMessage: String?
     @State private var routeRefreshToken = UUID()
+    @State private var staleCheckDate = Date()
+    @State private var didFitPartnerLocation = false
+
+    private var visiblePartnerLocation: PartnerMeetingLocation? {
+        guard let location = appState.otherMeetingLocation,
+              location.expiresAt.map({ $0 > staleCheckDate }) ?? true else {
+            return nil
+        }
+        return location
+    }
+
+    private var partnerLocationKey: String? {
+        guard let location = visiblePartnerLocation else { return nil }
+        return "\(location.coordinate.latitude)-\(location.coordinate.longitude)"
+    }
 
     private var routeTaskID: String {
         guard let proposal = appState.meetingProposal,
@@ -17,6 +32,10 @@ struct MeetingModeScreen: View {
         }
 
         return "\(proposal.id.uuidString)-\(coordinate.latitude)-\(coordinate.longitude)-\(routeRefreshToken.uuidString)"
+    }
+
+    private var meetingLocationTaskID: String {
+        "\(appState.activeMatch?.id.uuidString ?? "no-match")-\(appState.meetingLocationConfig?.updateIntervalSeconds ?? 0)"
     }
 
     private var meetingStatusText: String {
@@ -38,6 +57,26 @@ struct MeetingModeScreen: View {
                 if let walkingRoute {
                     MapPolyline(walkingRoute.polyline)
                         .stroke(NOWColor.laCoral, style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round))
+                }
+
+                if let partnerLocation = visiblePartnerLocation {
+                    MapCircle(
+                        center: partnerLocation.coordinate,
+                        radius: CLLocationDistance(partnerLocation.accuracyRadiusM)
+                    )
+                    .foregroundStyle(NOWColor.laCoral.opacity(0.12))
+                    .stroke(NOWColor.laCoral.opacity(0.75), lineWidth: 2)
+
+                    Annotation(
+                        appState.activeMatch?.profile.name ?? "Meeting partner",
+                        coordinate: partnerLocation.coordinate,
+                        anchor: .center
+                    ) {
+                        MeetingAvatar(
+                            photoURL: appState.activeMatch?.profile.mainPhotoURL,
+                            label: "\(appState.activeMatch?.profile.name ?? "Partner") · approx."
+                        )
+                    }
                 }
 
                 if let proposal = appState.meetingProposal,
@@ -120,6 +159,11 @@ struct MeetingModeScreen: View {
                     }
                 )
 
+                PartnerLocationSummary(
+                    location: visiblePartnerLocation,
+                    errorMessage: appState.meetingLocationError
+                )
+
                 HStack(spacing: 8) {
                     MeetingStatusButton(title: "On my way", active: appState.activeMatch?.meetingStatus == .onMyWay, disabled: appState.isLoading) {
                         appState.updateMeetingStatus(.onMyWay)
@@ -170,6 +214,34 @@ struct MeetingModeScreen: View {
         .task(id: routeTaskID) {
             await loadWalkingRoute()
         }
+        .task(id: meetingLocationTaskID) {
+            await shareMeetingLocationWhileVisible()
+        }
+        .task {
+            while !Task.isCancelled {
+                staleCheckDate = Date()
+                try? await Task.sleep(for: .seconds(5))
+            }
+        }
+        .onChange(of: partnerLocationKey) { _, newValue in
+            guard newValue != nil, !didFitPartnerLocation else { return }
+            didFitPartnerLocation = true
+            fitCameraToMeeting()
+        }
+    }
+
+    private func shareMeetingLocationWhileVisible() async {
+        while !Task.isCancelled {
+            await appState.publishMeetingLocation()
+            guard let interval = appState.meetingLocationConfig?.updateIntervalSeconds else {
+                return
+            }
+            do {
+                try await Task.sleep(for: .seconds(interval))
+            } catch {
+                return
+            }
+        }
     }
 
     private func loadWalkingRoute() async {
@@ -203,7 +275,7 @@ struct MeetingModeScreen: View {
             }
 
             walkingRoute = route
-            cameraPosition = .rect(paddedMapRect(for: route.polyline.boundingMapRect))
+            fitCameraToMeeting()
         } catch is CancellationError {
             return
         } catch let error as LocalizedError {
@@ -223,6 +295,58 @@ struct MeetingModeScreen: View {
             width: rect.size.width + horizontalPadding * 2,
             height: rect.size.height + verticalPadding * 2
         )
+    }
+
+    private func fitCameraToMeeting() {
+        var rect = walkingRoute?.polyline.boundingMapRect ?? .null
+        if let currentCoordinate = appState.currentCoordinate {
+            rect = rect.union(mapRect(for: currentCoordinate))
+        }
+        if let destinationCoordinate = appState.meetingProposal?.coordinate {
+            rect = rect.union(mapRect(for: destinationCoordinate))
+        }
+        if let partnerCoordinate = visiblePartnerLocation?.coordinate {
+            rect = rect.union(mapRect(for: partnerCoordinate))
+        }
+        guard !rect.isNull else { return }
+        cameraPosition = .rect(paddedMapRect(for: rect))
+    }
+
+    private func mapRect(for coordinate: CLLocationCoordinate2D) -> MKMapRect {
+        let point = MKMapPoint(coordinate)
+        return MKMapRect(x: point.x, y: point.y, width: 1, height: 1)
+    }
+}
+
+private struct PartnerLocationSummary: View {
+    let location: PartnerMeetingLocation?
+    let errorMessage: String?
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: location == nil ? "location.slash" : "location.circle.fill")
+                .foregroundStyle(NOWColor.laCoral)
+            VStack(alignment: .leading, spacing: 2) {
+                if let location {
+                    Text("Partner location · approximate")
+                        .font(.caption.weight(.heavy))
+                        .foregroundStyle(NOWColor.laBrown)
+                    Text("Shown within \(location.accuracyRadiusM) m for privacy")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(NOWColor.inkSoft)
+                } else {
+                    Text(errorMessage ?? "Waiting for your partner's live location…")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(NOWColor.inkSoft)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(NOWColor.paper)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 
