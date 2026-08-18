@@ -192,14 +192,146 @@ final class DiscoveryMapNavigationTests: XCTestCase {
     }
 }
 
+extension DiscoveryMapNavigationTests {
+    func testLikeSendsSelectedMeetingPlaceMetadata() async throws {
+        let tokenStore = InMemoryAuthTokenStore()
+        await tokenStore.setAccessToken("test-token")
+        ReopenMatchURLProtocol.reset()
+        ReopenMatchURLProtocol.handler = { request in
+            Self.jsonResponse(
+                for: request,
+                body: """
+                {
+                  "profile_id": "11111111-1111-1111-1111-111111111111",
+                  "state": "liked_today",
+                  "match_created": false,
+                  "match_item": null
+                }
+                """
+            )
+        }
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ReopenMatchURLProtocol.self]
+        let client = NOWAPIClient(
+            environment: APIEnvironment(baseURL: URL(string: "https://now.test")!),
+            session: URLSession(configuration: configuration),
+            tokenStore: tokenStore
+        )
+        let place = makeVenue(
+            id: "apple-maps-place-id",
+            category: .beach,
+            latitude: -8.6478
+        )
+
+        _ = try await client.likeProfile(
+            UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+            meetingPlace: place
+        )
+
+        let body = try XCTUnwrap(ReopenMatchURLProtocol.latestRequestBody())
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        let meetingPlace = try XCTUnwrap(json["meeting_place"] as? [String: Any])
+        XCTAssertEqual(meetingPlace["external_id"] as? String, place.externalID)
+        XCTAssertEqual(meetingPlace["category"] as? String, "beach")
+        XCTAssertEqual(meetingPlace["name"] as? String, place.name)
+        XCTAssertEqual(meetingPlace["address"] as? String, place.address)
+        XCTAssertEqual(meetingPlace["lat"] as? Double, place.coordinate.latitude)
+        XCTAssertEqual(meetingPlace["lng"] as? Double, place.coordinate.longitude)
+    }
+
+    func testVenueConfigurationCoversRequiredMeetingCategories() {
+        let configured = Set(VenueDiscoveryConfig.searches.flatMap(\.categories))
+
+        XCTAssertTrue(configured.contains(.cafe))
+        XCTAssertTrue(configured.contains(.restaurant))
+        XCTAssertTrue(configured.contains(.nightlife))
+        XCTAssertTrue(configured.contains(.beach))
+        XCTAssertTrue(configured.contains(.park))
+        XCTAssertTrue(configured.contains(.store))
+        XCTAssertTrue(configured.contains(.museum))
+        XCTAssertEqual(VenueDiscoveryConfig.searchRadiusM, 5_000)
+    }
+
+    func testVenueResultsDeduplicateAndRespectMarkerLimit() {
+        let center = CLLocationCoordinate2D(latitude: -8.6478, longitude: 115.1385)
+        let categories: [MeetingPlaceCategory] = [.cafe, .restaurant, .bar, .beach, .park]
+        var places = (0..<40).map { index in
+            makeVenue(
+                id: "place-\(index)",
+                category: categories[index % categories.count],
+                latitude: center.latitude + (Double(index) * 0.00001)
+            )
+        }
+        places.append(places[0])
+
+        let processed = VenueResultProcessor.process(places, around: center)
+
+        XCTAssertEqual(processed.count, VenueDiscoveryConfig.resultLimit)
+        XCTAssertEqual(Set(processed.map(\.id)).count, processed.count)
+        XCTAssertTrue(Set(processed.map(\.category)).isSuperset(of: categories))
+    }
+
+    func testVenueResultsAllowEmptyAppleMapsResponse() async {
+        let store = NearbyVenueStore(searcher: StubVenueSearcher(result: .success([])))
+
+        await store.load(around: CLLocationCoordinate2D(latitude: -8.6478, longitude: 115.1385))
+
+        XCTAssertTrue(store.venues.isEmpty)
+        XCTAssertNil(store.errorMessage)
+        XCTAssertFalse(store.isLoading)
+    }
+
+    func testVenueResultsExposeAppleMapsFailure() async {
+        let store = NearbyVenueStore(
+            searcher: StubVenueSearcher(result: .failure(URLError(.cannotConnectToHost)))
+        )
+
+        await store.load(around: CLLocationCoordinate2D(latitude: -8.6478, longitude: 115.1385))
+
+        XCTAssertTrue(store.venues.isEmpty)
+        XCTAssertEqual(store.errorMessage, "Could not load meeting places. Move the map or try again.")
+        XCTAssertFalse(store.isLoading)
+    }
+
+    private func makeVenue(
+        id: String,
+        category: MeetingPlaceCategory,
+        latitude: CLLocationDegrees
+    ) -> MeetingPlace {
+        MeetingPlace(
+            externalID: id,
+            name: "Place \(id)",
+            category: category,
+            address: "Address \(id)",
+            coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: 115.1385)
+        )
+    }
+}
+
+private struct StubVenueSearcher: VenueSearching {
+    let result: Result<[MeetingPlace], Error>
+
+    func search(
+        definition: VenueSearchDefinition,
+        region: MKCoordinateRegion
+    ) async throws -> [MeetingPlace] {
+        _ = definition
+        _ = region
+        return try result.get()
+    }
+}
+
 private final class ReopenMatchURLProtocol: URLProtocol {
     static var handler: ((URLRequest) throws -> (HTTPURLResponse, Data))?
     private static let lock = NSLock()
     private static var requestPaths: [String] = []
+    private static var requestBodies: [Data] = []
 
     static func reset() {
         lock.withLock {
             requestPaths = []
+            requestBodies = []
             handler = nil
         }
     }
@@ -208,13 +340,21 @@ private final class ReopenMatchURLProtocol: URLProtocol {
         lock.withLock { requestPaths.filter { $0 == path }.count }
     }
 
+    static func latestRequestBody() -> Data? {
+        lock.withLock { requestBodies.last }
+    }
+
     override class func canInit(with request: URLRequest) -> Bool { true }
 
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
+        let body = Self.requestBody(from: request)
         Self.lock.withLock {
             Self.requestPaths.append(request.url?.path ?? "")
+            if let body {
+                Self.requestBodies.append(body)
+            }
         }
 
         do {
@@ -229,4 +369,22 @@ private final class ReopenMatchURLProtocol: URLProtocol {
     }
 
     override func stopLoading() {}
+
+    private static func requestBody(from request: URLRequest) -> Data? {
+        if let body = request.httpBody {
+            return body
+        }
+        guard let stream = request.httpBodyStream else { return nil }
+
+        stream.open()
+        defer { stream.close() }
+        var body = Data()
+        var buffer = [UInt8](repeating: 0, count: 1_024)
+        while stream.hasBytesAvailable {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            guard count > 0 else { break }
+            body.append(buffer, count: count)
+        }
+        return body.isEmpty ? nil : body
+    }
 }

@@ -459,7 +459,9 @@ final class AppState: ObservableObject {
                 let proposal = try await self.apiClient.createMeetingProposal(
                     matchId: match.id,
                     request: CreateProposalRequestDTO(
+                        placeExternalId: place.externalID,
                         placeName: place.name,
+                        placeCategory: place.category,
                         placeAddress: place.address,
                         placeLat: place.coordinate.latitude,
                         placeLng: place.coordinate.longitude,
@@ -506,7 +508,9 @@ final class AppState: ObservableObject {
                     matchId: proposal.matchId,
                     proposalId: proposal.id,
                     request: UpdateProposalRequestDTO(
+                        placeExternalId: place.externalID,
                         placeName: place.name,
+                        placeCategory: place.category,
                         placeAddress: place.address,
                         placeLat: place.coordinate.latitude,
                         placeLng: place.coordinate.longitude,
@@ -827,7 +831,10 @@ final class AppState: ObservableObject {
 
     private func likePointWithBackend(_ point: MapPoint) async {
         await runLoading {
-            let response = try await self.apiClient.likeProfile(point.profile.id)
+            let response = try await self.apiClient.likeProfile(
+                point.profile.id,
+                meetingPlace: self.preferredMeetingPlace
+            )
             self.updatePoint(point.id, state: .interested)
             self.selectedPoint = nil
 
@@ -1575,7 +1582,9 @@ final class AppState: ObservableObject {
             id: dto.id,
             matchId: dto.matchId,
             proposerUserId: dto.proposerUserId,
+            placeExternalID: dto.placeExternalId,
             placeName: dto.placeName,
+            placeCategory: dto.placeCategory ?? .other,
             placeAddress: dto.placeAddress,
             coordinate: coordinate,
             proposedAt: proposedDate,

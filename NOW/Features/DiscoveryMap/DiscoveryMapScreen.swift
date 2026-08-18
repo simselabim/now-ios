@@ -1,18 +1,6 @@
 import MapKit
 import SwiftUI
 
-private enum DiscoveryMapConfig {
-    static let initialViewportSpanM: CLLocationDistance = 5_000
-    static let venueSearchRadiusM: CLLocationDistance = 5_000
-    static let venueSearchDebounceMilliseconds = 300
-    static let venueResultLimit = 30
-    static let venueQueryTerms = ["cafe", "restaurant"]
-
-    static var venueRadiusLabel: String {
-        "\(Int(venueSearchRadiusM / 1_000)) km"
-    }
-}
-
 struct DiscoveryMapScreen: View {
     @EnvironmentObject private var appState: AppState
     @State private var cameraPosition: MapCameraPosition = .automatic
@@ -51,7 +39,7 @@ struct DiscoveryMapScreen: View {
                 return
             }
 
-            try? await Task.sleep(for: .milliseconds(DiscoveryMapConfig.venueSearchDebounceMilliseconds))
+            try? await Task.sleep(for: .milliseconds(VenueDiscoveryConfig.searchDebounceMilliseconds))
             guard !Task.isCancelled else { return }
             await venueStore.load(around: coordinate)
         }
@@ -84,6 +72,16 @@ struct DiscoveryMapScreen: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
 
+                if let error = venueStore.errorMessage {
+                    Text(error)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(NOWColor.coral)
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(NOWColor.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
+
                 if let venue = appState.preferredMeetingPlace,
                    !appState.isViewingActiveMatchMap {
                     SelectedVenueCard(venue: venue) {
@@ -93,8 +91,8 @@ struct DiscoveryMapScreen: View {
 
                 LAPill(
                     text: venueStore.isLoading
-                        ? "Finding cafes within \(DiscoveryMapConfig.venueRadiusLabel) of map center…"
-                        : "Cafes and restaurants within \(DiscoveryMapConfig.venueRadiusLabel) of map center",
+                        ? "Finding meeting places within \(VenueDiscoveryConfig.radiusLabel) of map center…"
+                        : "Meeting places within \(VenueDiscoveryConfig.radiusLabel) of map center",
                     icon: nil
                 )
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -109,7 +107,12 @@ struct DiscoveryMapScreen: View {
     }
 
     private var nearbyVenues: [MeetingPlace] {
-        appState.isViewingActiveMatchMap ? [] : venueStore.venues
+        guard !appState.isViewingActiveMatchMap else { return [] }
+        guard let selected = appState.preferredMeetingPlace,
+              !venueStore.venues.contains(where: { $0.id == selected.id }) else {
+            return venueStore.venues
+        }
+        return [selected] + venueStore.venues
     }
 
     private var venueSearchKey: String {
@@ -133,8 +136,8 @@ struct DiscoveryMapScreen: View {
         if let currentCoordinate = appState.currentCoordinate {
             let region = MKCoordinateRegion(
                 center: currentCoordinate,
-                latitudinalMeters: DiscoveryMapConfig.initialViewportSpanM,
-                longitudinalMeters: DiscoveryMapConfig.initialViewportSpanM
+                latitudinalMeters: VenueDiscoveryConfig.initialViewportSpanM,
+                longitudinalMeters: VenueDiscoveryConfig.initialViewportSpanM
             )
             withAnimation(.easeInOut(duration: 0.35)) {
                 cameraPosition = .region(region)
@@ -299,10 +302,12 @@ private struct LiveDiscoveryMap: View {
                     Button {
                         onVenueTap(venue)
                     } label: {
-                        LAVenueMarker(isSelected: venue.id == selectedVenueID)
+                        LAVenueMarker(category: venue.category, isSelected: venue.id == selectedVenueID)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Choose \(venue.name), \(venue.address)")
+                    .accessibilityLabel(
+                        "Choose \(venue.name), \(venue.category.displayName), \(venue.address)"
+                    )
                 }
             }
 
@@ -349,13 +354,75 @@ private struct LiveDiscoveryMap: View {
     }
 }
 
+protocol VenueSearching {
+    func search(
+        definition: VenueSearchDefinition,
+        region: MKCoordinateRegion
+    ) async throws -> [MeetingPlace]
+}
+
+struct AppleMapsVenueSearcher: VenueSearching {
+    func search(
+        definition: VenueSearchDefinition,
+        region: MKCoordinateRegion
+    ) async throws -> [MeetingPlace] {
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = definition.query
+        request.region = region
+        request.resultTypes = .pointOfInterest
+        request.pointOfInterestFilter = MKPointOfInterestFilter(including: definition.categories)
+        let response = try await MKLocalSearch(request: request).start()
+        return response.mapItems.compactMap(MeetingPlace.from)
+    }
+}
+
+enum VenueResultProcessor {
+    static func process(
+        _ places: [MeetingPlace],
+        around coordinate: CLLocationCoordinate2D,
+        radiusM: CLLocationDistance = VenueDiscoveryConfig.searchRadiusM,
+        limit: Int = VenueDiscoveryConfig.resultLimit
+    ) -> [MeetingPlace] {
+        let unique = Dictionary(
+            places.map { ($0.deduplicationKey, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let origin = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        return Array(
+            unique.values
+                .filter {
+                    origin.distance(
+                        from: CLLocation(
+                            latitude: $0.coordinate.latitude,
+                            longitude: $0.coordinate.longitude
+                        )
+                    ) <= radiusM
+                }
+                .sorted {
+                    origin.distance(
+                        from: CLLocation(latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude)
+                    ) < origin.distance(
+                        from: CLLocation(latitude: $1.coordinate.latitude, longitude: $1.coordinate.longitude)
+                    )
+                }
+                .prefix(limit)
+        )
+    }
+}
+
 @MainActor
-private final class NearbyVenueStore: ObservableObject {
+final class NearbyVenueStore: ObservableObject {
     @Published private(set) var venues: [MeetingPlace] = []
     @Published private(set) var isLoading = false
+    @Published private(set) var errorMessage: String?
 
+    private let searcher: any VenueSearching
     private var lastCoordinateKey: String?
     private var requestID = UUID()
+
+    init(searcher: any VenueSearching = AppleMapsVenueSearcher()) {
+        self.searcher = searcher
+    }
 
     func load(around coordinate: CLLocationCoordinate2D) async {
         let coordinateKey = String(format: "%.4f:%.4f", coordinate.latitude, coordinate.longitude)
@@ -365,42 +432,29 @@ private final class NearbyVenueStore: ObservableObject {
         let currentRequestID = UUID()
         requestID = currentRequestID
         isLoading = true
+        errorMessage = nil
 
         var loadedVenues: [MeetingPlace] = []
-        for query in DiscoveryMapConfig.venueQueryTerms {
-            let request = MKLocalSearch.Request()
-            request.naturalLanguageQuery = query
-            request.region = MKCoordinateRegion(
-                center: coordinate,
-                latitudinalMeters: DiscoveryMapConfig.venueSearchRadiusM * 2,
-                longitudinalMeters: DiscoveryMapConfig.venueSearchRadiusM * 2
-            )
-            request.resultTypes = .pointOfInterest
-            request.pointOfInterestFilter = MKPointOfInterestFilter(
-                including: [.cafe, .restaurant]
-            )
-
-            if let response = try? await MKLocalSearch(request: request).start() {
-                loadedVenues.append(contentsOf: response.mapItems.compactMap(meetingPlace(from:)))
+        var successfulSearches = 0
+        let region = MKCoordinateRegion(
+            center: coordinate,
+            latitudinalMeters: VenueDiscoveryConfig.searchRadiusM * 2,
+            longitudinalMeters: VenueDiscoveryConfig.searchRadiusM * 2
+        )
+        for definition in VenueDiscoveryConfig.searches {
+            do {
+                loadedVenues.append(contentsOf: try await searcher.search(definition: definition, region: region))
+                successfulSearches += 1
+            } catch {
+                continue
             }
         }
 
         guard currentRequestID == requestID else { return }
-
-        let uniqueVenues = Dictionary(loadedVenues.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let origin = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        venues = Array(
-            uniqueVenues.values
-                .filter {
-                    origin.distance(from: CLLocation(latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude))
-                        <= DiscoveryMapConfig.venueSearchRadiusM
-                }
-                .sorted {
-                    origin.distance(from: CLLocation(latitude: $0.coordinate.latitude, longitude: $0.coordinate.longitude))
-                        < origin.distance(from: CLLocation(latitude: $1.coordinate.latitude, longitude: $1.coordinate.longitude))
-                }
-                .prefix(DiscoveryMapConfig.venueResultLimit)
-        )
+        venues = VenueResultProcessor.process(loadedVenues, around: coordinate)
+        if successfulSearches == 0 {
+            errorMessage = "Could not load meeting places. Move the map or try again."
+        }
         isLoading = false
     }
 
@@ -409,21 +463,16 @@ private final class NearbyVenueStore: ObservableObject {
         venues = []
         lastCoordinateKey = nil
         isLoading = false
-    }
-
-    private func meetingPlace(from item: MKMapItem) -> MeetingPlace? {
-        let name = item.name?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let address = item.placemark.title?.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let name, !name.isEmpty, let address, !address.isEmpty else { return nil }
-        return MeetingPlace(name: name, address: address, coordinate: item.placemark.coordinate)
+        errorMessage = nil
     }
 }
 
 private struct LAVenueMarker: View {
+    let category: MeetingPlaceCategory
     let isSelected: Bool
 
     var body: some View {
-        Image(systemName: "fork.knife")
+        Image(systemName: category.symbolName)
             .font(.caption.weight(.black))
             .foregroundStyle(.white)
             .frame(width: isSelected ? 40 : 34, height: isSelected ? 40 : 34)
@@ -440,7 +489,7 @@ private struct SelectedVenueCard: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "fork.knife")
+            Image(systemName: venue.category.symbolName)
                 .font(.caption.weight(.black))
                 .foregroundStyle(.white)
                 .frame(width: 36, height: 36)
@@ -455,6 +504,9 @@ private struct SelectedVenueCard: View {
                     .font(.subheadline.weight(.heavy))
                     .foregroundStyle(NOWColor.laBrown)
                     .lineLimit(1)
+                Text(venue.category.displayName)
+                    .font(.caption2.weight(.heavy))
+                    .foregroundStyle(NOWColor.laCoral)
                 Text(venue.address)
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(NOWColor.inkSoft)

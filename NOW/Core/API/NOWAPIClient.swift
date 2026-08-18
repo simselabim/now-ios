@@ -135,8 +135,17 @@ final class NOWAPIClient {
         try await send(path: "/discover/points/\(pointId.uuidString)")
     }
 
-    func likeProfile(_ profileId: UUID) async throws -> LikeProfileResponseDTO {
-        try await send(path: "/discover/profiles/\(profileId.uuidString)/like", method: "POST")
+    func likeProfile(
+        _ profileId: UUID,
+        meetingPlace: MeetingPlace?
+    ) async throws -> LikeProfileResponseDTO {
+        try await send(
+            path: "/discover/profiles/\(profileId.uuidString)/like",
+            method: "POST",
+            body: LikeProfileRequestDTO(
+                meetingPlace: meetingPlace.map(MeetingPlaceRequestDTO.init(place:))
+            )
+        )
     }
 
     func passProfile(_ profileId: UUID) async throws -> ProfileInteractionResponseDTO {

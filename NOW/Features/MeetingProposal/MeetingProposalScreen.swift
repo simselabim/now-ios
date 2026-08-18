@@ -143,7 +143,13 @@ struct MeetingProposalScreen: View {
             guard let proposal = appState.meetingProposal else { return }
             if let address = proposal.placeAddress, let coordinate = proposal.coordinate {
                 editedPlace = MeetingPlace(
+                    externalID: proposal.placeExternalID ?? MeetingPlace.legacyExternalID(
+                        name: proposal.placeName,
+                        address: address,
+                        coordinate: coordinate
+                    ),
                     name: proposal.placeName,
+                    category: proposal.placeCategory,
                     address: address,
                     coordinate: coordinate
                 )

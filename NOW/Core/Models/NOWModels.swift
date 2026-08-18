@@ -195,7 +195,9 @@ struct MeetingProposal: Identifiable {
     let id: UUID
     let matchId: UUID
     var proposerUserId: UUID?
+    var placeExternalID: String?
     var placeName: String
+    var placeCategory: MeetingPlaceCategory
     var placeAddress: String?
     var coordinate: CLLocationCoordinate2D?
     var proposedAt: Date?

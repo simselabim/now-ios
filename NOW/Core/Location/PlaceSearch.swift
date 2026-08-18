@@ -1,20 +1,153 @@
 import MapKit
 import SwiftUI
 
+enum MeetingPlaceCategory: String, Codable, CaseIterable, Sendable {
+    case cafe
+    case restaurant
+    case bar
+    case beach
+    case park
+    case shopping
+    case culture
+    case publicSpace = "public_space"
+    case other
+
+    var displayName: String {
+        switch self {
+        case .cafe: "Cafe"
+        case .restaurant: "Restaurant"
+        case .bar: "Bar"
+        case .beach: "Beach"
+        case .park: "Park"
+        case .shopping: "Shopping"
+        case .culture: "Culture"
+        case .publicSpace: "Public place"
+        case .other: "Place"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .cafe: "cup.and.saucer.fill"
+        case .restaurant: "fork.knife"
+        case .bar: "wineglass.fill"
+        case .beach: "beach.umbrella.fill"
+        case .park: "leaf.fill"
+        case .shopping: "bag.fill"
+        case .culture: "building.columns.fill"
+        case .publicSpace: "mappin.and.ellipse"
+        case .other: "mappin.circle.fill"
+        }
+    }
+}
+
+struct VenueSearchDefinition {
+    let query: String
+    let categories: [MKPointOfInterestCategory]
+}
+
+enum VenueDiscoveryConfig {
+    static let initialViewportSpanM: CLLocationDistance = 5_000
+    static let searchRadiusM: CLLocationDistance = 5_000
+    static let searchDebounceMilliseconds = 300
+    static let resultLimit = 30
+
+    static let searches: [VenueSearchDefinition] = [
+        VenueSearchDefinition(query: "Cafe", categories: [.cafe, .bakery]),
+        VenueSearchDefinition(query: "Restaurant", categories: [.restaurant, .foodMarket]),
+        VenueSearchDefinition(query: "Bar", categories: [.nightlife, .brewery, .winery]),
+        VenueSearchDefinition(query: "Beach", categories: [.beach, .marina]),
+        VenueSearchDefinition(query: "Park", categories: [.park, .nationalPark]),
+        VenueSearchDefinition(query: "Shopping mall", categories: [.store, .foodMarket]),
+        VenueSearchDefinition(
+            query: "Museum gallery attraction",
+            categories: [.museum, .theater, .movieTheater, .aquarium, .zoo, .amusementPark, .stadium]
+        ),
+        VenueSearchDefinition(query: "Public place", categories: [.library, .university])
+    ]
+
+    static var radiusLabel: String {
+        "\(Int(searchRadiusM / 1_000)) km"
+    }
+
+    static func category(for pointOfInterestCategory: MKPointOfInterestCategory?) -> MeetingPlaceCategory {
+        guard let pointOfInterestCategory else { return .other }
+
+        if [.cafe, .bakery].contains(pointOfInterestCategory) { return .cafe }
+        if [.restaurant, .foodMarket].contains(pointOfInterestCategory) { return .restaurant }
+        if [.nightlife, .brewery, .winery].contains(pointOfInterestCategory) { return .bar }
+        if [.beach, .marina].contains(pointOfInterestCategory) { return .beach }
+        if [.park, .nationalPark].contains(pointOfInterestCategory) { return .park }
+        if [.store].contains(pointOfInterestCategory) { return .shopping }
+        if [
+            .museum, .theater, .movieTheater, .aquarium, .zoo, .amusementPark, .stadium
+        ].contains(pointOfInterestCategory) {
+            return .culture
+        }
+        if [.library, .university].contains(pointOfInterestCategory) { return .publicSpace }
+        return .other
+    }
+}
+
 struct MeetingPlace: Equatable, Identifiable {
+    let externalID: String
     let name: String
+    let category: MeetingPlaceCategory
     let address: String
     let coordinate: CLLocationCoordinate2D
 
     var id: String {
-        "\(coordinate.latitude),\(coordinate.longitude),\(name)"
+        externalID
+    }
+
+    var deduplicationKey: String {
+        externalID.lowercased()
     }
 
     static func == (lhs: MeetingPlace, rhs: MeetingPlace) -> Bool {
-        lhs.name == rhs.name
+        lhs.externalID == rhs.externalID
+            && lhs.name == rhs.name
+            && lhs.category == rhs.category
             && lhs.address == rhs.address
             && lhs.coordinate.latitude == rhs.coordinate.latitude
             && lhs.coordinate.longitude == rhs.coordinate.longitude
+    }
+
+    static func from(_ item: MKMapItem) -> MeetingPlace? {
+        let name = item.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let address = item.placemark.title?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let name, !name.isEmpty, let address, !address.isEmpty else { return nil }
+
+        let coordinate = item.placemark.coordinate
+        let externalID: String
+        if #available(iOS 18.0, *), let appleMapsID = item.identifier?.rawValue {
+            externalID = appleMapsID
+        } else {
+            externalID = legacyExternalID(name: name, address: address, coordinate: coordinate)
+        }
+
+        return MeetingPlace(
+            externalID: externalID,
+            name: name,
+            category: VenueDiscoveryConfig.category(for: item.pointOfInterestCategory),
+            address: address,
+            coordinate: coordinate
+        )
+    }
+
+    static func legacyExternalID(
+        name: String,
+        address: String,
+        coordinate: CLLocationCoordinate2D
+    ) -> String {
+        let normalizedName = name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        _ = address
+        return String(
+            format: "legacy:%.6f:%.6f:%@",
+            coordinate.latitude,
+            coordinate.longitude,
+            normalizedName
+        )
     }
 }
 
@@ -46,7 +179,7 @@ private final class PlaceSearchService: NSObject, ObservableObject, MKLocalSearc
 
     private let completer = MKLocalSearchCompleter()
     private let searchRegion: MKCoordinateRegion?
-    private var hasLoadedNearbyCafes = false
+    private var hasLoadedNearbyPlaces = false
 
     init(regionCenter: CLLocationCoordinate2D?) {
         searchRegion = regionCenter.map {
@@ -64,15 +197,19 @@ private final class PlaceSearchService: NSObject, ObservableObject, MKLocalSearc
         }
     }
 
-    func loadNearbyCafes() async {
-        guard !hasLoadedNearbyCafes else { return }
-        hasLoadedNearbyCafes = true
-        await searchMap(for: "Cafe")
+    func loadNearbyPlaces() async {
+        guard !hasLoadedNearbyPlaces else { return }
+        hasLoadedNearbyPlaces = true
+        await searchSupportedPlaces()
     }
 
     func searchMapForCurrentQuery() async {
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        await searchMap(for: trimmedQuery.isEmpty ? "Cafe" : trimmedQuery)
+        if trimmedQuery.isEmpty {
+            await searchSupportedPlaces()
+        } else {
+            await searchMap(for: trimmedQuery)
+        }
     }
 
     func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
@@ -102,7 +239,7 @@ private final class PlaceSearchService: NSObject, ObservableObject, MKLocalSearc
                 return nil
             }
 
-            guard let place = meetingPlace(from: item) else {
+            guard let place = MeetingPlace.from(item) else {
                 errorMessage = "This place does not have a confirmed name and address."
                 return nil
             }
@@ -143,7 +280,7 @@ private final class PlaceSearchService: NSObject, ObservableObject, MKLocalSearc
             }
 
             let response = try await MKLocalSearch(request: request).start()
-            mapPlaces = Array(response.mapItems.compactMap(meetingPlace(from:)).prefix(20))
+            mapPlaces = Array(response.mapItems.compactMap(MeetingPlace.from).prefix(VenueDiscoveryConfig.resultLimit))
             if mapPlaces.isEmpty {
                 errorMessage = "No matching places found in this area."
             }
@@ -152,11 +289,37 @@ private final class PlaceSearchService: NSObject, ObservableObject, MKLocalSearc
         }
     }
 
-    private func meetingPlace(from item: MKMapItem) -> MeetingPlace? {
-        let name = item.name?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let address = item.placemark.title?.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let name, !name.isEmpty, let address, !address.isEmpty else { return nil }
-        return MeetingPlace(name: name, address: address, coordinate: item.placemark.coordinate)
+    private func searchSupportedPlaces() async {
+        isSearchingMap = true
+        errorMessage = nil
+        defer { isSearchingMap = false }
+
+        var places: [MeetingPlace] = []
+        var successfulSearches = 0
+        for definition in VenueDiscoveryConfig.searches {
+            do {
+                let request = MKLocalSearch.Request()
+                request.naturalLanguageQuery = definition.query
+                request.resultTypes = .pointOfInterest
+                request.pointOfInterestFilter = MKPointOfInterestFilter(including: definition.categories)
+                if let searchRegion {
+                    request.region = searchRegion
+                }
+                let response = try await MKLocalSearch(request: request).start()
+                successfulSearches += 1
+                places.append(contentsOf: response.mapItems.compactMap(MeetingPlace.from))
+            } catch {
+                continue
+            }
+        }
+
+        let unique = Dictionary(places.map { ($0.deduplicationKey, $0) }, uniquingKeysWith: { first, _ in first })
+        mapPlaces = Array(unique.values.prefix(VenueDiscoveryConfig.resultLimit))
+        if successfulSearches == 0 {
+            errorMessage = "Could not load places on the map. Try again."
+        } else if mapPlaces.isEmpty {
+            errorMessage = "No meeting places found in this area."
+        }
     }
 }
 
@@ -192,6 +355,9 @@ struct PlaceSearchField: View {
                         Text(selectedPlace.name)
                             .font(.subheadline.weight(.heavy))
                             .foregroundStyle(NOWColor.laBrown)
+                        Text(selectedPlace.category.displayName)
+                            .font(.caption2.weight(.heavy))
+                            .foregroundStyle(NOWColor.laCoral)
                         Text(selectedPlace.address)
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(NOWColor.inkSoft)
@@ -227,7 +393,7 @@ struct PlaceSearchField: View {
                 }
 
                 HStack {
-                    Text(search.query.isEmpty ? "Nearby cafes" : "Places on the map")
+                    Text(search.query.isEmpty ? "Nearby meeting places" : "Places on the map")
                         .font(.caption.weight(.heavy))
                         .foregroundStyle(NOWColor.laBrown)
                     Spacer()
@@ -243,7 +409,7 @@ struct PlaceSearchField: View {
                             Button {
                                 choose(place)
                             } label: {
-                                Image(systemName: "cup.and.saucer.fill")
+                                Image(systemName: place.category.symbolName)
                                     .font(.caption.weight(.black))
                                     .foregroundStyle(.white)
                                     .frame(width: 32, height: 32)
@@ -305,7 +471,7 @@ struct PlaceSearchField: View {
             }
         }
         .task {
-            await search.loadNearbyCafes()
+            await search.loadNearbyPlaces()
         }
     }
 

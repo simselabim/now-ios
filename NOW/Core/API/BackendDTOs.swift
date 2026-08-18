@@ -269,6 +269,28 @@ struct LikeProfileResponseDTO: Decodable {
     let matchItem: MatchDTO?
 }
 
+struct MeetingPlaceRequestDTO: Encodable {
+    let externalId: String
+    let name: String
+    let category: MeetingPlaceCategory
+    let address: String
+    let lat: Double
+    let lng: Double
+
+    init(place: MeetingPlace) {
+        externalId = place.externalID
+        name = place.name
+        category = place.category
+        address = place.address
+        lat = place.coordinate.latitude
+        lng = place.coordinate.longitude
+    }
+}
+
+struct LikeProfileRequestDTO: Encodable {
+    let meetingPlace: MeetingPlaceRequestDTO?
+}
+
 struct ActiveMatchResponseDTO: Decodable {
     let matchItem: MatchDTO?
 }
@@ -465,7 +487,9 @@ struct MessageDTO: Codable, Identifiable, Equatable {
 }
 
 struct CreateProposalRequestDTO: Encodable {
+    let placeExternalId: String
     let placeName: String
+    let placeCategory: MeetingPlaceCategory
     let placeAddress: String
     let placeLat: Double?
     let placeLng: Double?
@@ -488,7 +512,9 @@ struct MeetingProposalDTO: Codable, Identifiable, Equatable {
     let id: UUID
     let matchId: UUID
     let proposerUserId: UUID
+    let placeExternalId: String?
     let placeName: String
+    let placeCategory: MeetingPlaceCategory?
     let placeAddress: String?
     let placeLat: Double?
     let placeLng: Double?
