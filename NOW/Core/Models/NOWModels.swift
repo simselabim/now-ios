@@ -149,7 +149,7 @@ struct UserProfile: Identifiable, Equatable {
     }
 }
 
-struct TodayIntent {
+struct TodayIntent: Equatable {
     var plans: Set<Plan> = []
     var intents: Set<Intent> = []
     var timeWindows: Set<TimeWindow> = []

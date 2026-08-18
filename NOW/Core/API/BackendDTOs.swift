@@ -1,5 +1,28 @@
 import Foundation
 
+@propertyWrapper
+struct ArrayOrSingle<Value: Codable & Equatable>: Codable, Equatable {
+    var wrappedValue: [Value]
+
+    init(wrappedValue: [Value]) {
+        self.wrappedValue = wrappedValue
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let values = try? container.decode([Value].self) {
+            wrappedValue = values
+        } else {
+            wrappedValue = [try container.decode(Value.self)]
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(wrappedValue)
+    }
+}
+
 struct AuthRequest: Encodable {
     let email: String
     let password: String
@@ -186,9 +209,9 @@ struct TodayIntentDTO: Codable, Identifiable, Equatable {
     let id: UUID
     let userId: UUID
     let intentDate: String
-    let plans: [PlanDTO]
-    let intents: [IntentDTO]
-    let timesToday: [TimeTodayDTO]
+    @ArrayOrSingle var plans: [PlanDTO]
+    @ArrayOrSingle var intents: [IntentDTO]
+    @ArrayOrSingle var timesToday: [TimeTodayDTO]
     let createdAt: String
     let updatedAt: String
 }
@@ -238,9 +261,9 @@ struct MapPointDTO: Codable, Identifiable, Equatable {
     let userId: UUID
     let displayName: String
     let mainPhotoStorageKey: String?
-    let plans: [PlanDTO]
-    let intents: [IntentDTO]
-    let timesToday: [TimeTodayDTO]
+    @ArrayOrSingle var plans: [PlanDTO]
+    @ArrayOrSingle var intents: [IntentDTO]
+    @ArrayOrSingle var timesToday: [TimeTodayDTO]
     let lat: Double
     let lng: Double
     let distanceM: Int

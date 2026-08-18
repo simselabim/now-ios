@@ -75,6 +75,76 @@ final class AuthenticationFormValidationTests: XCTestCase {
     }
 }
 
+final class TodayIntentSelectionTests: XCTestCase {
+    func testGoOnlineIsEnabledWithNoSelections() {
+        XCTAssertTrue(GoOnlineActionPolicy.isEnabled(isLoading: false))
+        XCTAssertFalse(GoOnlineActionPolicy.isEnabled(isLoading: true))
+    }
+
+    func testVoiceOverReportsSelectionState() {
+        XCTAssertEqual(IntentOptionAccessibility.value(isSelected: true), "Selected")
+        XCTAssertEqual(IntentOptionAccessibility.value(isSelected: false), "Not selected")
+    }
+
+    func testEveryCategorySupportsZeroThroughThreeSelections() {
+        var plans = Set<Plan>()
+        var intents = Set<Intent>()
+        var times = Set<TimeWindow>()
+
+        for (index, plan) in Plan.goOnlineOptions.enumerated() {
+            plans.toggleMembership(of: plan)
+            XCTAssertEqual(plans.count, index + 1)
+        }
+        for (index, intent) in Intent.goOnlineOptions.enumerated() {
+            intents.toggleMembership(of: intent)
+            XCTAssertEqual(intents.count, index + 1)
+        }
+        for (index, time) in TimeWindow.goOnlineOptions.enumerated() {
+            times.toggleMembership(of: time)
+            XCTAssertEqual(times.count, index + 1)
+        }
+
+        Plan.goOnlineOptions.forEach { plans.toggleMembership(of: $0) }
+        Intent.goOnlineOptions.forEach { intents.toggleMembership(of: $0) }
+        TimeWindow.goOnlineOptions.forEach { times.toggleMembership(of: $0) }
+        XCTAssertTrue(plans.isEmpty)
+        XCTAssertTrue(intents.isEmpty)
+        XCTAssertTrue(times.isEmpty)
+    }
+
+    func testAllNineSelectionsAndRestoredIntentArePreserved() {
+        let allSelected = TodayIntent(
+            plans: Set(Plan.goOnlineOptions),
+            intents: Set(Intent.goOnlineOptions),
+            timeWindows: Set(TimeWindow.goOnlineOptions)
+        )
+        let restored = TodayIntent(
+            plans: allSelected.plans,
+            intents: allSelected.intents,
+            timeWindows: allSelected.timeWindows
+        )
+
+        XCTAssertEqual(allSelected.plans.count, 3)
+        XCTAssertEqual(allSelected.intents.count, 3)
+        XCTAssertEqual(allSelected.timeWindows.count, 3)
+        XCTAssertEqual(restored, allSelected)
+    }
+
+    func testLegacySingleValuesDecodeAsOneElementArrays() throws {
+        let data = Data(
+            #"{"id":"11111111-1111-1111-1111-111111111111","user_id":"22222222-2222-2222-2222-222222222222","intent_date":"2026-08-18","plans":"coffee","intents":"friendly","times_today":"now","created_at":"2026-08-18T00:00:00Z","updated_at":"2026-08-18T00:00:00Z"}"#.utf8
+        )
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let decoded = try decoder.decode(TodayIntentDTO.self, from: data)
+
+        XCTAssertEqual(decoded.plans, [.coffee])
+        XCTAssertEqual(decoded.intents, [.friendly])
+        XCTAssertEqual(decoded.timesToday, [.now])
+    }
+}
+
 final class MeetingModeChatTests: XCTestCase {
     func testMessageTimelineDeduplicatesAndSortsChronologically() {
         let firstID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!

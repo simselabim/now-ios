@@ -2,9 +2,7 @@ import SwiftUI
 
 struct GoOnlineScreen: View {
     @EnvironmentObject private var appState: AppState
-    @State private var selectedPlans: Set<Plan> = []
-    @State private var selectedIntents: Set<Intent> = []
-    @State private var selectedTimeWindows: Set<TimeWindow> = []
+    @State private var selection = TodayIntent()
 
     var body: some View {
         ScrollView {
@@ -29,9 +27,9 @@ struct GoOnlineScreen: View {
                         .foregroundStyle(NOWColor.inkSoft)
                 }
 
-                CompactIntentPicker(title: "Plan", selection: $selectedPlans, values: Plan.goOnlineOptions) { $0.goOnlineLabel }
-                CompactIntentPicker(title: "Connection", selection: $selectedIntents, values: Intent.goOnlineOptions) { $0.rawValue }
-                CompactIntentPicker(title: "When today", selection: $selectedTimeWindows, values: TimeWindow.goOnlineOptions) { $0.rawValue }
+                CompactIntentPicker(title: "Plan", selection: $selection.plans, values: Plan.goOnlineOptions) { $0.goOnlineLabel }
+                CompactIntentPicker(title: "Connection", selection: $selection.intents, values: Intent.goOnlineOptions) { $0.rawValue }
+                CompactIntentPicker(title: "When today", selection: $selection.timeWindows, values: TimeWindow.goOnlineOptions) { $0.rawValue }
 
                 if let error = appState.errorMessage {
                     Text(error)
@@ -46,7 +44,7 @@ struct GoOnlineScreen: View {
                 Button(appState.isLoading ? "Going online..." : "Go online") {
                     goOnline()
                 }
-                .disabled(appState.isLoading)
+                .disabled(!GoOnlineActionPolicy.isEnabled(isLoading: appState.isLoading))
                 .buttonStyle(PrimaryButtonStyle())
                 .overlay {
                     if appState.isLoading {
@@ -69,19 +67,25 @@ struct GoOnlineScreen: View {
         .background(NOWColor.laCream.ignoresSafeArea())
         .overlay(alignment: .top) { LATopStripe() }
         .onAppear {
-            selectedPlans = appState.todayIntent.plans
-            selectedIntents = appState.todayIntent.intents
-            selectedTimeWindows = appState.todayIntent.timeWindows
+            selection = appState.todayIntent
         }
     }
 
     private func goOnline() {
-        appState.todayIntent = TodayIntent(
-            plans: selectedPlans,
-            intents: selectedIntents,
-            timeWindows: selectedTimeWindows
-        )
+        appState.todayIntent = selection
         appState.goOnline()
+    }
+}
+
+enum GoOnlineActionPolicy {
+    static func isEnabled(isLoading: Bool) -> Bool {
+        !isLoading
+    }
+}
+
+enum IntentOptionAccessibility {
+    static func value(isSelected: Bool) -> String {
+        isSelected ? "Selected" : "Not selected"
     }
 }
 
@@ -118,11 +122,7 @@ private struct CompactFlowLayout<T: RawRepresentable & Identifiable & Hashable>:
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 7), count: 3), spacing: 7) {
             ForEach(values) { value in
                 Button(label(value)) {
-                    if selection.contains(value) {
-                        selection.remove(value)
-                    } else {
-                        selection.insert(value)
-                    }
+                    selection.toggleMembership(of: value)
                 }
                 .font(.caption.weight(.bold))
                 .padding(.vertical, 8)
@@ -131,9 +131,21 @@ private struct CompactFlowLayout<T: RawRepresentable & Identifiable & Hashable>:
                 .background(selection.contains(value) ? NOWColor.laCoral : NOWColor.paper)
                 .clipShape(Capsule())
                 .accessibilityLabel(label(value))
-                .accessibilityValue(selection.contains(value) ? "Selected" : "Not selected")
+                .accessibilityValue(
+                    IntentOptionAccessibility.value(isSelected: selection.contains(value))
+                )
                 .accessibilityAddTraits(selection.contains(value) ? .isSelected : [])
             }
+        }
+    }
+}
+
+extension Set {
+    mutating func toggleMembership(of value: Element) {
+        if contains(value) {
+            remove(value)
+        } else {
+            insert(value)
         }
     }
 }
