@@ -488,7 +488,7 @@ final class AppState: ObservableObject {
     func acceptMeetingProposal() {
         guard let proposal = meetingProposal else { return }
 
-        if let currentUserId, proposal.proposerUserId == currentUserId {
+        guard proposal.canBeAccepted(by: currentUserId) else {
             errorMessage = "Waiting for the other person to accept."
             return
         }
@@ -1611,6 +1611,7 @@ final class AppState: ObservableObject {
             id: dto.id,
             matchId: dto.matchId,
             proposerUserId: dto.proposerUserId,
+            version: dto.version,
             placeExternalID: dto.placeExternalId,
             placeName: dto.placeName,
             placeCategory: dto.placeCategory ?? .other,

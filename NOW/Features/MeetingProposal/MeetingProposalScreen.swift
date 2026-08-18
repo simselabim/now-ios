@@ -8,12 +8,11 @@ struct MeetingProposalScreen: View {
     @State private var editedTime = Date().addingTimeInterval(30 * 60)
 
     private var isMyProposal: Bool {
-        guard let currentUserId = appState.currentUserId,
-              let proposerUserId = appState.meetingProposal?.proposerUserId else {
-            return false
-        }
+        appState.meetingProposal?.isAuthored(by: appState.currentUserId) == true
+    }
 
-        return currentUserId == proposerUserId
+    private var canAcceptProposal: Bool {
+        appState.meetingProposal?.canBeAccepted(by: appState.currentUserId) == true
     }
 
     var body: some View {
@@ -87,7 +86,7 @@ struct MeetingProposalScreen: View {
                     }
                 }
 
-                if isMyProposal {
+                if appState.meetingProposal?.status == .pending, isMyProposal {
                     NOWInfoCard {
                         Text("Waiting for them.")
                             .font(.headline.weight(.black))
@@ -96,7 +95,7 @@ struct MeetingProposalScreen: View {
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(NOWColor.inkSoft)
                     }
-                } else {
+                } else if canAcceptProposal {
                     Button("Accept meeting") {
                         appState.acceptMeetingProposal()
                     }
@@ -104,7 +103,7 @@ struct MeetingProposalScreen: View {
                     .buttonStyle(PrimaryButtonStyle())
                 }
 
-                if isEditingProposal {
+                if appState.meetingProposal?.status == .pending, isEditingProposal {
                     VStack(alignment: .leading, spacing: 10) {
                         PlaceSearchField(
                             selectedPlace: $editedPlace,
@@ -124,10 +123,11 @@ struct MeetingProposalScreen: View {
                         .disabled(editedPlace == nil || appState.isLoading)
                         .buttonStyle(PrimaryButtonStyle())
                     }
-                } else {
+                } else if appState.meetingProposal?.status == .pending {
                     Button("Suggest another place") {
                         isEditingProposal = true
                     }
+                    .disabled(appState.isLoading)
                     .buttonStyle(SecondaryButtonStyle())
                 }
 

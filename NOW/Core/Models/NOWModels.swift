@@ -217,6 +217,7 @@ struct MeetingProposal: Identifiable {
     let id: UUID
     let matchId: UUID
     var proposerUserId: UUID?
+    let version: Int
     var placeExternalID: String?
     var placeName: String
     var placeCategory: MeetingPlaceCategory
@@ -226,6 +227,16 @@ struct MeetingProposal: Identifiable {
     var time: String
     var dateLabel: String
     var status: MeetingProposalStatus
+
+    func isAuthored(by userId: UUID?) -> Bool {
+        guard let userId, let proposerUserId else { return false }
+        return userId == proposerUserId
+    }
+
+    func canBeAccepted(by userId: UUID?) -> Bool {
+        guard status == .pending, let userId, let proposerUserId else { return false }
+        return userId != proposerUserId
+    }
 }
 
 struct PartnerMeetingLocation {

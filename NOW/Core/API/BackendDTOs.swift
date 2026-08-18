@@ -512,6 +512,7 @@ struct MeetingProposalDTO: Codable, Identifiable, Equatable {
     let id: UUID
     let matchId: UUID
     let proposerUserId: UUID
+    let version: Int
     let placeExternalId: String?
     let placeName: String
     let placeCategory: MeetingPlaceCategory?
