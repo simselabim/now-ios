@@ -1,7 +1,7 @@
 import CoreLocation
 import SwiftUI
 
-private enum ChatFeatureAvailability {
+enum ChatFeatureAvailability {
     static let tomorrowExtension = false
 }
 

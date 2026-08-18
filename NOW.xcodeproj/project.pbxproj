@@ -36,6 +36,7 @@
 		100000000000000000000121 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000223 /* LocationService.swift */; };
 		100000000000000000000122 /* PlaceSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000224 /* PlaceSearch.swift */; };
 		1D35E9D1D99477125BF88484 /* DiscoveryMapNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1DA24A812910AFEB97A5A8B /* DiscoveryMapNavigationTests.swift */; };
+		A23800000000000000000001 /* ChatFeatureAvailabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A23800000000000000000002 /* ChatFeatureAvailabilityTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -80,6 +81,7 @@
 		100000000000000000000223 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
 		100000000000000000000224 /* PlaceSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceSearch.swift; sourceTree = "<group>"; };
 		C1DA24A812910AFEB97A5A8B /* DiscoveryMapNavigationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DiscoveryMapNavigationTests.swift; sourceTree = "<group>"; };
+		A23800000000000000000002 /* ChatFeatureAvailabilityTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatFeatureAvailabilityTests.swift; sourceTree = "<group>"; };
 		FBB67CC14449612E3A6AB838 /* NOWTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NOWTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -334,6 +336,7 @@
 		2CE00F4F7552A8AA256AE52A /* NOWTests */ = {
 			isa = PBXGroup;
 			children = (
+				A23800000000000000000002 /* ChatFeatureAvailabilityTests.swift */,
 				C1DA24A812910AFEB97A5A8B /* DiscoveryMapNavigationTests.swift */,
 			);
 			path = NOWTests;
@@ -441,6 +444,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A23800000000000000000001 /* ChatFeatureAvailabilityTests.swift in Sources */,
 				1D35E9D1D99477125BF88484 /* DiscoveryMapNavigationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
