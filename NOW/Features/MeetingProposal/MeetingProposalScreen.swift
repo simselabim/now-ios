@@ -76,13 +76,15 @@ struct MeetingProposalScreen: View {
                     }
                 }
 
-                NOWInfoCard {
-                    Text("Use NOW confirmation for place and time.")
-                        .font(.headline.weight(.black))
-                        .foregroundStyle(NOWColor.laBrown)
-                    Text("It keeps the plan visible, clear, and easier to leave if anything feels off.")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(NOWColor.inkSoft)
+                if ProductFeatureAvailability.meetingProposalNowConfirmation {
+                    NOWInfoCard {
+                        Text("Use NOW confirmation for place and time.")
+                            .font(.headline.weight(.black))
+                            .foregroundStyle(NOWColor.laBrown)
+                        Text("It keeps the plan visible, clear, and easier to leave if anything feels off.")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(NOWColor.inkSoft)
+                    }
                 }
 
                 if isMyProposal {

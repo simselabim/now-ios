@@ -1,8 +1,12 @@
 import XCTest
 @testable import NOW
 
-final class ChatFeatureAvailabilityTests: XCTestCase {
+final class ProductFeatureAvailabilityTests: XCTestCase {
     func testTomorrowExtensionIsHiddenFromMatchScreen() {
-        XCTAssertFalse(ChatFeatureAvailability.tomorrowExtension)
+        XCTAssertFalse(ProductFeatureAvailability.tomorrowExtension)
+    }
+
+    func testNowConfirmationIsHiddenFromMeetingProposalScreen() {
+        XCTAssertFalse(ProductFeatureAvailability.meetingProposalNowConfirmation)
     }
 }
