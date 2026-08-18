@@ -28,6 +28,9 @@ final class AppState: ObservableObject {
     @Published private(set) var myFirstLoopURL: URL?
     @Published private(set) var theirFirstLoopURL: URL?
     @Published var messages: [Message] = []
+    @Published var chatDraft = ""
+    @Published private(set) var isSendingMessage = false
+    @Published private(set) var messageSendError: String?
     @Published var meetingProposal: MeetingProposal?
     @Published private(set) var otherMeetingLocation: PartnerMeetingLocation?
     @Published private(set) var meetingLocationConfig: MeetingLocationConfig?
@@ -51,6 +54,7 @@ final class AppState: ObservableObject {
     private var lastRealtimeVersion: UInt64?
     private var profilePreviewRequestID: UUID?
     private var reopeningMatchID: UUID?
+    private var failedMessageText: String?
 
     init(apiClient: NOWAPIClient = NOWAPIClient()) {
         self.apiClient = apiClient
@@ -408,11 +412,16 @@ final class AppState: ObservableObject {
 
     func sendMessage(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard chatUnlocked, !trimmed.isEmpty else { return }
+        guard chatUnlocked, !trimmed.isEmpty, !isSendingMessage else { return }
 
         Task {
             await sendMessageWithBackend(trimmed)
         }
+    }
+
+    func retryFailedMessage() {
+        guard let failedMessageText else { return }
+        sendMessage(failedMessageText)
     }
 
     func requestTomorrowExtension() {
@@ -893,14 +902,14 @@ final class AppState: ObservableObject {
         selectedPoint = nil
         isOnline = false
         errorMessage = nil
-        messages = detail.messages.map { message in
+        messages = MessageTimeline.normalized(detail.messages.map { message in
             Message(
                 id: message.id,
                 sender: message.senderUserId == detail.matchItem.otherUserId ? .them : .me,
                 text: message.body,
                 createdAt: date(from: message.createdAt)
             )
-        }
+        })
         if let proposal = detail.latestMeetingProposal {
             meetingProposal = mapMeetingProposal(proposal)
         } else {
@@ -934,6 +943,10 @@ final class AppState: ObservableObject {
         meetingLocationConfig = nil
         meetingLocationError = nil
         messages = []
+        chatDraft = ""
+        isSendingMessage = false
+        messageSendError = nil
+        failedMessageText = nil
         history = []
         safetyMessage = nil
     }
@@ -1206,19 +1219,35 @@ final class AppState: ObservableObject {
     private func sendMessageWithBackend(_ text: String) async {
         guard let match = activeMatch else { return }
 
-        await runLoading {
-            do {
-                let response = try await self.apiClient.sendMessage(matchId: match.id, body: text)
-                self.messages.append(
+        isSendingMessage = true
+        messageSendError = nil
+        failedMessageText = nil
+        defer { isSendingMessage = false }
+
+        do {
+            let response = try await apiClient.sendMessage(matchId: match.id, body: text)
+            messages = MessageTimeline.normalized(
+                messages + [
                     Message(
                         id: response.message.id,
                         sender: .me,
                         text: response.message.body,
-                        createdAt: self.date(from: response.message.createdAt)
+                        createdAt: date(from: response.message.createdAt)
                     )
-                )
-            } catch {
-                self.errorMessage = "Message was not sent. Please try again."
+                ]
+            )
+            if chatDraft.trimmingCharacters(in: .whitespacesAndNewlines) == text {
+                chatDraft = ""
+            }
+        } catch {
+            failedMessageText = text
+            if chatDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                chatDraft = text
+            }
+            if case let APIError.server(_, message) = error, let message, !message.isEmpty {
+                messageSendError = message
+            } else {
+                messageSendError = "Message was not sent. Check your connection and try again."
             }
         }
     }

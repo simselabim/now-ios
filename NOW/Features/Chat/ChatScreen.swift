@@ -3,7 +3,6 @@ import SwiftUI
 
 struct ChatScreen: View {
     @EnvironmentObject private var appState: AppState
-    @State private var draft = ""
     @State private var meetingPlace: MeetingPlace?
     @State private var meetingTime = Date().addingTimeInterval(30 * 60)
 
@@ -56,23 +55,7 @@ struct ChatScreen: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
-                        HStack(alignment: .top, spacing: 16) {
-                            LoopSlot(
-                                url: appState.myFirstLoopURL,
-                                label: "You",
-                                sender: .me
-                            )
-                            LoopSlot(
-                                url: appState.theirFirstLoopURL,
-                                label: appState.activeMatch?.profile.name ?? "Them",
-                                sender: .them
-                            )
-                        }
-                        .frame(maxWidth: .infinity)
-
-                        ForEach(appState.messages) { message in
-                            Bubble(text: message.text, sender: message.sender)
-                        }
+                        MatchChatTranscript()
 
                         if ProductFeatureAvailability.tomorrowExtension,
                            let match = appState.activeMatch {
@@ -98,29 +81,7 @@ struct ChatScreen: View {
                     .padding(.vertical, 8)
                 }
 
-                HStack(spacing: 10) {
-                    TextField("Message...", text: $draft)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(NOWColor.laBrown)
-                        .padding(.horizontal, 16)
-                        .frame(height: 48)
-                        .background(NOWColor.surface)
-                        .clipShape(Capsule())
-                        .overlay(Capsule().stroke(NOWColor.line, lineWidth: 1))
-
-                    Button {
-                        appState.sendMessage(draft)
-                        draft = ""
-                    } label: {
-                        Image(systemName: "arrow.up")
-                            .font(.headline.weight(.black))
-                            .foregroundStyle(NOWColor.surface)
-                            .frame(width: 48, height: 48)
-                            .background(NOWColor.laBrown)
-                            .clipShape(Circle())
-                    }
-                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
+                ChatMessageComposer()
             }
             .padding(14)
         }
@@ -129,6 +90,123 @@ struct ChatScreen: View {
                 meetingPlace = appState.preferredMeetingPlace
             }
         }
+    }
+}
+
+struct MatchChatTranscript: View {
+    @EnvironmentObject private var appState: AppState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 16) {
+                LoopSlot(
+                    url: appState.myFirstLoopURL,
+                    label: "You",
+                    sender: .me
+                )
+                LoopSlot(
+                    url: appState.theirFirstLoopURL,
+                    label: appState.activeMatch?.profile.name ?? "Them",
+                    sender: .them
+                )
+            }
+            .frame(maxWidth: .infinity)
+
+            if appState.messages.isEmpty, appState.isLoading {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("Loading chat…")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(NOWColor.inkSoft)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 8)
+            } else if appState.messages.isEmpty {
+                Text("Your chat starts here.")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(NOWColor.inkSoft)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 8)
+            }
+
+            ForEach(appState.messages) { message in
+                Bubble(text: message.text, sender: message.sender)
+                    .id(message.id)
+            }
+        }
+    }
+}
+
+struct ChatMessageComposer: View {
+    @EnvironmentObject private var appState: AppState
+    @FocusState private var isFocused: Bool
+    var onFocusChange: (Bool) -> Void = { _ in }
+
+    private var trimmedDraft: String {
+        appState.chatDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let error = appState.messageSendError {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(error)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(NOWColor.laCoral)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button("Retry") {
+                        appState.retryFailedMessage()
+                    }
+                    .font(.caption.weight(.heavy))
+                    .foregroundStyle(NOWColor.laCoral)
+                    .disabled(appState.isSendingMessage)
+                }
+            }
+
+            HStack(spacing: 10) {
+                TextField("Message...", text: $appState.chatDraft, axis: .vertical)
+                    .focused($isFocused)
+                    .lineLimit(1...4)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(NOWColor.laBrown)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(NOWColor.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .stroke(NOWColor.line, lineWidth: 1)
+                    )
+                    .submitLabel(.send)
+                    .onSubmit(send)
+
+                Button(action: send) {
+                    Group {
+                        if appState.isSendingMessage {
+                            ProgressView()
+                                .tint(NOWColor.surface)
+                        } else {
+                            Image(systemName: "arrow.up")
+                                .font(.headline.weight(.black))
+                        }
+                    }
+                    .foregroundStyle(NOWColor.surface)
+                    .frame(width: 48, height: 48)
+                    .background(NOWColor.laBrown)
+                    .clipShape(Circle())
+                }
+                .disabled(trimmedDraft.isEmpty || appState.isSendingMessage)
+                .accessibilityLabel(appState.isSendingMessage ? "Sending message" : "Send message")
+            }
+        }
+        .onChange(of: isFocused) { _, focused in
+            onFocusChange(focused)
+        }
+    }
+
+    private func send() {
+        guard !trimmedDraft.isEmpty else { return }
+        appState.sendMessage(trimmedDraft)
     }
 }
 

@@ -4,13 +4,14 @@ import SwiftUI
 struct MeetingModeScreen: View {
     @EnvironmentObject private var appState: AppState
     @State private var cameraPosition: MapCameraPosition = .automatic
-    @State private var showSafetyConfirmation = false
     @State private var walkingRoute: MKRoute?
     @State private var isLoadingRoute = false
     @State private var routeErrorMessage: String?
     @State private var routeRefreshToken = UUID()
     @State private var staleCheckDate = Date()
     @State private var didFitPartnerLocation = false
+    @State private var panelHeight: CGFloat = 0
+    @State private var panelDragStartHeight: CGFloat?
 
     private var visiblePartnerLocation: PartnerMeetingLocation? {
         guard let location = appState.otherMeetingLocation,
@@ -52,7 +53,8 @@ struct MeetingModeScreen: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        GeometryReader { geometry in
+            ZStack(alignment: .bottom) {
             Map(position: $cameraPosition, interactionModes: [.pan, .zoom]) {
                 if let walkingRoute {
                     MapPolyline(walkingRoute.polyline)
@@ -123,11 +125,13 @@ struct MeetingModeScreen: View {
                 Spacer()
             }
 
-            VStack(spacing: 12) {
+            VStack(spacing: 10) {
                 Capsule()
                     .fill(NOWColor.line)
                     .frame(width: 42, height: 4)
                     .padding(.top, 10)
+                    .contentShape(Rectangle().inset(by: -12))
+                    .gesture(panelDragGesture(containerHeight: geometry.size.height))
 
                 HStack(spacing: 12) {
                     Image(systemName: "mappin.and.ellipse")
@@ -164,32 +168,37 @@ struct MeetingModeScreen: View {
                     errorMessage: appState.meetingLocationError
                 )
 
-                HStack(spacing: 8) {
-                    MeetingStatusButton(title: "On my way", active: appState.activeMatch?.meetingStatus == .onMyWay, disabled: appState.isLoading) {
-                        appState.updateMeetingStatus(.onMyWay)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        MatchChatTranscript()
+                            .padding(.vertical, 4)
+                        Color.clear
+                            .frame(height: 1)
+                            .id(MeetingModeChatAnchor.bottom)
                     }
-                    MeetingStatusButton(title: "Arrived", active: appState.activeMatch?.meetingStatus == .arrived, disabled: appState.isLoading) {
-                        appState.updateMeetingStatus(.arrived)
+                    .scrollDismissesKeyboard(.interactively)
+                    .onAppear {
+                        scrollChatToBottom(proxy, animated: false)
                     }
-                    MeetingStatusButton(title: "Delayed", active: appState.activeMatch?.meetingStatus == .delayed, disabled: appState.isLoading) {
-                        appState.updateMeetingStatus(.delayed)
+                    .onChange(of: appState.messages.map(\.id)) { _, _ in
+                        scrollChatToBottom(proxy, animated: true)
+                    }
+                    .onChange(of: appState.isSendingMessage) { _, sending in
+                        if !sending {
+                            scrollChatToBottom(proxy, animated: true)
+                        }
                     }
                 }
+                .frame(maxHeight: .infinity)
 
-                HStack(spacing: 8) {
-                    MeetingStatusButton(title: "Save my location", active: false, disabled: appState.isLoading) {
-                        appState.saveMeetingLocation()
+                ChatMessageComposer { focused in
+                    if focused {
+                        withAnimation(.easeOut(duration: 0.22)) {
+                            panelHeight = MeetingChatPanelMetrics.expandedHeight(
+                                containerHeight: geometry.size.height
+                            )
+                        }
                     }
-                    MeetingStatusButton(title: "Safety alert", active: false, disabled: appState.isLoading, danger: true) {
-                        showSafetyConfirmation = true
-                    }
-                }
-
-                if let safetyMessage = appState.safetyMessage {
-                    Text(safetyMessage)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(NOWColor.inkSoft)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 Button("We met ✓") {
@@ -197,19 +206,27 @@ struct MeetingModeScreen: View {
                 }
                 .disabled(appState.isLoading)
                 .buttonStyle(PrimaryButtonStyle())
+                .frame(height: 48)
             }
             .padding(14)
+            .frame(height: effectivePanelHeight(containerHeight: geometry.size.height))
             .background(NOWColor.surface)
             .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
             .shadow(color: NOWColor.ink.opacity(0.14), radius: 22, x: 0, y: -8)
-        }
-        .alert("Record a safety alert?", isPresented: $showSafetyConfirmation) {
-            Button("Cancel", role: .cancel) {}
-            Button("Record alert", role: .destructive) {
-                appState.triggerSafetyAlert()
+            .onAppear {
+                if panelHeight == 0 {
+                    panelHeight = MeetingChatPanelMetrics.defaultHeight(
+                        containerHeight: geometry.size.height
+                    )
+                }
             }
-        } message: {
-            Text("NOW will record this alert on the backend. This does not contact emergency services.")
+            .onChange(of: geometry.size.height) { _, newHeight in
+                panelHeight = MeetingChatPanelMetrics.clampedHeight(
+                    panelHeight,
+                    containerHeight: newHeight
+                )
+            }
+            }
         }
         .task(id: routeTaskID) {
             await loadWalkingRoute()
@@ -227,6 +244,43 @@ struct MeetingModeScreen: View {
             guard newValue != nil, !didFitPartnerLocation else { return }
             didFitPartnerLocation = true
             fitCameraToMeeting()
+        }
+    }
+
+    private func effectivePanelHeight(containerHeight: CGFloat) -> CGFloat {
+        let requestedHeight = panelHeight == 0
+            ? MeetingChatPanelMetrics.defaultHeight(containerHeight: containerHeight)
+            : panelHeight
+        return MeetingChatPanelMetrics.clampedHeight(
+            requestedHeight,
+            containerHeight: containerHeight
+        )
+    }
+
+    private func panelDragGesture(containerHeight: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 4)
+            .onChanged { value in
+                let startHeight = panelDragStartHeight
+                    ?? effectivePanelHeight(containerHeight: containerHeight)
+                panelDragStartHeight = startHeight
+                panelHeight = MeetingChatPanelMetrics.clampedHeight(
+                    startHeight - value.translation.height,
+                    containerHeight: containerHeight
+                )
+            }
+            .onEnded { _ in
+                panelDragStartHeight = nil
+            }
+    }
+
+    private func scrollChatToBottom(_ proxy: ScrollViewProxy, animated: Bool) {
+        let scroll = {
+            proxy.scrollTo(MeetingModeChatAnchor.bottom, anchor: .bottom)
+        }
+        if animated {
+            withAnimation(.easeOut(duration: 0.2), scroll)
+        } else {
+            scroll()
         }
     }
 
@@ -315,6 +369,30 @@ struct MeetingModeScreen: View {
     private func mapRect(for coordinate: CLLocationCoordinate2D) -> MKMapRect {
         let point = MKMapPoint(coordinate)
         return MKMapRect(x: point.x, y: point.y, width: 1, height: 1)
+    }
+}
+
+enum MeetingModeChatAnchor {
+    static let bottom = "meeting-mode-chat-bottom"
+}
+
+enum MeetingChatPanelMetrics {
+    static let minimumHeight: CGFloat = 390
+
+    static func maximumHeight(containerHeight: CGFloat) -> CGFloat {
+        max(minimumHeight, containerHeight * 0.84)
+    }
+
+    static func defaultHeight(containerHeight: CGFloat) -> CGFloat {
+        clampedHeight(containerHeight * 0.64, containerHeight: containerHeight)
+    }
+
+    static func expandedHeight(containerHeight: CGFloat) -> CGFloat {
+        maximumHeight(containerHeight: containerHeight)
+    }
+
+    static func clampedHeight(_ height: CGFloat, containerHeight: CGFloat) -> CGFloat {
+        min(max(height, minimumHeight), maximumHeight(containerHeight: containerHeight))
     }
 }
 
@@ -432,28 +510,5 @@ private struct MeetingAvatar: View {
                 .background(NOWColor.laBrownSoft.opacity(0.9))
                 .clipShape(Capsule())
         }
-    }
-}
-
-private struct MeetingStatusButton: View {
-    let title: String
-    let active: Bool
-    var disabled = false
-    var danger = false
-    let action: () -> Void
-
-    var body: some View {
-        Button(title, action: action)
-            .disabled(disabled)
-            .font(.caption.weight(.heavy))
-            .foregroundStyle(danger ? NOWColor.laCoral : NOWColor.laBrown)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 11)
-            .background(active ? NOWColor.laGold.opacity(0.52) : NOWColor.surface.opacity(disabled ? 0.62 : 1))
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(danger ? NOWColor.laCoral : NOWColor.line, lineWidth: 1)
-            )
     }
 }

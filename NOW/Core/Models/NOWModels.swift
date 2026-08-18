@@ -191,6 +191,28 @@ struct Message: Identifiable {
     let createdAt: Date?
 }
 
+enum MessageTimeline {
+    static func normalized(_ messages: [Message]) -> [Message] {
+        var messagesByID: [UUID: Message] = [:]
+        for message in messages {
+            messagesByID[message.id] = message
+        }
+
+        return messagesByID.values.sorted { lhs, rhs in
+            switch (lhs.createdAt, rhs.createdAt) {
+            case let (.some(lhsDate), .some(rhsDate)) where lhsDate != rhsDate:
+                return lhsDate < rhsDate
+            case (.none, .some):
+                return false
+            case (.some, .none):
+                return true
+            default:
+                return lhs.id.uuidString < rhs.id.uuidString
+            }
+        }
+    }
+}
+
 struct MeetingProposal: Identifiable {
     let id: UUID
     let matchId: UUID
