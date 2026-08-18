@@ -1,6 +1,10 @@
 import CoreLocation
 import SwiftUI
 
+private enum ChatFeatureAvailability {
+    static let tomorrowExtension = false
+}
+
 struct ChatScreen: View {
     @EnvironmentObject private var appState: AppState
     @State private var draft = ""
@@ -74,7 +78,8 @@ struct ChatScreen: View {
                             Bubble(text: message.text, sender: message.sender)
                         }
 
-                        if let match = appState.activeMatch {
+                        if ChatFeatureAvailability.tomorrowExtension,
+                           let match = appState.activeMatch {
                             TomorrowExtensionCard(
                                 match: match,
                                 isLoading: appState.isLoading,
