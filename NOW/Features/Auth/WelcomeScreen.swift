@@ -1,12 +1,67 @@
 import SwiftUI
 import UIKit
 
-struct WelcomeScreen: View {
-    private enum AuthField: Hashable {
-        case email
-        case password
+enum AuthenticationFormField: Hashable {
+    case email
+    case password
+}
+
+enum AuthenticationFormMode: Equatable {
+    case signIn
+    case registration
+}
+
+struct AuthenticationFormValidation: Equatable {
+    let emailError: String?
+    let passwordError: String?
+
+    var firstInvalidField: AuthenticationFormField? {
+        if emailError != nil { return .email }
+        if passwordError != nil { return .password }
+        return nil
+    }
+}
+
+enum AuthenticationFormValidator {
+    static func validate(
+        mode: AuthenticationFormMode,
+        email: String,
+        password: String
+    ) -> AuthenticationFormValidation {
+        guard mode == .registration else {
+            return AuthenticationFormValidation(emailError: nil, passwordError: nil)
+        }
+
+        return AuthenticationFormValidation(
+            emailError: emailError(for: email),
+            passwordError: passwordError(for: password)
+        )
     }
 
+    static func emailError(for email: String) -> String? {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedEmail.isEmpty {
+            return "Email is required."
+        }
+        let pattern = #"^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$"#
+        if trimmedEmail.range(of: pattern, options: [.regularExpression, .caseInsensitive]) == nil {
+            return "Enter a valid email."
+        }
+        return nil
+    }
+
+    static func passwordError(for password: String) -> String? {
+        if password.isEmpty {
+            return "Password is required."
+        }
+        if password.count < 8 {
+            return "Password must be at least 8 characters."
+        }
+        return nil
+    }
+}
+
+struct WelcomeScreen: View {
     @EnvironmentObject private var appState: AppState
     @State private var email = ""
     @State private var password = ""
@@ -15,7 +70,7 @@ struct WelcomeScreen: View {
     @State private var emailError: String?
     @State private var passwordError: String?
     @State private var didAttemptRegistration = false
-    @FocusState private var focusedField: AuthField?
+    @FocusState private var focusedField: AuthenticationFormField?
 
     var body: some View {
         ScrollView {
@@ -89,6 +144,7 @@ struct WelcomeScreen: View {
                         .background(fieldBackground(hasError: emailError != nil))
                         .focused($focusedField, equals: .email)
                         .accessibilityHint(emailError.map { "Error: \($0)" } ?? "")
+                        .accessibilityIdentifier("registration.email")
 
                     if let emailError {
                         Text(emailError)
@@ -96,6 +152,7 @@ struct WelcomeScreen: View {
                             .foregroundStyle(NOWColor.coral)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .accessibilityLabel("Email error: \(emailError)")
+                            .accessibilityIdentifier("registration.email.error")
                     }
 
                     SecureField("Password", text: $password)
@@ -106,6 +163,7 @@ struct WelcomeScreen: View {
                         .background(fieldBackground(hasError: passwordError != nil))
                         .focused($focusedField, equals: .password)
                         .accessibilityHint(passwordError.map { "Error: \($0)" } ?? "")
+                        .accessibilityIdentifier("registration.password")
 
                     if let passwordError {
                         Text(passwordError)
@@ -113,15 +171,16 @@ struct WelcomeScreen: View {
                             .foregroundStyle(NOWColor.coral)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .accessibilityLabel("Password error: \(passwordError)")
+                            .accessibilityIdentifier("registration.password.error")
                     }
                 }
                 .onChange(of: email) { _, _ in
                     guard isRegistering, didAttemptRegistration else { return }
-                    emailError = registrationEmailError
+                    emailError = AuthenticationFormValidator.emailError(for: email)
                 }
                 .onChange(of: password) { _, _ in
                     guard isRegistering, didAttemptRegistration else { return }
-                    passwordError = registrationPasswordError
+                    passwordError = AuthenticationFormValidator.passwordError(for: password)
                 }
 
                 Button(appState.isLoading ? "Connecting..." : (isRegistering ? "Create account" : "Sign in")) {
@@ -158,28 +217,6 @@ struct WelcomeScreen: View {
             && password.count >= 8
     }
 
-    private var registrationEmailError: String? {
-        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmedEmail.isEmpty {
-            return "Email is required."
-        }
-        let pattern = #"^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$"#
-        if trimmedEmail.range(of: pattern, options: [.regularExpression, .caseInsensitive]) == nil {
-            return "Enter a valid email."
-        }
-        return nil
-    }
-
-    private var registrationPasswordError: String? {
-        if password.isEmpty {
-            return "Password is required."
-        }
-        if password.count < 8 {
-            return "Password must be at least 8 characters."
-        }
-        return nil
-    }
-
     private func fieldBackground(hasError: Bool) -> some View {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
             .fill(NOWColor.surface)
@@ -198,15 +235,19 @@ struct WelcomeScreen: View {
         }
 
         didAttemptRegistration = true
-        emailError = registrationEmailError
-        passwordError = registrationPasswordError
+        let validation = AuthenticationFormValidator.validate(
+            mode: .registration,
+            email: email,
+            password: password
+        )
+        emailError = validation.emailError
+        passwordError = validation.passwordError
 
-        if let emailError {
-            focus(on: .email, message: emailError)
-            return
-        }
-        if let passwordError {
-            focus(on: .password, message: passwordError)
+        if let firstInvalidField = validation.firstInvalidField {
+            let message = firstInvalidField == .email
+                ? validation.emailError
+                : validation.passwordError
+            focus(on: firstInvalidField, message: message ?? "This field is required.")
             return
         }
 
@@ -226,7 +267,7 @@ struct WelcomeScreen: View {
         }
     }
 
-    private func focus(on field: AuthField, message: String) {
+    private func focus(on field: AuthenticationFormField, message: String) {
         focusedField = field
         let fieldName = field == .email ? "Email" : "Password"
         UIAccessibility.post(notification: .announcement, argument: "\(fieldName) error: \(message)")

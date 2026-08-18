@@ -12,6 +12,69 @@ final class ProductFeatureAvailabilityTests: XCTestCase {
     }
 }
 
+final class AuthenticationFormValidationTests: XCTestCase {
+    func testRegistrationRequiresEmailAndPasswordAndFocusesEmailFirst() {
+        let validation = AuthenticationFormValidator.validate(
+            mode: .registration,
+            email: "   ",
+            password: ""
+        )
+
+        XCTAssertEqual(validation.emailError, "Email is required.")
+        XCTAssertEqual(validation.passwordError, "Password is required.")
+        XCTAssertEqual(validation.firstInvalidField, .email)
+    }
+
+    func testRegistrationRejectsInvalidEmailAndShortPassword() {
+        let validation = AuthenticationFormValidator.validate(
+            mode: .registration,
+            email: "not-an-email",
+            password: "short"
+        )
+
+        XCTAssertEqual(validation.emailError, "Enter a valid email.")
+        XCTAssertEqual(validation.passwordError, "Password must be at least 8 characters.")
+    }
+
+    func testRegistrationErrorsDisappearWhenValuesBecomeValid() {
+        let validation = AuthenticationFormValidator.validate(
+            mode: .registration,
+            email: "person@example.com",
+            password: "password"
+        )
+
+        XCTAssertNil(validation.emailError)
+        XCTAssertNil(validation.passwordError)
+        XCTAssertNil(validation.firstInvalidField)
+    }
+
+    func testSignInDoesNotUseRegistrationSpecificValidation() {
+        let validation = AuthenticationFormValidator.validate(
+            mode: .signIn,
+            email: "",
+            password: ""
+        )
+
+        XCTAssertNil(validation.emailError)
+        XCTAssertNil(validation.passwordError)
+    }
+
+    func testExistingAccountServerErrorIsAttachedToEmail() {
+        let error = APIError.server(statusCode: 409, message: "email already exists")
+
+        XCTAssertEqual(
+            RegistrationServerErrorMapper.fieldError(for: error),
+            .email("An account with this email already exists. Sign in instead.")
+        )
+    }
+
+    func testUnrelatedServerErrorDoesNotBecomeAFieldError() {
+        let error = APIError.server(statusCode: 500, message: "internal error")
+
+        XCTAssertNil(RegistrationServerErrorMapper.fieldError(for: error))
+    }
+}
+
 final class MeetingModeChatTests: XCTestCase {
     func testMessageTimelineDeduplicatesAndSortsChronologically() {
         let firstID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
