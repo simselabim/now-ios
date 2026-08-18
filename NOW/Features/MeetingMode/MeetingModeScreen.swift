@@ -10,15 +10,21 @@ struct MeetingModeScreen: View {
     @State private var routeRefreshToken = UUID()
     @State private var staleCheckDate = Date()
     @State private var didFitPartnerLocation = false
+    @State private var cameraPolicy = MeetingModeCameraPolicy()
     @State private var panelHeight: CGFloat = 0
     @State private var panelDragStartHeight: CGFloat?
 
+    private var mapPresentation: MeetingModeMapPresentation {
+        MeetingModeMapPresentation(
+            userCoordinate: appState.currentCoordinate,
+            partnerLocation: appState.otherMeetingLocation,
+            meetingCoordinate: appState.meetingProposal?.coordinate,
+            now: staleCheckDate
+        )
+    }
+
     private var visiblePartnerLocation: PartnerMeetingLocation? {
-        guard let location = appState.otherMeetingLocation,
-              location.expiresAt.map({ $0 > staleCheckDate }) ?? true else {
-            return nil
-        }
-        return location
+        mapPresentation.partnerLocation
     }
 
     private var partnerLocationKey: String? {
@@ -82,7 +88,7 @@ struct MeetingModeScreen: View {
                 }
 
                 if let proposal = appState.meetingProposal,
-                   let coordinate = proposal.coordinate {
+                   let coordinate = mapPresentation.meetingCoordinate {
                     Annotation(proposal.placeName, coordinate: coordinate, anchor: .center) {
                         VStack(spacing: 4) {
                             ZStack {
@@ -104,12 +110,24 @@ struct MeetingModeScreen: View {
                     }
                 }
 
-                if let currentCoordinate = appState.currentCoordinate {
+                if let currentCoordinate = mapPresentation.userCoordinate {
                     Annotation("You", coordinate: currentCoordinate, anchor: .center) {
                         MeetingAvatar(photoURL: appState.myProfilePhotoURL, label: "You")
                     }
                 }
             }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 4)
+                    .onChanged { _ in
+                        cameraPolicy.recordUserAdjustment()
+                    }
+            )
+            .simultaneousGesture(
+                MagnifyGesture()
+                    .onChanged { _ in
+                        cameraPolicy.recordUserAdjustment()
+                    }
+            )
             .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
             .overlay(LAGradient.mapWash.blendMode(.multiply).allowsHitTesting(false))
             .ignoresSafeArea()
@@ -352,11 +370,13 @@ struct MeetingModeScreen: View {
     }
 
     private func fitCameraToMeeting() {
+        guard cameraPolicy.allowsAutomaticFit else { return }
+
         var rect = walkingRoute?.polyline.boundingMapRect ?? .null
-        if let currentCoordinate = appState.currentCoordinate {
+        if let currentCoordinate = mapPresentation.userCoordinate {
             rect = rect.union(mapRect(for: currentCoordinate))
         }
-        if let destinationCoordinate = appState.meetingProposal?.coordinate {
+        if let destinationCoordinate = mapPresentation.meetingCoordinate {
             rect = rect.union(mapRect(for: destinationCoordinate))
         }
         if let partnerCoordinate = visiblePartnerLocation?.coordinate {
@@ -393,6 +413,45 @@ enum MeetingChatPanelMetrics {
 
     static func clampedHeight(_ height: CGFloat, containerHeight: CGFloat) -> CGFloat {
         min(max(height, minimumHeight), maximumHeight(containerHeight: containerHeight))
+    }
+}
+
+struct MeetingModeMapPresentation {
+    let userCoordinate: CLLocationCoordinate2D?
+    let partnerLocation: PartnerMeetingLocation?
+    let meetingCoordinate: CLLocationCoordinate2D?
+
+    init(
+        userCoordinate: CLLocationCoordinate2D?,
+        partnerLocation: PartnerMeetingLocation?,
+        meetingCoordinate: CLLocationCoordinate2D?,
+        now: Date
+    ) {
+        self.userCoordinate = userCoordinate
+        self.partnerLocation = partnerLocation?.isFresh(at: now) == true ? partnerLocation : nil
+        self.meetingCoordinate = meetingCoordinate
+    }
+
+    var markerCount: Int {
+        [userCoordinate, partnerLocation?.coordinate, meetingCoordinate]
+            .compactMap { $0 }
+            .count
+    }
+
+    var partnerAccuracyRadiusM: Int? {
+        partnerLocation?.accuracyRadiusM
+    }
+}
+
+struct MeetingModeCameraPolicy {
+    private(set) var hasUserAdjustedCamera = false
+
+    var allowsAutomaticFit: Bool {
+        !hasUserAdjustedCamera
+    }
+
+    mutating func recordUserAdjustment() {
+        hasUserAdjustedCamera = true
     }
 }
 

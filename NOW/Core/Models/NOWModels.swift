@@ -244,6 +244,10 @@ struct PartnerMeetingLocation {
     let accuracyRadiusM: Int
     let updatedAt: Date?
     let expiresAt: Date?
+
+    func isFresh(at date: Date) -> Bool {
+        expiresAt.map { $0 > date } ?? true
+    }
 }
 
 struct MeetingLocationConfig {

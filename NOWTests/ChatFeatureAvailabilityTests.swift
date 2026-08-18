@@ -1,3 +1,4 @@
+import CoreLocation
 import XCTest
 @testable import NOW
 
@@ -87,5 +88,57 @@ final class MeetingProposalActionPolicyTests: XCTestCase {
             dateLabel: "Today",
             status: status
         )
+    }
+}
+
+final class MeetingModeMapPresentationTests: XCTestCase {
+    private let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+    func testFreshMeetingModeShowsThreeMarkersAndServerAccuracyRadius() {
+        let presentation = MeetingModeMapPresentation(
+            userCoordinate: coordinate(latitude: -8.6478, longitude: 115.1385),
+            partnerLocation: partnerLocation(expiresAt: now.addingTimeInterval(90)),
+            meetingCoordinate: coordinate(latitude: -8.6500, longitude: 115.1400),
+            now: now
+        )
+
+        XCTAssertEqual(presentation.markerCount, 3)
+        XCTAssertEqual(presentation.partnerAccuracyRadiusM, 200)
+    }
+
+    func testExpiredPartnerLocationIsHiddenWithoutRemovingMeetingPlace() {
+        let meetingCoordinate = coordinate(latitude: -8.6500, longitude: 115.1400)
+        let presentation = MeetingModeMapPresentation(
+            userCoordinate: coordinate(latitude: -8.6478, longitude: 115.1385),
+            partnerLocation: partnerLocation(expiresAt: now.addingTimeInterval(-1)),
+            meetingCoordinate: meetingCoordinate,
+            now: now
+        )
+
+        XCTAssertNil(presentation.partnerLocation)
+        XCTAssertEqual(presentation.markerCount, 2)
+        XCTAssertEqual(presentation.meetingCoordinate?.latitude, meetingCoordinate.latitude)
+        XCTAssertEqual(presentation.meetingCoordinate?.longitude, meetingCoordinate.longitude)
+    }
+
+    func testManualMapMovementDisablesLaterAutomaticFit() {
+        var policy = MeetingModeCameraPolicy()
+
+        XCTAssertTrue(policy.allowsAutomaticFit)
+        policy.recordUserAdjustment()
+        XCTAssertFalse(policy.allowsAutomaticFit)
+    }
+
+    private func partnerLocation(expiresAt: Date) -> PartnerMeetingLocation {
+        PartnerMeetingLocation(
+            coordinate: coordinate(latitude: -8.6485, longitude: 115.1390),
+            accuracyRadiusM: 200,
+            updatedAt: now,
+            expiresAt: expiresAt
+        )
+    }
+
+    private func coordinate(latitude: Double, longitude: Double) -> CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
 }
