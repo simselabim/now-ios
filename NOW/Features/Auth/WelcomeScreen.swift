@@ -72,6 +72,10 @@ struct WelcomeScreen: View {
     @State private var didAttemptRegistration = false
     @FocusState private var focusedField: AuthenticationFormField?
 
+    init(initialMode: AuthenticationFormMode = .signIn) {
+        _isRegistering = State(initialValue: initialMode == .registration)
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
@@ -103,18 +107,6 @@ struct WelcomeScreen: View {
                             .foregroundStyle(.white.opacity(0.88))
                     }
                     .padding(18)
-                }
-
-                NOWInfoCard {
-                    Text("What feels right now?")
-                        .font(.headline.weight(.black))
-                        .foregroundStyle(NOWColor.ink)
-                    HStack(spacing: 8) {
-                        NOWChip(text: "Coffee", active: true)
-                        NOWChip(text: "Walk")
-                        NOWChip(text: "Dinner")
-                        NOWChip(text: "Just talk")
-                    }
                 }
 
                 if appState.isLoading {
@@ -205,6 +197,7 @@ struct WelcomeScreen: View {
             }
             .padding(22)
         }
+        .accessibilityIdentifier("registration.screen")
         .sheet(isPresented: $isPhilosophyPresented) {
             NOWPhilosophySheet()
                 .presentationDetents([.medium])

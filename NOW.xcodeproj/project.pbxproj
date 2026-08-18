@@ -38,6 +38,7 @@
 		100000000000000000000123 /* ProductFeatureAvailability.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000225 /* ProductFeatureAvailability.swift */; };
 		1D35E9D1D99477125BF88484 /* DiscoveryMapNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1DA24A812910AFEB97A5A8B /* DiscoveryMapNavigationTests.swift */; };
 		A23800000000000000000001 /* ChatFeatureAvailabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A23800000000000000000002 /* ChatFeatureAvailabilityTests.swift */; };
+		A23700000000000000000001 /* WelcomeScreenSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A23700000000000000000002 /* WelcomeScreenSnapshotTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -84,6 +85,7 @@
 		100000000000000000000225 /* ProductFeatureAvailability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductFeatureAvailability.swift; sourceTree = "<group>"; };
 		C1DA24A812910AFEB97A5A8B /* DiscoveryMapNavigationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DiscoveryMapNavigationTests.swift; sourceTree = "<group>"; };
 		A23800000000000000000002 /* ChatFeatureAvailabilityTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatFeatureAvailabilityTests.swift; sourceTree = "<group>"; };
+		A23700000000000000000002 /* WelcomeScreenSnapshotTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WelcomeScreenSnapshotTests.swift; sourceTree = "<group>"; };
 		FBB67CC14449612E3A6AB838 /* NOWTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NOWTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -341,6 +343,7 @@
 			children = (
 				A23800000000000000000002 /* ChatFeatureAvailabilityTests.swift */,
 				C1DA24A812910AFEB97A5A8B /* DiscoveryMapNavigationTests.swift */,
+				A23700000000000000000002 /* WelcomeScreenSnapshotTests.swift */,
 			);
 			path = NOWTests;
 			sourceTree = "<group>";
@@ -449,6 +452,7 @@
 			files = (
 				A23800000000000000000001 /* ChatFeatureAvailabilityTests.swift in Sources */,
 				1D35E9D1D99477125BF88484 /* DiscoveryMapNavigationTests.swift in Sources */,
+				A23700000000000000000001 /* WelcomeScreenSnapshotTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
