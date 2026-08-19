@@ -1,5 +1,6 @@
 import MapKit
 import SwiftUI
+import UIKit
 
 struct MeetingModeScreen: View {
     @EnvironmentObject private var appState: AppState
@@ -13,6 +14,8 @@ struct MeetingModeScreen: View {
     @State private var cameraPolicy = MeetingModeCameraPolicy()
     @State private var panelHeight: CGFloat = 0
     @State private var panelDragStartHeight: CGFloat?
+    @State private var isPanelCollapsed = false
+    @State private var panelHeightBeforeCollapse: CGFloat?
 
     private var mapPresentation: MeetingModeMapPresentation {
         MeetingModeMapPresentation(
@@ -144,90 +147,111 @@ struct MeetingModeScreen: View {
             }
 
             VStack(spacing: 10) {
-                Capsule()
-                    .fill(NOWColor.line)
-                    .frame(width: 42, height: 4)
-                    .padding(.top, 10)
-                    .contentShape(Rectangle().inset(by: -12))
-                    .gesture(panelDragGesture(containerHeight: geometry.size.height))
-
-                HStack(spacing: 12) {
-                    Image(systemName: "mappin.and.ellipse")
-                        .font(.title2.weight(.bold))
-                        .foregroundStyle(NOWColor.laOrange)
-                        .frame(width: 54, height: 54)
-                        .background(NOWColor.paper)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(appState.meetingProposal?.placeName ?? "Meeting place")
-                            .font(.headline.weight(.heavy))
+                Button {
+                    togglePanel(containerHeight: geometry.size.height)
+                } label: {
+                    VStack(spacing: 5) {
+                        Capsule()
+                            .fill(NOWColor.line)
+                            .frame(width: 42, height: 4)
+                        Image(systemName: isPanelCollapsed ? "chevron.up" : "chevron.down")
+                            .font(.caption.weight(.black))
                             .foregroundStyle(NOWColor.laBrown)
-                        Text("\(appState.meetingProposal?.time ?? "Time pending") · public place")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(NOWColor.inkSoft)
-                            .lineLimit(2)
                     }
-
-                    Spacer()
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
                 }
-
-                MeetingRouteSummary(
-                    route: walkingRoute,
-                    isLoading: isLoadingRoute,
-                    errorMessage: routeErrorMessage,
-                    retry: {
-                        routeRefreshToken = UUID()
-                    }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isPanelCollapsed ? "Show meeting chat" : "Hide meeting chat")
+                .accessibilityHint("Shows or hides the panel so you can view the map")
+                .gesture(
+                    isPanelCollapsed
+                        ? nil
+                        : panelDragGesture(containerHeight: geometry.size.height)
                 )
 
-                PartnerLocationSummary(
-                    location: visiblePartnerLocation,
-                    errorMessage: appState.meetingLocationError
-                )
+                if !isPanelCollapsed {
+                    Group {
+                        HStack(spacing: 12) {
+                            Image(systemName: "mappin.and.ellipse")
+                                .font(.title2.weight(.bold))
+                                .foregroundStyle(NOWColor.laOrange)
+                                .frame(width: 54, height: 54)
+                                .background(NOWColor.paper)
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        MatchChatTranscript()
-                            .padding(.vertical, 4)
-                        Color.clear
-                            .frame(height: 1)
-                            .id(MeetingModeChatAnchor.bottom)
-                    }
-                    .scrollDismissesKeyboard(.interactively)
-                    .onAppear {
-                        scrollChatToBottom(proxy, animated: false)
-                    }
-                    .onChange(of: appState.messages.map(\.id)) { _, _ in
-                        scrollChatToBottom(proxy, animated: true)
-                    }
-                    .onChange(of: appState.isSendingMessage) { _, sending in
-                        if !sending {
-                            scrollChatToBottom(proxy, animated: true)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(appState.meetingProposal?.placeName ?? "Meeting place")
+                                    .font(.headline.weight(.heavy))
+                                    .foregroundStyle(NOWColor.laBrown)
+                                Text("\(appState.meetingProposal?.time ?? "Time pending") · public place")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(NOWColor.inkSoft)
+                                    .lineLimit(2)
+                            }
+
+                            Spacer()
                         }
-                    }
-                }
-                .frame(maxHeight: .infinity)
 
-                ChatMessageComposer { focused in
-                    if focused {
-                        withAnimation(.easeOut(duration: 0.22)) {
-                            panelHeight = MeetingChatPanelMetrics.expandedHeight(
-                                containerHeight: geometry.size.height
-                            )
+                        MeetingRouteSummary(
+                            route: walkingRoute,
+                            isLoading: isLoadingRoute,
+                            errorMessage: routeErrorMessage,
+                            retry: {
+                                routeRefreshToken = UUID()
+                            }
+                        )
+
+                        PartnerLocationSummary(
+                            location: visiblePartnerLocation,
+                            errorMessage: appState.meetingLocationError
+                        )
+
+                        ScrollViewReader { proxy in
+                            ScrollView {
+                                MatchChatTranscript()
+                                    .padding(.vertical, 4)
+                                Color.clear
+                                    .frame(height: 1)
+                                    .id(MeetingModeChatAnchor.bottom)
+                            }
+                            .scrollDismissesKeyboard(.interactively)
+                            .onAppear {
+                                scrollChatToBottom(proxy, animated: false)
+                            }
+                            .onChange(of: appState.messages.map(\.id)) { _, _ in
+                                scrollChatToBottom(proxy, animated: true)
+                            }
+                            .onChange(of: appState.isSendingMessage) { _, sending in
+                                if !sending {
+                                    scrollChatToBottom(proxy, animated: true)
+                                }
+                            }
                         }
-                    }
-                }
+                        .frame(maxHeight: .infinity)
 
-                Button("We met ✓") {
-                    appState.weMet()
+                        ChatMessageComposer { focused in
+                            if focused {
+                                withAnimation(.easeOut(duration: 0.22)) {
+                                    panelHeight = MeetingChatPanelMetrics.expandedHeight(
+                                        containerHeight: geometry.size.height
+                                    )
+                                }
+                            }
+                        }
+
+                        Button("We met ✓") {
+                            appState.weMet()
+                        }
+                        .disabled(appState.isLoading)
+                        .buttonStyle(PrimaryButtonStyle())
+                        .frame(height: 48)
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
-                .disabled(appState.isLoading)
-                .buttonStyle(PrimaryButtonStyle())
-                .frame(height: 48)
             }
             .padding(14)
-            .frame(height: effectivePanelHeight(containerHeight: geometry.size.height))
+            .frame(height: panelContainerHeight(containerHeight: geometry.size.height))
             .background(NOWColor.surface)
             .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
             .shadow(color: NOWColor.ink.opacity(0.14), radius: 22, x: 0, y: -8)
@@ -272,6 +296,35 @@ struct MeetingModeScreen: View {
         return MeetingChatPanelMetrics.clampedHeight(
             requestedHeight,
             containerHeight: containerHeight
+        )
+    }
+
+    private func panelContainerHeight(containerHeight: CGFloat) -> CGFloat {
+        isPanelCollapsed
+            ? MeetingChatPanelMetrics.collapsedHeight
+            : effectivePanelHeight(containerHeight: containerHeight)
+    }
+
+    private func togglePanel(containerHeight: CGFloat) {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            if isPanelCollapsed {
+                panelHeight = panelHeightBeforeCollapse
+                    ?? MeetingChatPanelMetrics.defaultHeight(containerHeight: containerHeight)
+                isPanelCollapsed = false
+            } else {
+                panelHeightBeforeCollapse = effectivePanelHeight(containerHeight: containerHeight)
+                dismissKeyboard()
+                isPanelCollapsed = true
+            }
+        }
+    }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil,
+            from: nil,
+            for: nil
         )
     }
 
@@ -397,6 +450,7 @@ enum MeetingModeChatAnchor {
 }
 
 enum MeetingChatPanelMetrics {
+    static let collapsedHeight: CGFloat = 62
     static let minimumHeight: CGFloat = 390
 
     static func maximumHeight(containerHeight: CGFloat) -> CGFloat {

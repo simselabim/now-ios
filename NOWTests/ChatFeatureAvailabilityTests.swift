@@ -193,6 +193,7 @@ final class MeetingModeChatTests: XCTestCase {
             MeetingChatPanelMetrics.clampedHeight(10_000, containerHeight: containerHeight),
             expanded
         )
+        XCTAssertLessThan(MeetingChatPanelMetrics.collapsedHeight, MeetingChatPanelMetrics.minimumHeight)
     }
 }
 
