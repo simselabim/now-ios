@@ -290,8 +290,30 @@ extension DiscoveryMapNavigationTests {
         await store.load(around: CLLocationCoordinate2D(latitude: -8.6478, longitude: 115.1385))
 
         XCTAssertTrue(store.venues.isEmpty)
-        XCTAssertEqual(store.errorMessage, "Could not load meeting places. Move the map or try again.")
+        XCTAssertEqual(
+            store.errorMessage,
+            "Could not reach Apple Maps. Check your internet connection or tap refresh."
+        )
         XCTAssertFalse(store.isLoading)
+    }
+
+    func testVenueFailureKeepsPreviouslyLoadedMarkers() async {
+        let center = CLLocationCoordinate2D(latitude: -8.6478, longitude: 115.1385)
+        let venue = makeVenue(id: "stable-place", category: .cafe, latitude: center.latitude)
+        let searcher = MutableVenueSearcher(result: .success([venue]))
+        let store = NearbyVenueStore(searcher: searcher)
+
+        await store.load(around: center)
+        searcher.result = .failure(URLError(.networkConnectionLost))
+        await store.reload(around: center)
+
+        XCTAssertEqual(store.venues.map(\.id), [venue.id])
+        XCTAssertNotNil(store.errorMessage)
+    }
+
+    func testVenueErrorPresenterDoesNotTreatEmptyResultsAsFailure() {
+        XCTAssertNil(VenueSearchErrorPresenter.message(for: []))
+        XCTAssertNil(VenueSearchErrorPresenter.message(for: [CancellationError()]))
     }
 
     private func makeVenue(
@@ -311,6 +333,23 @@ extension DiscoveryMapNavigationTests {
 
 private struct StubVenueSearcher: VenueSearching {
     let result: Result<[MeetingPlace], Error>
+
+    func search(
+        definition: VenueSearchDefinition,
+        region: MKCoordinateRegion
+    ) async throws -> [MeetingPlace] {
+        _ = definition
+        _ = region
+        return try result.get()
+    }
+}
+
+private final class MutableVenueSearcher: VenueSearching {
+    var result: Result<[MeetingPlace], Error>
+
+    init(result: Result<[MeetingPlace], Error>) {
+        self.result = result
+    }
 
     func search(
         definition: VenueSearchDefinition,

@@ -54,6 +54,7 @@ struct DiscoveryMapScreen: View {
                 recenterOnUser()
             }, refresh: {
                 appState.refreshActiveMatch()
+                refreshVenues()
             }, goOffline: {
                 appState.goOffline()
             })
@@ -144,6 +145,16 @@ struct DiscoveryMapScreen: View {
             }
         } else {
             reframeMap()
+        }
+    }
+
+    private func refreshVenues() {
+        guard !appState.isViewingActiveMatchMap,
+              let coordinate = venueSearchCenter ?? appState.currentCoordinate else {
+            return
+        }
+        Task {
+            await venueStore.reload(around: coordinate)
         }
     }
 
@@ -436,6 +447,7 @@ final class NearbyVenueStore: ObservableObject {
 
         var loadedVenues: [MeetingPlace] = []
         var successfulSearches = 0
+        var searchErrors: [Error] = []
         let region = MKCoordinateRegion(
             center: coordinate,
             latitudinalMeters: VenueDiscoveryConfig.searchRadiusM * 2,
@@ -446,16 +458,22 @@ final class NearbyVenueStore: ObservableObject {
                 loadedVenues.append(contentsOf: try await searcher.search(definition: definition, region: region))
                 successfulSearches += 1
             } catch {
-                continue
+                searchErrors.append(error)
             }
         }
 
         guard currentRequestID == requestID else { return }
-        venues = VenueResultProcessor.process(loadedVenues, around: coordinate)
         if successfulSearches == 0 {
-            errorMessage = "Could not load meeting places. Move the map or try again."
+            errorMessage = VenueSearchErrorPresenter.message(for: searchErrors)
+        } else {
+            venues = VenueResultProcessor.process(loadedVenues, around: coordinate)
         }
         isLoading = false
+    }
+
+    func reload(around coordinate: CLLocationCoordinate2D) async {
+        lastCoordinateKey = nil
+        await load(around: coordinate)
     }
 
     func clear() {
@@ -464,6 +482,19 @@ final class NearbyVenueStore: ObservableObject {
         lastCoordinateKey = nil
         isLoading = false
         errorMessage = nil
+    }
+}
+
+enum VenueSearchErrorPresenter {
+    static func message(for errors: [Error]) -> String? {
+        guard !errors.isEmpty else { return nil }
+        if errors.allSatisfy({ $0 is CancellationError }) {
+            return nil
+        }
+        if errors.contains(where: { $0 is URLError }) {
+            return "Could not reach Apple Maps. Check your internet connection or tap refresh."
+        }
+        return "Apple Maps could not load meeting places right now. Move the map or tap refresh."
     }
 }
 
@@ -565,17 +596,17 @@ private struct LAUserLocationMarker: View {
             Circle()
                 .fill(NOWColor.surface)
                 .frame(width: 28, height: 28)
-                .overlay(Circle().stroke(NOWColor.laCoral, lineWidth: 5))
+                .overlay(Circle().stroke(NOWColor.laBlue, lineWidth: 5))
             Text("You")
                 .font(.caption2.weight(.heavy))
                 .foregroundStyle(NOWColor.surface)
                 .fixedSize()
                 .padding(.horizontal, 7)
                 .padding(.vertical, 4)
-                .background(NOWColor.laCoral)
+                .background(NOWColor.laBlue)
                 .clipShape(Capsule())
         }
-        .shadow(color: NOWColor.laCoral.opacity(0.35), radius: 14, x: 0, y: 6)
+        .shadow(color: NOWColor.laBlue.opacity(0.35), radius: 14, x: 0, y: 6)
         .accessibilityLabel("Your location")
     }
 }

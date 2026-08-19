@@ -73,6 +73,27 @@ final class AuthenticationFormValidationTests: XCTestCase {
 
         XCTAssertNil(RegistrationServerErrorMapper.fieldError(for: error))
     }
+
+    func testServerConflictIsPresentedWithoutDebugWrapper() {
+        let error = APIError.server(
+            statusCode: 409,
+            message: "conflict: this pair already matched today"
+        )
+
+        XCTAssertEqual(
+            APIErrorMessagePresenter.message(for: error),
+            "This pair already matched today."
+        )
+    }
+
+    func testInternalServerMessageIsNotExposed() {
+        let error = APIError.server(statusCode: 500, message: "database connection failed")
+
+        XCTAssertEqual(
+            APIErrorMessagePresenter.message(for: error),
+            "The server could not complete the request. Please try again."
+        )
+    }
 }
 
 final class TodayIntentSelectionTests: XCTestCase {

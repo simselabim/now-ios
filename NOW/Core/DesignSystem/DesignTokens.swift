@@ -25,6 +25,7 @@ enum NOWColor {
     static let laGold = Color(red: 1.0, green: 0.82, blue: 0.42)
     static let laBlush = Color(red: 1.0, green: 0.47, blue: 0.50)
     static let laGreen = Color(red: 0.42, green: 0.78, blue: 0.56)
+    static let laBlue = Color(red: 0.16, green: 0.45, blue: 0.86)
 
     static let teal = lime
     static let tealPale = lime.opacity(0.22)

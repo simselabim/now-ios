@@ -1292,7 +1292,7 @@ final class AppState: ObservableObject {
             resetAuthenticatedState()
             errorMessage = "Your session expired. Please sign in again."
         } catch {
-            errorMessage = String(describing: error)
+            errorMessage = APIErrorMessagePresenter.message(for: error)
         }
         isLoading = false
     }
