@@ -240,12 +240,16 @@ struct MeetingModeScreen: View {
                             }
                         }
 
-                        Button("We met ✓") {
-                            appState.weMet()
+                        if appState.activeMatch?.hasConfirmedWeMet == true {
+                            WeMetConfirmedStatus()
+                        } else {
+                            Button("We met ✓") {
+                                appState.weMet()
+                            }
+                            .disabled(appState.isLoading)
+                            .buttonStyle(PrimaryButtonStyle())
+                            .frame(height: 48)
                         }
-                        .disabled(appState.isLoading)
-                        .buttonStyle(PrimaryButtonStyle())
-                        .frame(height: 48)
                     }
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
@@ -447,6 +451,34 @@ struct MeetingModeScreen: View {
 
 enum MeetingModeChatAnchor {
     static let bottom = "meeting-mode-chat-bottom"
+}
+
+private struct WeMetConfirmedStatus: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.title2.weight(.black))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Confirmed")
+                    .font(.headline.weight(.black))
+                Text("Waiting for the other person")
+                    .font(.caption.weight(.bold))
+            }
+            Spacer()
+        }
+        .foregroundStyle(NOWColor.laBrown)
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity)
+        .frame(height: 58)
+        .background(NOWColor.laGreen.opacity(0.28))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(NOWColor.laGreen, lineWidth: 2)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Meeting confirmed. Waiting for the other person.")
+    }
 }
 
 enum MeetingChatPanelMetrics {

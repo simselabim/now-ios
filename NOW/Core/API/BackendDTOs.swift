@@ -393,6 +393,7 @@ struct ActiveMatchFlagsDTO: Decodable, Equatable {
     let canSendMessage: Bool
     let canCreateProposal: Bool
     let canConfirmWeMet: Bool
+    let hasConfirmedWeMet: Bool?
 }
 
 struct MatchDTO: Codable, Identifiable, Equatable {

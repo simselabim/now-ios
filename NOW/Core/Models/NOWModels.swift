@@ -181,6 +181,7 @@ struct Match: Identifiable {
     var myFirstLoopSent: Bool
     var theirFirstLoopReceived: Bool
     var meetingStatus: MeetingStatus
+    var hasConfirmedWeMet: Bool = false
     var tomorrowExtension: TomorrowExtension = .none
 }
 

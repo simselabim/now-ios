@@ -195,6 +195,19 @@ final class MeetingModeChatTests: XCTestCase {
         )
         XCTAssertLessThan(MeetingChatPanelMetrics.collapsedHeight, MeetingChatPanelMetrics.minimumHeight)
     }
+
+    func testWeMetConfirmationFlagDecodesForCurrentParticipant() throws {
+        let data = Data(
+            #"{"can_send_message":true,"can_create_proposal":true,"can_confirm_we_met":false,"has_confirmed_we_met":true}"#.utf8
+        )
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+
+        let flags = try decoder.decode(ActiveMatchFlagsDTO.self, from: data)
+
+        XCTAssertEqual(flags.hasConfirmedWeMet, true)
+        XCTAssertFalse(flags.canConfirmWeMet)
+    }
 }
 
 final class MeetingProposalActionPolicyTests: XCTestCase {

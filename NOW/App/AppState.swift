@@ -577,6 +577,7 @@ final class AppState: ObservableObject {
                     self.selectedAppTab = .history
                     try await self.loadHistoryFromBackend()
                 } else {
+                    self.activeMatch?.hasConfirmedWeMet = true
                     self.safetyMessage = "Confirmation saved. Waiting for the other person."
                     try await self.loadActiveMatchDetail()
                 }
@@ -903,6 +904,8 @@ final class AppState: ObservableObject {
         let theirLoop = detail.loops.first { $0.userId == detail.matchItem.otherUserId }
         let myLoopSent = myLoop != nil
         let theirLoopReceived = theirLoop != nil
+        let locallyConfirmedWeMet = activeMatch?.id == detail.matchItem.id
+            && activeMatch?.hasConfirmedWeMet == true
         myFirstLoopURL = await playbackURL(for: myLoop)
         theirFirstLoopURL = await playbackURL(for: theirLoop)
         activeMatch = Match(
@@ -912,6 +915,7 @@ final class AppState: ObservableObject {
             myFirstLoopSent: myLoopSent,
             theirFirstLoopReceived: theirLoopReceived,
             meetingStatus: detail.latestMeetingStatus.map { mapMeetingStatus($0.status) } ?? .none,
+            hasConfirmedWeMet: detail.flags.hasConfirmedWeMet ?? locallyConfirmedWeMet,
             tomorrowExtension: mapTomorrowExtension(
                 detail.tomorrowExtension,
                 matchItem: detail.matchItem

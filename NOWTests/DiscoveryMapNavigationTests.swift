@@ -114,7 +114,8 @@ final class DiscoveryMapNavigationTests: XCTestCase {
                         "flags": {
                           "can_send_message": false,
                           "can_create_proposal": false,
-                          "can_confirm_we_met": false
+                          "can_confirm_we_met": false,
+                          "has_confirmed_we_met": false
                         }
                       }
                     }
