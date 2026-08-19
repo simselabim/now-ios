@@ -652,12 +652,12 @@ final class AppState: ObservableObject {
         }
     }
 
-    func cancelMatch() {
+    func cancelMatch(reason: CancelReasonDTO = .changedMind) {
         guard let match = activeMatch else { return }
 
         Task {
             await runLoading {
-                _ = try await self.apiClient.cancelMatch(matchId: match.id)
+                _ = try await self.apiClient.cancelMatch(matchId: match.id, reason: reason)
                 self.clearActiveMatchState()
                 self.selectedPoint = nil
                 self.showHistory = false

@@ -208,6 +208,10 @@ final class MeetingModeChatTests: XCTestCase {
         XCTAssertEqual(flags.hasConfirmedWeMet, true)
         XCTAssertFalse(flags.canConfirmWeMet)
     }
+
+    func testCloseKindlyUsesNotRespondingReason() {
+        XCTAssertEqual(CancelReasonDTO.notResponding.rawValue, "not_responding")
+    }
 }
 
 final class MeetingProposalActionPolicyTests: XCTestCase {

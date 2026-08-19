@@ -16,6 +16,7 @@ struct MeetingModeScreen: View {
     @State private var panelDragStartHeight: CGFloat?
     @State private var isPanelCollapsed = false
     @State private var panelHeightBeforeCollapse: CGFloat?
+    @State private var showCloseConfirmation = false
 
     private var mapPresentation: MeetingModeMapPresentation {
         MeetingModeMapPresentation(
@@ -241,7 +242,9 @@ struct MeetingModeScreen: View {
                         }
 
                         if appState.activeMatch?.hasConfirmedWeMet == true {
-                            WeMetConfirmedStatus()
+                            WeMetConfirmedStatus {
+                                showCloseConfirmation = true
+                            }
                         } else {
                             Button("We met ✓") {
                                 appState.weMet()
@@ -290,6 +293,14 @@ struct MeetingModeScreen: View {
             guard newValue != nil, !didFitPartnerLocation else { return }
             didFitPartnerLocation = true
             fitCameraToMeeting()
+        }
+        .alert("Close this match?", isPresented: $showCloseConfirmation) {
+            Button("Keep waiting", role: .cancel) {}
+            Button("Close kindly", role: .destructive) {
+                appState.cancelMatch(reason: .notResponding)
+            }
+        } message: {
+            Text("This ends the match and releases both of you. Your meeting confirmation will not complete it.")
         }
     }
 
@@ -454,30 +465,39 @@ enum MeetingModeChatAnchor {
 }
 
 private struct WeMetConfirmedStatus: View {
+    let close: () -> Void
+
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.title2.weight(.black))
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Confirmed")
-                    .font(.headline.weight(.black))
-                Text("Waiting for the other person")
-                    .font(.caption.weight(.bold))
+        VStack(spacing: 10) {
+            HStack(spacing: 12) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.title2.weight(.black))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Confirmed")
+                        .font(.headline.weight(.black))
+                    Text("Waiting for the other person")
+                        .font(.caption.weight(.bold))
+                }
+                Spacer()
             }
-            Spacer()
+            .foregroundStyle(NOWColor.laBrown)
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity)
+            .frame(height: 58)
+            .background(NOWColor.laGreen.opacity(0.28))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(NOWColor.laGreen, lineWidth: 2)
+            )
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Meeting confirmed. Waiting for the other person.")
+
+            Button("Close kindly", action: close)
+                .buttonStyle(DangerButtonStyle())
+                .frame(height: 46)
+                .accessibilityHint("Ends this match for both participants")
         }
-        .foregroundStyle(NOWColor.laBrown)
-        .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity)
-        .frame(height: 58)
-        .background(NOWColor.laGreen.opacity(0.28))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(NOWColor.laGreen, lineWidth: 2)
-        )
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Meeting confirmed. Waiting for the other person.")
     }
 }
 
