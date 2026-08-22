@@ -5,10 +5,13 @@ enum MeetingPlaceCategory: String, Codable, CaseIterable, Sendable {
     case cafe
     case restaurant
     case bar
+    case hotel
     case beach
     case park
     case shopping
     case culture
+    case activity
+    case transit
     case publicSpace = "public_space"
     case other
 
@@ -17,10 +20,13 @@ enum MeetingPlaceCategory: String, Codable, CaseIterable, Sendable {
         case .cafe: "Cafe"
         case .restaurant: "Restaurant"
         case .bar: "Bar"
+        case .hotel: "Hotel"
         case .beach: "Beach"
         case .park: "Park"
         case .shopping: "Shopping"
         case .culture: "Culture"
+        case .activity: "Activity"
+        case .transit: "Transit"
         case .publicSpace: "Public place"
         case .other: "Place"
         }
@@ -31,10 +37,13 @@ enum MeetingPlaceCategory: String, Codable, CaseIterable, Sendable {
         case .cafe: "cup.and.saucer.fill"
         case .restaurant: "fork.knife"
         case .bar: "wineglass.fill"
+        case .hotel: "bed.double.fill"
         case .beach: "beach.umbrella.fill"
         case .park: "leaf.fill"
         case .shopping: "bag.fill"
         case .culture: "building.columns.fill"
+        case .activity: "figure.walk"
+        case .transit: "tram.fill"
         case .publicSpace: "mappin.and.ellipse"
         case .other: "mappin.circle.fill"
         }
@@ -56,15 +65,24 @@ enum VenueDiscoveryConfig {
         VenueSearchDefinition(query: "Cafe", categories: [.cafe, .bakery]),
         VenueSearchDefinition(query: "Restaurant", categories: [.restaurant, .foodMarket]),
         VenueSearchDefinition(query: "Bar", categories: [.nightlife, .brewery, .winery]),
+        VenueSearchDefinition(query: "Hotel", categories: [.hotel, .campground]),
         VenueSearchDefinition(query: "Beach", categories: [.beach, .marina]),
         VenueSearchDefinition(query: "Park", categories: [.park, .nationalPark]),
         VenueSearchDefinition(query: "Shopping mall", categories: [.store, .foodMarket]),
         VenueSearchDefinition(
             query: "Museum gallery attraction",
-            categories: [.museum, .theater, .movieTheater, .aquarium, .zoo, .amusementPark, .stadium]
+            categories: [.museum, .theater, .movieTheater, .aquarium, .zoo, .amusementPark]
         ),
-        VenueSearchDefinition(query: "Public place", categories: [.library, .university])
+        VenueSearchDefinition(query: "Activity", categories: [.fitnessCenter, .stadium]),
+        VenueSearchDefinition(
+            query: "Public place",
+            categories: [.library, .university, .airport, .publicTransport]
+        )
     ]
+
+    static var supportedPointOfInterestCategories: [MKPointOfInterestCategory] {
+        searches.flatMap(\.categories)
+    }
 
     static var radiusLabel: String {
         "\(Int(searchRadiusM / 1_000)) km"
@@ -76,16 +94,24 @@ enum VenueDiscoveryConfig {
         if [.cafe, .bakery].contains(pointOfInterestCategory) { return .cafe }
         if [.restaurant, .foodMarket].contains(pointOfInterestCategory) { return .restaurant }
         if [.nightlife, .brewery, .winery].contains(pointOfInterestCategory) { return .bar }
+        if [.hotel, .campground].contains(pointOfInterestCategory) { return .hotel }
         if [.beach, .marina].contains(pointOfInterestCategory) { return .beach }
         if [.park, .nationalPark].contains(pointOfInterestCategory) { return .park }
         if [.store].contains(pointOfInterestCategory) { return .shopping }
         if [
-            .museum, .theater, .movieTheater, .aquarium, .zoo, .amusementPark, .stadium
+            .museum, .theater, .movieTheater, .aquarium, .zoo, .amusementPark
         ].contains(pointOfInterestCategory) {
             return .culture
         }
+        if [.fitnessCenter, .stadium].contains(pointOfInterestCategory) { return .activity }
+        if [.airport, .publicTransport].contains(pointOfInterestCategory) { return .transit }
         if [.library, .university].contains(pointOfInterestCategory) { return .publicSpace }
         return .other
+    }
+
+    static func supports(_ pointOfInterestCategory: MKPointOfInterestCategory?) -> Bool {
+        guard let pointOfInterestCategory else { return false }
+        return supportedPointOfInterestCategories.contains(pointOfInterestCategory)
     }
 }
 
@@ -159,7 +185,8 @@ private struct PlaceSearchSuggestion: Identifiable {
     var subtitle: String { completion.subtitle }
 }
 
-private final class PlaceSearchService: NSObject, ObservableObject, MKLocalSearchCompleterDelegate {
+@MainActor
+private final class PlaceSearchService: NSObject, ObservableObject, @MainActor MKLocalSearchCompleterDelegate {
     @Published var query = "" {
         didSet {
             let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -178,8 +205,9 @@ private final class PlaceSearchService: NSObject, ObservableObject, MKLocalSearc
     @Published private(set) var errorMessage: String?
 
     private let completer = MKLocalSearchCompleter()
-    private let searchRegion: MKCoordinateRegion?
+    private var searchRegion: MKCoordinateRegion?
     private var hasLoadedNearbyPlaces = false
+    private var mapSearchID = UUID()
 
     init(regionCenter: CLLocationCoordinate2D?) {
         searchRegion = regionCenter.map {
@@ -210,6 +238,12 @@ private final class PlaceSearchService: NSObject, ObservableObject, MKLocalSearc
         } else {
             await searchMap(for: trimmedQuery)
         }
+    }
+
+    func searchMap(in region: MKCoordinateRegion) async {
+        searchRegion = region
+        completer.region = region
+        await searchMapForCurrentQuery()
     }
 
     func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
@@ -251,6 +285,31 @@ private final class PlaceSearchService: NSObject, ObservableObject, MKLocalSearc
         }
     }
 
+    func resolve(_ feature: MapFeature) async -> MeetingPlace? {
+        guard feature.kind == .pointOfInterest,
+              VenueDiscoveryConfig.supports(feature.pointOfInterestCategory) else {
+            errorMessage = "Choose a public place suitable for meeting."
+            return nil
+        }
+
+        isResolving = true
+        errorMessage = nil
+        defer { isResolving = false }
+
+        do {
+            let item = try await MKMapItemRequest(feature: feature).mapItem
+            guard VenueDiscoveryConfig.supports(item.pointOfInterestCategory),
+                  let place = MeetingPlace.from(item) else {
+                errorMessage = "This place does not have enough public place details."
+                return nil
+            }
+            return place
+        } catch {
+            errorMessage = "Could not confirm this place. Try another marker."
+            return nil
+        }
+    }
+
     func select(_ place: MeetingPlace) {
         query = place.name
         suggestions = []
@@ -267,9 +326,15 @@ private final class PlaceSearchService: NSObject, ObservableObject, MKLocalSearc
     }
 
     private func searchMap(for query: String) async {
+        let requestID = UUID()
+        mapSearchID = requestID
         isSearchingMap = true
         errorMessage = nil
-        defer { isSearchingMap = false }
+        defer {
+            if requestID == mapSearchID {
+                isSearchingMap = false
+            }
+        }
 
         do {
             let request = MKLocalSearch.Request()
@@ -280,19 +345,27 @@ private final class PlaceSearchService: NSObject, ObservableObject, MKLocalSearc
             }
 
             let response = try await MKLocalSearch(request: request).start()
+            guard requestID == mapSearchID else { return }
             mapPlaces = Array(response.mapItems.compactMap(MeetingPlace.from).prefix(VenueDiscoveryConfig.resultLimit))
             if mapPlaces.isEmpty {
                 errorMessage = "No matching places found in this area."
             }
         } catch {
+            guard requestID == mapSearchID else { return }
             errorMessage = "Could not load places on the map. Try again."
         }
     }
 
     private func searchSupportedPlaces() async {
+        let requestID = UUID()
+        mapSearchID = requestID
         isSearchingMap = true
         errorMessage = nil
-        defer { isSearchingMap = false }
+        defer {
+            if requestID == mapSearchID {
+                isSearchingMap = false
+            }
+        }
 
         var places: [MeetingPlace] = []
         var successfulSearches = 0
@@ -313,6 +386,7 @@ private final class PlaceSearchService: NSObject, ObservableObject, MKLocalSearc
             }
         }
 
+        guard requestID == mapSearchID else { return }
         let unique = Dictionary(places.map { ($0.deduplicationKey, $0) }, uniquingKeysWith: { first, _ in first })
         mapPlaces = Array(unique.values.prefix(VenueDiscoveryConfig.resultLimit))
         if successfulSearches == 0 {
@@ -327,6 +401,7 @@ struct PlaceSearchField: View {
     @Binding private var selectedPlace: MeetingPlace?
     @StateObject private var search: PlaceSearchService
     @State private var mapPosition: MapCameraPosition
+    @State private var selectedMapFeature: MapFeature?
     private let mapHeight: CGFloat
     private let mapHorizontalOverflow: CGFloat
 
@@ -383,6 +458,7 @@ struct PlaceSearchField: View {
                 .padding(11)
                 .background(NOWColor.paper)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .accessibilityIdentifier("selected-meeting-place")
             } else {
                 TextField(
                     "Search a real place or address",
@@ -411,40 +487,63 @@ struct PlaceSearchField: View {
                             .controlSize(.small)
                     }
                 }
+            }
 
-                Map(position: $mapPosition, interactionModes: [.pan, .zoom]) {
-                    ForEach(search.mapPlaces) { place in
-                        Annotation(place.name, coordinate: place.coordinate, anchor: .bottom) {
-                            Button {
-                                choose(place)
-                            } label: {
-                                Image(systemName: place.category.symbolName)
-                                    .font(.caption.weight(.black))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 32, height: 32)
-                                    .background(NOWColor.laCoral)
-                                    .clipShape(Circle())
-                                    .overlay(Circle().stroke(.white, lineWidth: 2))
-                                    .shadow(color: .black.opacity(0.2), radius: 3, y: 2)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Select \(place.name), \(place.address)")
+            Map(
+                position: $mapPosition,
+                interactionModes: [.pan, .zoom],
+                selection: $selectedMapFeature
+            ) {
+                ForEach(search.mapPlaces) { place in
+                    Annotation(place.name, coordinate: place.coordinate, anchor: .bottom) {
+                        Button {
+                            choose(place)
+                        } label: {
+                            let isSelected = selectedPlace?.id == place.id
+                            Image(systemName: place.category.symbolName)
+                                .font(.caption.weight(.black))
+                                .foregroundStyle(.white)
+                                .frame(width: isSelected ? 40 : 32, height: isSelected ? 40 : 32)
+                                .background(isSelected ? NOWColor.laOrange : NOWColor.laCoral)
+                                .clipShape(Circle())
+                                .overlay(Circle().stroke(.white, lineWidth: isSelected ? 3 : 2))
+                                .shadow(color: .black.opacity(0.2), radius: 3, y: 2)
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Select \(place.name), \(place.address)")
+                        .accessibilityIdentifier("meeting-place-marker-\(place.id)")
                     }
                 }
-                .frame(height: mapHeight)
-                .padding(.horizontal, -mapHorizontalOverflow)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(NOWColor.laBrown.opacity(0.18), lineWidth: 1)
-                )
-
-                if search.isResolving {
-                    ProgressView("Confirming place…")
-                        .font(.caption.weight(.semibold))
+            }
+            .frame(height: mapHeight)
+            .padding(.horizontal, -mapHorizontalOverflow)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(NOWColor.laBrown.opacity(0.18), lineWidth: 1)
+            )
+            .accessibilityIdentifier("meeting-place-map")
+            .onChange(of: selectedMapFeature) { _, feature in
+                guard let feature else { return }
+                Task {
+                    if let place = await search.resolve(feature) {
+                        choose(place)
+                    } else {
+                        selectedMapFeature = nil
+                    }
                 }
+            }
+            .onMapCameraChange(frequency: .onEnd) { context in
+                guard selectedPlace == nil else { return }
+                Task { await search.searchMap(in: context.region) }
+            }
 
+            if search.isResolving {
+                ProgressView("Confirming place…")
+                    .font(.caption.weight(.semibold))
+            }
+
+            if selectedPlace == nil {
                 ForEach(search.suggestions) { suggestion in
                     Button {
                         Task {
@@ -487,6 +586,7 @@ struct PlaceSearchField: View {
 
     private func choose(_ place: MeetingPlace) {
         selectedPlace = place
+        selectedMapFeature = nil
         search.select(place)
         mapPosition = .region(
             MKCoordinateRegion(

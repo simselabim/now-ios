@@ -440,11 +440,62 @@ extension DiscoveryMapNavigationTests {
         XCTAssertTrue(configured.contains(.cafe))
         XCTAssertTrue(configured.contains(.restaurant))
         XCTAssertTrue(configured.contains(.nightlife))
+        XCTAssertTrue(configured.contains(.hotel))
         XCTAssertTrue(configured.contains(.beach))
         XCTAssertTrue(configured.contains(.park))
         XCTAssertTrue(configured.contains(.store))
         XCTAssertTrue(configured.contains(.museum))
+        XCTAssertTrue(configured.contains(.fitnessCenter))
+        XCTAssertTrue(configured.contains(.publicTransport))
         XCTAssertEqual(VenueDiscoveryConfig.searchRadiusM, 5_000)
+    }
+
+    func testOnlySupportedPublicPOICategoriesCanBeSelectedFromAppleMapsLayer() {
+        for category in [
+            MKPointOfInterestCategory.cafe,
+            .restaurant,
+            .hotel,
+            .nightlife,
+            .beach,
+            .park,
+            .store,
+            .museum,
+            .fitnessCenter,
+            .publicTransport,
+        ] {
+            XCTAssertTrue(
+                VenueDiscoveryConfig.supports(category),
+                "Expected \(category.rawValue) to be selectable"
+            )
+        }
+
+        XCTAssertFalse(VenueDiscoveryConfig.supports(.fireStation))
+        XCTAssertFalse(VenueDiscoveryConfig.supports(.police))
+        XCTAssertFalse(VenueDiscoveryConfig.supports(nil))
+    }
+
+    func testAppleMapsHotelResolvesToCompleteMeetingPlace() throws {
+        let coordinate = CLLocationCoordinate2D(latitude: -8.6478, longitude: 115.1385)
+        let placemark = MKPlacemark(
+            coordinate: coordinate,
+            addressDictionary: [
+                "Street": "12 Batu Bolong Street",
+                "City": "Canggu",
+                "Country": "Indonesia",
+            ]
+        )
+        let item = MKMapItem(placemark: placemark)
+        item.name = "Canggu Beach Hotel"
+        item.pointOfInterestCategory = .hotel
+
+        let place = try XCTUnwrap(MeetingPlace.from(item))
+
+        XCTAssertEqual(place.name, "Canggu Beach Hotel")
+        XCTAssertEqual(place.category, .hotel)
+        XCTAssertFalse(place.externalID.isEmpty)
+        XCTAssertFalse(place.address.isEmpty)
+        XCTAssertEqual(place.coordinate.latitude, coordinate.latitude)
+        XCTAssertEqual(place.coordinate.longitude, coordinate.longitude)
     }
 
     func testVenueResultsDeduplicateAndRespectMarkerLimit() {
@@ -464,6 +515,21 @@ extension DiscoveryMapNavigationTests {
         XCTAssertEqual(processed.count, VenueDiscoveryConfig.resultLimit)
         XCTAssertEqual(Set(processed.map(\.id)).count, processed.count)
         XCTAssertTrue(Set(processed.map(\.category)).isSuperset(of: categories))
+    }
+
+    func testCloselyLocatedPOIsRemainDistinctSelectablePlaces() {
+        let center = CLLocationCoordinate2D(latitude: -8.6478, longitude: 115.1385)
+        let first = makeVenue(id: "cafe-one", category: .cafe, latitude: center.latitude)
+        let second = makeVenue(
+            id: "cafe-two",
+            category: .cafe,
+            latitude: center.latitude + 0.000_001
+        )
+
+        let processed = VenueResultProcessor.process([first, second], around: center)
+
+        XCTAssertEqual(Set(processed.map(\.id)), [first.id, second.id])
+        XCTAssertNotEqual(first, second)
     }
 
     func testVenueResultsAllowEmptyAppleMapsResponse() async {
