@@ -318,13 +318,15 @@ struct ActiveMatchResponseDTO: Decodable {
     let matchItem: MatchDTO?
 }
 
-struct ReopenMatchResponseDTO: Decodable {
-    let matchItem: MatchDTO
-    let reopened: Bool
-}
-
 struct ActiveMatchDetailResponseDTO: Decodable {
     let matchItem: ActiveMatchDetailDTO?
+    let closeNotice: MatchCloseNoticeDTO?
+}
+
+struct MatchCloseNoticeDTO: Decodable {
+    let matchId: UUID
+    let reason: CancelReasonDTO
+    let message: String
 }
 
 struct RealtimeEventDTO: Decodable {
@@ -461,6 +463,7 @@ enum CancelReasonDTO: String, Codable, CaseIterable {
     case timeNoLongerWorks = "time_no_longer_works"
     case differentThings = "different_things"
     case uncomfortable
+    case closedKindly = "closed_kindly"
     case other
 }
 

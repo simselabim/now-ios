@@ -56,6 +56,7 @@ final class AppState: ObservableObject {
     @Published private(set) var meetingLocationError: String?
     @Published var history: [HistoryItem] = []
     @Published private(set) var safetyMessage: String?
+    @Published private(set) var matchCloseNoticeMessage: String?
     @Published var selectedAppTab: AppTab = .search
     @Published private(set) var currentUserId: UUID?
     @Published private(set) var currentUserEmail: String?
@@ -72,9 +73,13 @@ final class AppState: ObservableObject {
     private var processedRealtimeEventOrder: [UUID] = []
     private var lastRealtimeVersion: UInt64?
     private var profilePreviewRequestID: UUID?
-    private var reopeningMatchID: UUID?
     private var failedMessageText: String?
     private var discoveryEpoch: UInt64 = 0
+    private let acknowledgedCloseNoticeDefaultsKey = "now.acknowledged-close-kindly-match-ids"
+    private var acknowledgedCloseNoticeMatchIDs: Set<UUID> = Set(
+        UserDefaults.standard.stringArray(forKey: "now.acknowledged-close-kindly-match-ids")?
+            .compactMap(UUID.init(uuidString:)) ?? []
+    )
 
     init(apiClient: NOWAPIClient = NOWAPIClient()) {
         self.apiClient = apiClient
@@ -385,11 +390,6 @@ final class AppState: ObservableObject {
             return
         }
 
-        if point.alreadyMatched, point.lastMatchID != nil {
-            reopenPreviousMatch(point)
-            return
-        }
-
         updatePoint(point.id, state: point.state == .unseen ? .viewed : point.state)
 
         let requestID = UUID()
@@ -675,7 +675,7 @@ final class AppState: ObservableObject {
         }
     }
 
-    func cancelMatch(reason: CancelReasonDTO = .changedMind) {
+    func cancelMatch(reason: CancelReasonDTO = .closedKindly) {
         guard let match = activeMatch, !isCancellingMatch else { return }
         isCancellingMatch = true
 
@@ -853,46 +853,6 @@ final class AppState: ObservableObject {
         }
     }
 
-    private func reopenPreviousMatch(_ point: MapPoint) {
-        guard let matchID = point.lastMatchID, reopeningMatchID == nil else { return }
-        reopeningMatchID = matchID
-
-        Task {
-            isLoading = true
-            errorMessage = nil
-            defer {
-                reopeningMatchID = nil
-                isLoading = false
-            }
-
-            do {
-                let response = try await self.apiClient.reopenMatch(matchId: matchID)
-                self.activeMatch = Match(
-                    id: response.matchItem.id,
-                    profile: point.profile,
-                    status: self.mapMatchStatus(response.matchItem.status),
-                    myFirstLoopSent: false,
-                    theirFirstLoopReceived: false,
-                    meetingStatus: .none
-                )
-                self.selectedPoint = nil
-                self.isOnline = false
-                try await self.loadActiveMatchDetail()
-            } catch APIError.unauthorized {
-                await self.apiClient.logout()
-                self.resetAuthenticatedState()
-                self.errorMessage = "Your session expired. Please sign in again."
-            } catch APIError.server(statusCode: 404, message: _) {
-                try? await self.loadDiscoveryMap()
-                self.errorMessage = "This person is no longer available. The map has been refreshed."
-            } catch APIError.server(statusCode: 409, message: let message) {
-                self.errorMessage = self.reopenMatchConflictMessage(message)
-            } catch {
-                self.errorMessage = "Could not reopen this match. Please try again."
-            }
-        }
-    }
-
     private func likePointWithBackend(_ point: MapPoint) async {
         await runLoading {
             let response = try await self.apiClient.likeProfile(
@@ -926,6 +886,7 @@ final class AppState: ObservableObject {
     }
 
     private func applyActiveMatchDetail(_ response: ActiveMatchDetailResponseDTO) async {
+        applyCloseNotice(response.closeNotice)
         guard let detail = response.matchItem else {
             clearActiveMatchState()
             return
@@ -1074,7 +1035,11 @@ final class AppState: ObservableObject {
             }
         case .matchClosed:
             let keepHistoryVisible = showHistory
-            clearActiveMatchState()
+            if let detail = event.detail {
+                await applyActiveMatchDetail(detail)
+            } else {
+                clearActiveMatchState()
+            }
             if keepHistoryVisible {
                 try? await loadHistoryFromBackend()
             } else {
@@ -1084,6 +1049,25 @@ final class AppState: ObservableObject {
         case .error:
             errorMessage = event.message ?? "Realtime sync failed. Reconnecting…"
         }
+    }
+
+    func acknowledgeMatchCloseNotice() {
+        matchCloseNoticeMessage = nil
+    }
+
+    private func applyCloseNotice(_ notice: MatchCloseNoticeDTO?) {
+        guard let notice,
+              notice.reason == .closedKindly,
+              !acknowledgedCloseNoticeMatchIDs.contains(notice.matchId) else {
+            return
+        }
+
+        acknowledgedCloseNoticeMatchIDs.insert(notice.matchId)
+        UserDefaults.standard.set(
+            acknowledgedCloseNoticeMatchIDs.map(\.uuidString).sorted(),
+            forKey: acknowledgedCloseNoticeDefaultsKey
+        )
+        matchCloseNoticeMessage = notice.message
     }
 
     private func shouldApplyRealtimeEvent(_ event: RealtimeEventDTO) -> Bool {
@@ -1423,17 +1407,6 @@ final class AppState: ObservableObject {
             alreadyMatched: dto.alreadyMatched,
             lastMatchID: dto.lastMatchId
         )
-    }
-
-    private func reopenMatchConflictMessage(_ message: String?) -> String {
-        let message = message?.lowercased() ?? ""
-        if message.contains("offline") || message.contains("go online") {
-            return "Both people need to be online to reopen this match."
-        }
-        if message.contains("active match") {
-            return "One of you already has another active match."
-        }
-        return "This match can’t be reopened right now."
     }
 
     private func mapProfile(_ dto: MapPointDTO) -> UserProfile {

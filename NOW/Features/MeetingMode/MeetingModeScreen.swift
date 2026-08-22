@@ -326,11 +326,7 @@ struct MeetingModeScreen: View {
         .alert("Close this match?", isPresented: $showCloseConfirmation) {
             Button("Keep waiting", role: .cancel) {}
             Button("Close kindly", role: .destructive) {
-                appState.cancelMatch(
-                    reason: MeetingModeCloseKindlyPolicy.cancelReason(
-                        hasConfirmedWeMet: appState.activeMatch?.hasConfirmedWeMet == true
-                    )
-                )
+                appState.cancelMatch()
             }
         } message: {
             Text("This ends the match and releases both of you. Your meeting confirmation will not complete it.")
@@ -522,12 +518,6 @@ private struct WeMetConfirmedStatus: View {
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Meeting confirmed. Waiting for the other person.")
-    }
-}
-
-enum MeetingModeCloseKindlyPolicy {
-    static func cancelReason(hasConfirmedWeMet: Bool) -> CancelReasonDTO {
-        hasConfirmedWeMet ? .notResponding : .changedMind
     }
 }
 

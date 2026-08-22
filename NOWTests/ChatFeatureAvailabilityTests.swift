@@ -333,19 +333,8 @@ final class MeetingModeChatTests: XCTestCase {
         XCTAssertFalse(flags.canConfirmWeMet)
     }
 
-    func testCloseKindlyUsesNotRespondingReason() {
-        XCTAssertEqual(CancelReasonDTO.notResponding.rawValue, "not_responding")
-    }
-
-    func testMeetingModeCloseKindlyUsesSharedCancellationReasons() {
-        XCTAssertEqual(
-            MeetingModeCloseKindlyPolicy.cancelReason(hasConfirmedWeMet: false),
-            .changedMind
-        )
-        XCTAssertEqual(
-            MeetingModeCloseKindlyPolicy.cancelReason(hasConfirmedWeMet: true),
-            .notResponding
-        )
+    func testCloseKindlyUsesDedicatedCancellationReason() {
+        XCTAssertEqual(CancelReasonDTO.closedKindly.rawValue, "closed_kindly")
     }
 
     func testMeetingModeExposesReachableCloseKindlyButton() throws {

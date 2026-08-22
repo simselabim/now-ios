@@ -28,6 +28,21 @@ struct AppRouter: View {
             .background(NOWColor.paper.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
         }
+        .alert(
+            appState.matchCloseNoticeMessage ?? "Sorry, I can’t meet",
+            isPresented: Binding(
+                get: { appState.matchCloseNoticeMessage != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        appState.acknowledgeMatchCloseNotice()
+                    }
+                }
+            )
+        ) {
+            Button("OK") {
+                appState.acknowledgeMatchCloseNotice()
+            }
+        }
     }
 }
 

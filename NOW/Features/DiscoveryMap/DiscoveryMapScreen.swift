@@ -741,7 +741,7 @@ private struct LAMapPersonMarker: View {
             return "message.fill"
         }
 
-        if point.alreadyMatched {
+        if point.alreadyMatched || point.state == .triedBefore {
             return "heart.fill"
         }
 
@@ -749,7 +749,7 @@ private struct LAMapPersonMarker: View {
         case .interested:
             return "heart.fill"
         case .triedBefore:
-            return "xmark"
+            return "heart.fill"
         default:
             return nil
         }
