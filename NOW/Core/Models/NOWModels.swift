@@ -119,7 +119,7 @@ struct TomorrowExtension {
     )
 }
 
-enum MessageSender {
+enum MessageSender: Equatable {
     case me
     case them
 }
@@ -185,18 +185,49 @@ struct Match: Identifiable {
     var tomorrowExtension: TomorrowExtension = .none
 }
 
-struct Message: Identifiable {
-    let id: UUID
+enum MessageDeliveryState: Equatable {
+    case sending
+    case sent
+    case failed(String)
+}
+
+struct Message: Identifiable, Equatable {
+    let clientMessageId: UUID
+    var serverId: UUID?
     let sender: MessageSender
     let text: String
     let createdAt: Date?
+    var deliveryState: MessageDeliveryState
+
+    var id: UUID { clientMessageId }
+
+    init(
+        id: UUID,
+        sender: MessageSender,
+        text: String,
+        createdAt: Date?,
+        clientMessageId: UUID? = nil,
+        deliveryState: MessageDeliveryState = .sent
+    ) {
+        self.clientMessageId = clientMessageId ?? id
+        self.serverId = deliveryState == .sent ? id : nil
+        self.sender = sender
+        self.text = text
+        self.createdAt = createdAt
+        self.deliveryState = deliveryState
+    }
 }
 
 enum MessageTimeline {
     static func normalized(_ messages: [Message]) -> [Message] {
         var messagesByID: [UUID: Message] = [:]
         for message in messages {
-            messagesByID[message.id] = message
+            if let existing = messagesByID[message.clientMessageId],
+               existing.deliveryState == .sent,
+               message.deliveryState != .sent {
+                continue
+            }
+            messagesByID[message.clientMessageId] = message
         }
 
         return messagesByID.values.sorted { lhs, rhs in
@@ -211,6 +242,30 @@ enum MessageTimeline {
                 return lhs.id.uuidString < rhs.id.uuidString
             }
         }
+    }
+
+    static func reconciled(local: [Message], authoritative: [Message]) -> [Message] {
+        normalized(local + authoritative)
+    }
+
+    static func updating(
+        _ messages: [Message],
+        clientMessageId: UUID,
+        serverId: UUID? = nil,
+        deliveryState: MessageDeliveryState
+    ) -> [Message] {
+        normalized(messages.map { message in
+            guard message.clientMessageId == clientMessageId else { return message }
+            if message.deliveryState == .sent, deliveryState != .sent {
+                return message
+            }
+            var updated = message
+            if let serverId {
+                updated.serverId = serverId
+            }
+            updated.deliveryState = deliveryState
+            return updated
+        })
     }
 }
 

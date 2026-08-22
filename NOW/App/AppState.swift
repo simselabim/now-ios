@@ -2,6 +2,7 @@ import Foundation
 import CoreLocation
 import AVFoundation
 import MapKit
+import OSLog
 
 enum AuthenticationFieldError: Equatable {
     case email(String)
@@ -48,8 +49,6 @@ final class AppState: ObservableObject {
     @Published private(set) var theirFirstLoopURL: URL?
     @Published var messages: [Message] = []
     @Published var chatDraft = ""
-    @Published private(set) var isSendingMessage = false
-    @Published private(set) var messageSendError: String?
     @Published var meetingProposal: MeetingProposal?
     @Published private(set) var otherMeetingLocation: PartnerMeetingLocation?
     @Published private(set) var meetingLocationConfig: MeetingLocationConfig?
@@ -69,21 +68,27 @@ final class AppState: ObservableObject {
     private var loopDownloadTasks: [String: Task<URL?, Never>] = [:]
     private var realtimeConnectionTask: Task<Void, Never>?
     private var realtimeConnectionID: UUID?
+    private var activeMatchDetailGeneration: UInt64 = 0
+    private var messageMatchID: UUID?
     private var processedRealtimeEventIds: Set<UUID> = []
     private var processedRealtimeEventOrder: [UUID] = []
     private var lastRealtimeVersion: UInt64?
     private var profilePreviewRequestID: UUID?
-    private var failedMessageText: String?
     private var discoveryEpoch: UInt64 = 0
     private let acknowledgedCloseNoticeDefaultsKey = "now.acknowledged-close-kindly-match-ids"
     private var acknowledgedCloseNoticeMatchIDs: Set<UUID> = Set(
         UserDefaults.standard.stringArray(forKey: "now.acknowledged-close-kindly-match-ids")?
             .compactMap(UUID.init(uuidString:)) ?? []
     )
+    private static let chatLogger = Logger(subsystem: "com.sim.now", category: "ChatDelivery")
 
     init(apiClient: NOWAPIClient = NOWAPIClient()) {
         self.apiClient = apiClient
         self.locationService = LocationService()
+    }
+
+    var isSendingMessage: Bool {
+        messages.contains { $0.deliveryState == .sending }
     }
 
     var visibleMapPoints: [MapPoint] {
@@ -453,16 +458,58 @@ final class AppState: ObservableObject {
 
     func sendMessage(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard chatUnlocked, !trimmed.isEmpty, !isSendingMessage else { return }
+        guard chatUnlocked, !trimmed.isEmpty, let match = activeMatch else { return }
+
+        let clientMessageId = UUID()
+        let pendingMessage = Message(
+            id: clientMessageId,
+            sender: .me,
+            text: trimmed,
+            createdAt: Date(),
+            clientMessageId: clientMessageId,
+            deliveryState: .sending
+        )
+        messageMatchID = match.id
+        messages = MessageTimeline.normalized(messages + [pendingMessage])
+        chatDraft = ""
+        Self.chatLogger.info(
+            "chat message queued client_message_id=\(clientMessageId.uuidString, privacy: .public) match_id=\(match.id.uuidString, privacy: .public)"
+        )
 
         Task {
-            await sendMessageWithBackend(trimmed)
+            await sendMessageWithBackend(
+                trimmed,
+                match: match,
+                clientMessageId: clientMessageId
+            )
         }
     }
 
-    func retryFailedMessage() {
-        guard let failedMessageText else { return }
-        sendMessage(failedMessageText)
+    func retryFailedMessage(_ clientMessageId: UUID) {
+        guard let match = activeMatch,
+              let message = messages.first(where: {
+                  guard $0.clientMessageId == clientMessageId else { return false }
+                  if case .failed = $0.deliveryState { return true }
+                  return false
+              }) else {
+            return
+        }
+
+        messages = MessageTimeline.updating(
+            messages,
+            clientMessageId: clientMessageId,
+            deliveryState: .sending
+        )
+        Self.chatLogger.info(
+            "chat message retry client_message_id=\(clientMessageId.uuidString, privacy: .public) match_id=\(match.id.uuidString, privacy: .public)"
+        )
+        Task {
+            await sendMessageWithBackend(
+                message.text,
+                match: match,
+                clientMessageId: clientMessageId
+            )
+        }
     }
 
     func requestTomorrowExtension() {
@@ -886,6 +933,8 @@ final class AppState: ObservableObject {
     }
 
     private func applyActiveMatchDetail(_ response: ActiveMatchDetailResponseDTO) async {
+        activeMatchDetailGeneration &+= 1
+        let generation = activeMatchDetailGeneration
         applyCloseNotice(response.closeNotice)
         guard let detail = response.matchItem else {
             clearActiveMatchState()
@@ -903,8 +952,20 @@ final class AppState: ObservableObject {
         let theirLoopReceived = theirLoop != nil
         let locallyConfirmedWeMet = activeMatch?.id == detail.matchItem.id
             && activeMatch?.hasConfirmedWeMet == true
-        myFirstLoopURL = await playbackURL(for: myLoop)
-        theirFirstLoopURL = await playbackURL(for: theirLoop)
+        let authoritativeMessages = detail.messages.map { message in
+            Message(
+                id: message.id,
+                sender: message.senderUserId == detail.matchItem.otherUserId ? .them : .me,
+                text: message.body,
+                createdAt: date(from: message.createdAt),
+                clientMessageId: message.clientMessageId ?? message.id
+            )
+        }
+        let myLoopURL = await playbackURL(for: myLoop)
+        let theirLoopURL = await playbackURL(for: theirLoop)
+        guard generation == activeMatchDetailGeneration else { return }
+        myFirstLoopURL = myLoopURL
+        theirFirstLoopURL = theirLoopURL
         activeMatch = Match(
             id: detail.matchItem.id,
             profile: profile,
@@ -921,14 +982,21 @@ final class AppState: ObservableObject {
         selectedPoint = nil
         isOnline = false
         errorMessage = nil
-        messages = MessageTimeline.normalized(detail.messages.map { message in
-            Message(
-                id: message.id,
-                sender: message.senderUserId == detail.matchItem.otherUserId ? .them : .me,
-                text: message.body,
-                createdAt: date(from: message.createdAt)
+        let knownServerIDs = Set(messages.compactMap(\.serverId))
+        if messageMatchID == detail.matchItem.id {
+            messages = MessageTimeline.reconciled(
+                local: messages,
+                authoritative: authoritativeMessages
             )
-        })
+        } else {
+            messages = MessageTimeline.normalized(authoritativeMessages)
+        }
+        messageMatchID = detail.matchItem.id
+        for message in authoritativeMessages where !knownServerIDs.contains(message.serverId ?? message.id) {
+            Self.chatLogger.info(
+                "chat message received message_id=\((message.serverId ?? message.id).uuidString, privacy: .public) client_message_id=\(message.clientMessageId.uuidString, privacy: .public) match_id=\(detail.matchItem.id.uuidString, privacy: .public)"
+            )
+        }
         if let proposal = detail.latestMeetingProposal {
             meetingProposal = mapMeetingProposal(proposal)
         } else {
@@ -952,6 +1020,7 @@ final class AppState: ObservableObject {
     }
 
     private func clearActiveMatchState() {
+        activeMatchDetailGeneration &+= 1
         activeMatch = nil
         isViewingActiveMatchMap = false
         myFirstLoopURL = nil
@@ -962,10 +1031,8 @@ final class AppState: ObservableObject {
         meetingLocationConfig = nil
         meetingLocationError = nil
         messages = []
+        messageMatchID = nil
         chatDraft = ""
-        isSendingMessage = false
-        messageSendError = nil
-        failedMessageText = nil
         history = []
         safetyMessage = nil
     }
@@ -1258,39 +1325,43 @@ final class AppState: ObservableObject {
         return (error as NSError).localizedDescription
     }
 
-    private func sendMessageWithBackend(_ text: String) async {
-        guard let match = activeMatch else { return }
-
-        isSendingMessage = true
-        messageSendError = nil
-        failedMessageText = nil
-        defer { isSendingMessage = false }
-
+    private func sendMessageWithBackend(
+        _ text: String,
+        match: Match,
+        clientMessageId: UUID
+    ) async {
         do {
-            let response = try await apiClient.sendMessage(matchId: match.id, body: text)
-            messages = MessageTimeline.normalized(
-                messages + [
-                    Message(
-                        id: response.message.id,
-                        sender: .me,
-                        text: response.message.body,
-                        createdAt: date(from: response.message.createdAt)
-                    )
-                ]
+            let response = try await apiClient.sendMessage(
+                matchId: match.id,
+                body: text,
+                clientMessageId: clientMessageId
             )
-            if chatDraft.trimmingCharacters(in: .whitespacesAndNewlines) == text {
-                chatDraft = ""
-            }
+            Self.chatLogger.info(
+                "chat message ack message_id=\(response.message.id.uuidString, privacy: .public) client_message_id=\(clientMessageId.uuidString, privacy: .public) match_id=\(match.id.uuidString, privacy: .public) deduplicated=\(response.deduplicated ?? false)"
+            )
+            guard activeMatch?.id == match.id, messageMatchID == match.id else { return }
+            messages = MessageTimeline.updating(
+                messages,
+                clientMessageId: clientMessageId,
+                serverId: response.message.id,
+                deliveryState: .sent
+            )
         } catch {
-            failedMessageText = text
-            if chatDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                chatDraft = text
-            }
+            let errorMessage: String
             if case let APIError.server(_, message) = error, let message, !message.isEmpty {
-                messageSendError = message
+                errorMessage = message
             } else {
-                messageSendError = "Message was not sent. Check your connection and try again."
+                errorMessage = "Message was not sent. Check your connection and try again."
             }
+            Self.chatLogger.error(
+                "chat message failed client_message_id=\(clientMessageId.uuidString, privacy: .public) match_id=\(match.id.uuidString, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+            guard activeMatch?.id == match.id, messageMatchID == match.id else { return }
+            messages = MessageTimeline.updating(
+                messages,
+                clientMessageId: clientMessageId,
+                deliveryState: .failed(errorMessage)
+            )
         }
     }
 
@@ -1334,6 +1405,8 @@ final class AppState: ObservableObject {
         selectedPoint = nil
         preferredMeetingPlace = nil
         activeMatch = nil
+        activeMatchDetailGeneration &+= 1
+        messageMatchID = nil
         meetingProposal = nil
         messages = []
         showHistory = false

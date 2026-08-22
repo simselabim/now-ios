@@ -216,6 +216,101 @@ final class MeetingModeChatTests: XCTestCase {
         XCTAssertEqual(normalized.map(\.id), [firstID, secondID])
     }
 
+    func testReconnectReplacesPendingMessageWithAuthoritativeAckWithoutDuplicate() {
+        let clientID = UUID(uuidString: "33333333-3333-3333-3333-333333333333")!
+        let serverID = UUID(uuidString: "44444444-4444-4444-4444-444444444444")!
+        let pending = Message(
+            id: clientID,
+            sender: .me,
+            text: "On my way",
+            createdAt: Date(timeIntervalSince1970: 1_700_000_010),
+            clientMessageId: clientID,
+            deliveryState: .sending
+        )
+        let authoritative = Message(
+            id: serverID,
+            sender: .me,
+            text: "On my way",
+            createdAt: Date(timeIntervalSince1970: 1_700_000_011),
+            clientMessageId: clientID
+        )
+
+        let reconciled = MessageTimeline.reconciled(
+            local: [pending],
+            authoritative: [authoritative]
+        )
+
+        XCTAssertEqual(reconciled.count, 1)
+        XCTAssertEqual(reconciled[0].clientMessageId, clientID)
+        XCTAssertEqual(reconciled[0].serverId, serverID)
+        XCTAssertEqual(reconciled[0].deliveryState, .sent)
+    }
+
+    func testStaleReconnectSnapshotDoesNotRemoveNewerLocalMessages() {
+        let first = Message(
+            id: UUID(),
+            sender: .them,
+            text: "First",
+            createdAt: Date(timeIntervalSince1970: 1_700_000_020)
+        )
+        let second = Message(
+            id: UUID(),
+            sender: .me,
+            text: "Second",
+            createdAt: Date(timeIntervalSince1970: 1_700_000_021)
+        )
+
+        let reconciled = MessageTimeline.reconciled(
+            local: [first, second],
+            authoritative: [first]
+        )
+
+        XCTAssertEqual(reconciled.map(\.text), ["First", "Second"])
+    }
+
+    func testFailedMessageRetryKeepsStableClientMessageID() {
+        let clientID = UUID()
+        let failed = Message(
+            id: clientID,
+            sender: .me,
+            text: "Retry me",
+            createdAt: Date(),
+            clientMessageId: clientID,
+            deliveryState: .failed("No connection")
+        )
+
+        let retrying = MessageTimeline.updating(
+            [failed],
+            clientMessageId: clientID,
+            deliveryState: .sending
+        )
+
+        XCTAssertEqual(retrying.count, 1)
+        XCTAssertEqual(retrying[0].clientMessageId, clientID)
+        XCTAssertEqual(retrying[0].deliveryState, .sending)
+    }
+
+    func testRapidPendingMessagesRemainIndependentlyVisible() {
+        let start = Date(timeIntervalSince1970: 1_700_000_030)
+        let rapidMessages = (0..<3).map { offset in
+            let clientID = UUID()
+            return Message(
+                id: clientID,
+                sender: .me,
+                text: "Rapid \(offset)",
+                createdAt: start.addingTimeInterval(Double(offset)),
+                clientMessageId: clientID,
+                deliveryState: .sending
+            )
+        }
+
+        let normalized = MessageTimeline.normalized(rapidMessages)
+
+        XCTAssertEqual(normalized.count, 3)
+        XCTAssertEqual(Set(normalized.map(\.clientMessageId)).count, 3)
+        XCTAssertTrue(normalized.allSatisfy { $0.deliveryState == .sending })
+    }
+
     func testMeetingPanelStartsAboveMinimumAndExpandsForKeyboard() {
         let containerHeight: CGFloat = 844
         let initial = MeetingChatPanelMetrics.defaultHeight(containerHeight: containerHeight)

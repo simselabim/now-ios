@@ -493,6 +493,7 @@ struct LoopDTO: Codable, Identifiable, Equatable {
 
 struct SendMessageRequestDTO: Encodable {
     let body: String
+    let clientMessageId: UUID
 }
 
 struct MessagesResponseDTO: Decodable {
@@ -502,10 +503,12 @@ struct MessagesResponseDTO: Decodable {
 
 struct SendMessageResponseDTO: Decodable {
     let message: MessageDTO
+    let deduplicated: Bool?
 }
 
 struct MessageDTO: Codable, Identifiable, Equatable {
     let id: UUID
+    let clientMessageId: UUID?
     let matchId: UUID
     let senderUserId: UUID
     let body: String

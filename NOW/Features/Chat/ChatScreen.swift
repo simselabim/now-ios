@@ -180,7 +180,9 @@ struct MatchChatTranscript: View {
             }
 
             ForEach(appState.messages) { message in
-                Bubble(text: message.text, sender: message.sender)
+                Bubble(message: message) {
+                    appState.retryFailedMessage(message.clientMessageId)
+                }
                     .id(message.id)
             }
         }
@@ -198,21 +200,6 @@ struct ChatMessageComposer: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if let error = appState.messageSendError {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(error)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(NOWColor.laCoral)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Button("Retry") {
-                        appState.retryFailedMessage()
-                    }
-                    .font(.caption.weight(.heavy))
-                    .foregroundStyle(NOWColor.laCoral)
-                    .disabled(appState.isSendingMessage)
-                }
-            }
-
             HStack(spacing: 10) {
                 TextField("Message...", text: $appState.chatDraft, axis: .vertical)
                     .focused($isFocused)
@@ -231,22 +218,15 @@ struct ChatMessageComposer: View {
                     .onSubmit(send)
 
                 Button(action: send) {
-                    Group {
-                        if appState.isSendingMessage {
-                            ProgressView()
-                                .tint(NOWColor.surface)
-                        } else {
-                            Image(systemName: "arrow.up")
-                                .font(.headline.weight(.black))
-                        }
-                    }
-                    .foregroundStyle(NOWColor.surface)
-                    .frame(width: 48, height: 48)
-                    .background(NOWColor.laBrown)
-                    .clipShape(Circle())
+                    Image(systemName: "arrow.up")
+                        .font(.headline.weight(.black))
+                        .foregroundStyle(NOWColor.surface)
+                        .frame(width: 48, height: 48)
+                        .background(NOWColor.laBrown)
+                        .clipShape(Circle())
                 }
-                .disabled(trimmedDraft.isEmpty || appState.isSendingMessage)
-                .accessibilityLabel(appState.isSendingMessage ? "Sending message" : "Send message")
+                .disabled(trimmedDraft.isEmpty)
+                .accessibilityLabel("Send message")
             }
         }
         .onChange(of: isFocused) { _, focused in
@@ -398,18 +378,42 @@ private struct ExpandedMatchLoopViewer: View {
 }
 
 private struct Bubble: View {
-    let text: String
-    let sender: MessageSender
+    let message: Message
+    let retry: () -> Void
 
     var body: some View {
-        Text(text)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(sender == .me ? NOWColor.surface : NOWColor.laBrown)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 11)
-            .background(sender == .me ? NOWColor.laBrown : NOWColor.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .frame(maxWidth: .infinity, alignment: sender == .me ? .trailing : .leading)
+        VStack(alignment: message.sender == .me ? .trailing : .leading, spacing: 5) {
+            Text(message.text)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(message.sender == .me ? NOWColor.surface : NOWColor.laBrown)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 11)
+                .background(message.sender == .me ? NOWColor.laBrown : NOWColor.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+            switch message.deliveryState {
+            case .sending where message.sender == .me:
+                HStack(spacing: 5) {
+                    ProgressView()
+                        .controlSize(.mini)
+                    Text("Sending…")
+                }
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(NOWColor.inkSoft)
+            case .failed(let error) where message.sender == .me:
+                HStack(alignment: .firstTextBaseline, spacing: 7) {
+                    Text(error)
+                        .lineLimit(2)
+                    Button("Retry", action: retry)
+                        .fontWeight(.heavy)
+                }
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(NOWColor.laCoral)
+            default:
+                EmptyView()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: message.sender == .me ? .trailing : .leading)
     }
 }
 

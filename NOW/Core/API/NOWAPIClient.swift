@@ -274,11 +274,15 @@ final class NOWAPIClient {
         try await send(path: "/matches/\(matchId.uuidString)/messages")
     }
 
-    func sendMessage(matchId: UUID, body: String) async throws -> SendMessageResponseDTO {
+    func sendMessage(
+        matchId: UUID,
+        body: String,
+        clientMessageId: UUID
+    ) async throws -> SendMessageResponseDTO {
         try await send(
             path: "/matches/\(matchId.uuidString)/messages",
             method: "POST",
-            body: SendMessageRequestDTO(body: body)
+            body: SendMessageRequestDTO(body: body, clientMessageId: clientMessageId)
         )
     }
 
