@@ -196,6 +196,96 @@ final class MeetingModeChatTests: XCTestCase {
         XCTAssertLessThan(MeetingChatPanelMetrics.collapsedHeight, MeetingChatPanelMetrics.minimumHeight)
     }
 
+    func testMeetingInformationIsVisibleOnlyWhenFullyExpandedWithoutKeyboard() {
+        let containerHeight: CGFloat = 844
+        let expandedHeight = MeetingChatPanelMetrics.expandedHeight(
+            containerHeight: containerHeight
+        )
+        let intermediateHeight = MeetingChatPanelMetrics.defaultHeight(
+            containerHeight: containerHeight
+        )
+
+        XCTAssertTrue(
+            MeetingInformationVisibilityPolicy.showsInformation(
+                panelHeight: expandedHeight,
+                containerHeight: containerHeight,
+                isPanelCollapsed: false,
+                isKeyboardVisible: false
+            )
+        )
+        XCTAssertFalse(
+            MeetingInformationVisibilityPolicy.showsInformation(
+                panelHeight: expandedHeight,
+                containerHeight: containerHeight,
+                isPanelCollapsed: false,
+                isKeyboardVisible: true
+            )
+        )
+        XCTAssertFalse(
+            MeetingInformationVisibilityPolicy.showsInformation(
+                panelHeight: intermediateHeight,
+                containerHeight: containerHeight,
+                isPanelCollapsed: false,
+                isKeyboardVisible: false
+            )
+        )
+        XCTAssertFalse(
+            MeetingInformationVisibilityPolicy.showsInformation(
+                panelHeight: expandedHeight,
+                containerHeight: containerHeight,
+                isPanelCollapsed: true,
+                isKeyboardVisible: false
+            )
+        )
+    }
+
+    func testExpandedMeetingPanelStaysExpandedAcrossKeyboardGeometryChanges() {
+        let fullScreenHeight: CGFloat = 844
+        let keyboardScreenHeight: CGFloat = 500
+        let fullExpandedHeight = MeetingChatPanelMetrics.expandedHeight(
+            containerHeight: fullScreenHeight
+        )
+
+        let keyboardExpandedHeight = MeetingInformationVisibilityPolicy.adjustedPanelHeight(
+            fullExpandedHeight,
+            oldContainerHeight: fullScreenHeight,
+            newContainerHeight: keyboardScreenHeight
+        )
+        let restoredExpandedHeight = MeetingInformationVisibilityPolicy.adjustedPanelHeight(
+            keyboardExpandedHeight,
+            oldContainerHeight: keyboardScreenHeight,
+            newContainerHeight: fullScreenHeight
+        )
+
+        XCTAssertEqual(
+            keyboardExpandedHeight,
+            MeetingChatPanelMetrics.expandedHeight(containerHeight: keyboardScreenHeight)
+        )
+        XCTAssertEqual(restoredExpandedHeight, fullExpandedHeight)
+    }
+
+    func testIntermediateMeetingPanelStaysIntermediateAcrossHeightChanges() {
+        let fullScreenHeight: CGFloat = 844
+        let keyboardScreenHeight: CGFloat = 500
+        let intermediateHeight = MeetingChatPanelMetrics.defaultHeight(
+            containerHeight: fullScreenHeight
+        )
+
+        let adjustedHeight = MeetingInformationVisibilityPolicy.adjustedPanelHeight(
+            intermediateHeight,
+            oldContainerHeight: fullScreenHeight,
+            newContainerHeight: keyboardScreenHeight
+        )
+
+        XCTAssertEqual(
+            adjustedHeight,
+            MeetingChatPanelMetrics.clampedHeight(
+                intermediateHeight,
+                containerHeight: keyboardScreenHeight
+            )
+        )
+    }
+
     func testWeMetConfirmationFlagDecodesForCurrentParticipant() throws {
         let data = Data(
             #"{"can_send_message":true,"can_create_proposal":true,"can_confirm_we_met":false,"has_confirmed_we_met":true}"#.utf8
