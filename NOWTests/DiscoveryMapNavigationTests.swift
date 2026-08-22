@@ -1,4 +1,5 @@
 import CoreLocation
+import Foundation
 import MapKit
 import XCTest
 @testable import NOW
@@ -29,6 +30,74 @@ final class DiscoveryMapNavigationTests: XCTestCase {
 
     func testMapPointEqualityDetectsViewedStateChange() {
         XCTAssertNotEqual(makePoint(state: .unseen), makePoint(state: .viewed))
+    }
+
+    func testGoOfflineImmediatelyLeavesMapAndIgnoresLateDiscoveryResponse() async throws {
+        let tokenStore = InMemoryAuthTokenStore()
+        await tokenStore.setAccessToken("test-token")
+        let discoverStarted = DispatchSemaphore(value: 0)
+        let releaseDiscover = DispatchSemaphore(value: 0)
+
+        ReopenMatchURLProtocol.reset()
+        ReopenMatchURLProtocol.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/matches/active/detail"):
+                return Self.jsonResponse(for: request, body: #"{"match_item":null}"#)
+            case ("GET", "/discover/map"):
+                discoverStarted.signal()
+                _ = releaseDiscover.wait(timeout: .now() + 2)
+                return Self.jsonResponse(
+                    for: request,
+                    body: #"{"radius_m":50000,"discovery_locked":false,"points":[]}"#
+                )
+            case ("DELETE", "/online"):
+                return Self.jsonResponse(
+                    for: request,
+                    body: #"{"status":"offline","closed_sessions":1}"#
+                )
+            default:
+                throw URLError(.badURL)
+            }
+        }
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ReopenMatchURLProtocol.self]
+        let client = NOWAPIClient(
+            environment: APIEnvironment(baseURL: URL(string: "https://now.test")!),
+            session: URLSession(configuration: configuration),
+            tokenStore: tokenStore
+        )
+        let state = AppState(apiClient: client)
+        state.isOnline = true
+        state.mapPoints = [makePoint(state: .unseen)]
+        state.rememberDiscoveryMapRegion(
+            MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: -8.6478, longitude: 115.1385),
+                span: MKCoordinateSpan(latitudeDelta: 0.04, longitudeDelta: 0.03)
+            )
+        )
+
+        state.refreshActiveMatch()
+        let didStartDiscovery = await Task.detached {
+            discoverStarted.wait(timeout: .now() + 2) == .success
+        }.value
+        XCTAssertTrue(didStartDiscovery)
+
+        state.goOffline()
+
+        XCTAssertFalse(state.isOnline)
+        XCTAssertTrue(state.mapPoints.isEmpty)
+        XCTAssertNil(state.discoveryMapRegion)
+
+        releaseDiscover.signal()
+        for _ in 0..<100 where state.isLoading {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        XCTAssertEqual(ReopenMatchURLProtocol.requestCount(path: "/online"), 1)
+        XCTAssertFalse(state.isOnline)
+        XCTAssertTrue(state.mapPoints.isEmpty)
+        XCTAssertNil(state.discoveryRadiusM)
     }
 
     func testMatchedPointReopensSameMatchOnlyOnceAfterRapidTaps() async throws {

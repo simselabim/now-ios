@@ -73,6 +73,7 @@ final class AppState: ObservableObject {
     private var profilePreviewRequestID: UUID?
     private var reopeningMatchID: UUID?
     private var failedMessageText: String?
+    private var discoveryEpoch: UInt64 = 0
 
     init(apiClient: NOWAPIClient = NOWAPIClient()) {
         self.apiClient = apiClient
@@ -290,21 +291,42 @@ final class AppState: ObservableObject {
     }
 
     func goOnline() {
+        discoveryEpoch &+= 1
+        let epoch = discoveryEpoch
         Task {
-            await goOnlineWithBackend()
+            await goOnlineWithBackend(epoch: epoch)
         }
     }
 
     func goOffline() {
+        discoveryEpoch &+= 1
+        let epoch = discoveryEpoch
+        profilePreviewRequestID = nil
+        isOnline = false
+        selectedPoint = nil
+        preferredMeetingPlace = nil
+        mapPoints = []
+        discoveryRadiusM = nil
+        discoveryMapRegion = nil
+        errorMessage = nil
+        isLoading = true
+
         Task {
-            await runLoading {
+            defer {
+                if self.discoveryEpoch == epoch {
+                    self.isLoading = false
+                }
+            }
+
+            do {
                 _ = try await self.apiClient.goOffline()
-                self.isOnline = false
-                self.selectedPoint = nil
-                self.preferredMeetingPlace = nil
-                self.mapPoints = []
-                self.discoveryRadiusM = nil
-                self.discoveryMapRegion = nil
+            } catch APIError.unauthorized {
+                await self.apiClient.logout()
+                self.resetAuthenticatedState()
+                self.errorMessage = "Your session expired. Please sign in again."
+            } catch {
+                guard self.discoveryEpoch == epoch else { return }
+                self.errorMessage = "Could not update your offline status. Check your connection before going online again."
             }
         }
     }
@@ -733,24 +755,32 @@ final class AppState: ObservableObject {
         }
     }
 
-    private func goOnlineWithBackend() async {
+    private func goOnlineWithBackend(epoch: UInt64) async {
+        guard discoveryEpoch == epoch else { return }
+
         let selectedIntent = todayIntent
         isLoading = true
         errorMessage = nil
         preferredMeetingPlace = nil
         discoveryMapRegion = nil
+        defer {
+            if discoveryEpoch == epoch {
+                isLoading = false
+            }
+        }
 
         let deviceLocation: DeviceLocation
         do {
             deviceLocation = try await locationService.currentLocation()
+            guard discoveryEpoch == epoch else { return }
             currentCoordinate = deviceLocation.coordinate
             currentLocationAccuracyM = deviceLocation.accuracyM
         } catch {
+            guard discoveryEpoch == epoch else { return }
             isOnline = false
             selectedPoint = nil
             mapPoints = []
             errorMessage = locationMessage(for: error)
-            isLoading = false
             return
         }
 
@@ -762,31 +792,36 @@ final class AppState: ObservableObject {
                     timesToday: selectedIntent.timeWindows.map(mapTime).sorted { $0.rawValue < $1.rawValue }
                 )
             )
+            guard discoveryEpoch == epoch else { return }
             _ = try await apiClient.goOnline(
                 lat: deviceLocation.coordinate.latitude,
                 lng: deviceLocation.coordinate.longitude,
                 accuracyM: deviceLocation.accuracyM
             )
+            guard discoveryEpoch == epoch else { return }
             showHistory = false
             isOnline = true
-            try await loadDiscoveryMap()
+            try await loadDiscoveryMap(expectedEpoch: epoch)
         } catch {
+            guard discoveryEpoch == epoch else { return }
             mapPoints = []
             selectedPoint = nil
             showHistory = false
             isOnline = false
             errorMessage = "Could not sync with the staging API. Check backend URL and connection."
         }
-
-        isLoading = false
     }
 
-    private func loadDiscoveryMap() async throws {
+    private func loadDiscoveryMap(expectedEpoch: UInt64? = nil) async throws {
+        let requestEpoch = expectedEpoch ?? discoveryEpoch
+        guard isOnline else { return }
+
         let response = try await apiClient.discoverMap()
+        guard isOnline, discoveryEpoch == requestEpoch else { return }
+
         let mappedPoints = response.points.map(mapPoint)
         mapPoints = mappedPoints
         discoveryRadiusM = response.radiusM
-        isOnline = true
         if response.discoveryLocked {
             errorMessage = "Discovery is locked while an active match is open."
         } else if mappedPoints.isEmpty {
