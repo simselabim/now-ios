@@ -1,4 +1,5 @@
 import MapKit
+import OSLog
 import SwiftUI
 
 struct DiscoveryMapScreen: View {
@@ -73,16 +74,6 @@ struct DiscoveryMapScreen: View {
                         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
 
-                if let error = venueStore.errorMessage {
-                    Text(error)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(NOWColor.coral)
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(NOWColor.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                }
-
                 if let venue = appState.preferredMeetingPlace,
                    !appState.isViewingActiveMatchMap {
                     SelectedVenueCard(venue: venue) {
@@ -90,13 +81,27 @@ struct DiscoveryMapScreen: View {
                     }
                 }
 
-                LAPill(
-                    text: venueStore.isLoading
-                        ? "Finding meeting places within \(VenueDiscoveryConfig.radiusLabel) of map center…"
-                        : "Meeting places within \(VenueDiscoveryConfig.radiusLabel) of map center",
-                    icon: nil
-                )
+                if venueStore.shouldOfferRetry {
+                    Button {
+                        refreshVenues()
+                    } label: {
+                        LAPill(
+                            text: "Meeting places unavailable · Retry",
+                            icon: "arrow.clockwise"
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Retries the Apple Maps meeting-place search")
                     .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    LAPill(
+                        text: venueStore.isLoading
+                            ? "Finding meeting places within \(VenueDiscoveryConfig.radiusLabel) of map center…"
+                            : "Meeting places within \(VenueDiscoveryConfig.radiusLabel) of map center",
+                        icon: nil
+                    )
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
             .padding(.horizontal, 18)
             .padding(.bottom, 18)
@@ -355,13 +360,6 @@ private struct LiveDiscoveryMap: View {
                 .frame(width: 330, height: 330)
                 .allowsHitTesting(false)
         }
-        .overlay {
-            if points.isEmpty && venues.isEmpty {
-                EmptyMapState()
-                    .padding(.horizontal, 24)
-                    .allowsHitTesting(false)
-            }
-        }
     }
 }
 
@@ -382,8 +380,28 @@ struct AppleMapsVenueSearcher: VenueSearching {
         request.region = region
         request.resultTypes = .pointOfInterest
         request.pointOfInterestFilter = MKPointOfInterestFilter(including: definition.categories)
-        let response = try await MKLocalSearch(request: request).start()
+        let search = MKLocalSearch(request: request)
+        let response = try await withTaskCancellationHandler {
+            let response = try await search.start()
+            try Task.checkCancellation()
+            return response
+        } onCancel: {
+            search.cancel()
+        }
         return response.mapItems.compactMap(MeetingPlace.from)
+    }
+}
+
+struct VenueSearchDiagnostic: Equatable {
+    let query: String
+    let domain: String
+    let code: Int
+
+    init(query: String, error: Error) {
+        let error = error as NSError
+        self.query = query
+        domain = error.domain
+        code = error.code
     }
 }
 
@@ -425,8 +443,10 @@ enum VenueResultProcessor {
 final class NearbyVenueStore: ObservableObject {
     @Published private(set) var venues: [MeetingPlace] = []
     @Published private(set) var isLoading = false
-    @Published private(set) var errorMessage: String?
+    @Published private(set) var shouldOfferRetry = false
+    @Published private(set) var diagnostics: [VenueSearchDiagnostic] = []
 
+    private static let logger = Logger(subsystem: "com.sim.now", category: "AppleMapsVenueSearch")
     private let searcher: any VenueSearching
     private var lastCoordinateKey: String?
     private var requestID = UUID()
@@ -443,35 +463,52 @@ final class NearbyVenueStore: ObservableObject {
         let currentRequestID = UUID()
         requestID = currentRequestID
         isLoading = true
-        errorMessage = nil
+        shouldOfferRetry = false
+        diagnostics = []
+        defer {
+            if currentRequestID == requestID {
+                isLoading = false
+            }
+        }
 
         var loadedVenues: [MeetingPlace] = []
         var successfulSearches = 0
-        var searchErrors: [Error] = []
+        var reportableFailureCount = 0
         let region = MKCoordinateRegion(
             center: coordinate,
             latitudinalMeters: VenueDiscoveryConfig.searchRadiusM * 2,
             longitudinalMeters: VenueDiscoveryConfig.searchRadiusM * 2
         )
         for definition in VenueDiscoveryConfig.searches {
+            guard !Task.isCancelled else { return }
             do {
                 loadedVenues.append(contentsOf: try await searcher.search(definition: definition, region: region))
+                guard !Task.isCancelled else { return }
                 successfulSearches += 1
             } catch {
-                searchErrors.append(error)
+                guard !Task.isCancelled else { return }
+                guard Self.isReportable(error) else { continue }
+
+                let diagnostic = VenueSearchDiagnostic(query: definition.query, error: error)
+                diagnostics.append(diagnostic)
+                reportableFailureCount += 1
+                Self.logger.error(
+                    "Venue search failed query=\(diagnostic.query, privacy: .public) domain=\(diagnostic.domain, privacy: .public) code=\(diagnostic.code, privacy: .public)"
+                )
             }
         }
 
         guard currentRequestID == requestID else { return }
         if successfulSearches == 0 {
-            errorMessage = VenueSearchErrorPresenter.message(for: searchErrors)
+            shouldOfferRetry = reportableFailureCount > 0
         } else {
             venues = VenueResultProcessor.process(loadedVenues, around: coordinate)
+            shouldOfferRetry = false
         }
-        isLoading = false
     }
 
     func reload(around coordinate: CLLocationCoordinate2D) async {
+        guard !isLoading else { return }
         lastCoordinateKey = nil
         await load(around: coordinate)
     }
@@ -481,20 +518,14 @@ final class NearbyVenueStore: ObservableObject {
         venues = []
         lastCoordinateKey = nil
         isLoading = false
-        errorMessage = nil
+        shouldOfferRetry = false
+        diagnostics = []
     }
-}
 
-enum VenueSearchErrorPresenter {
-    static func message(for errors: [Error]) -> String? {
-        guard !errors.isEmpty else { return nil }
-        if errors.allSatisfy({ $0 is CancellationError }) {
-            return nil
-        }
-        if errors.contains(where: { $0 is URLError }) {
-            return "Could not reach Apple Maps. Check your internet connection or tap refresh."
-        }
-        return "Apple Maps could not load meeting places right now. Move the map or tap refresh."
+    private static func isReportable(_ error: Error) -> Bool {
+        if error is CancellationError { return false }
+        let error = error as NSError
+        return !(error.domain == NSURLErrorDomain && error.code == NSURLErrorCancelled)
     }
 }
 
@@ -608,27 +639,6 @@ private struct LAUserLocationMarker: View {
         }
         .shadow(color: NOWColor.laBlue.opacity(0.35), radius: 14, x: 0, y: 6)
         .accessibilityLabel("Your location")
-    }
-}
-
-private struct EmptyMapState: View {
-    var body: some View {
-        VStack(spacing: 8) {
-            Text("No one live nearby yet")
-                .font(.headline.weight(.black))
-                .foregroundStyle(NOWColor.ink)
-            Text("You're online. New live points will appear here.")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(NOWColor.inkSoft)
-                .multilineTextAlignment(.center)
-        }
-        .padding(16)
-        .background(NOWColor.surface.opacity(0.94))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(NOWColor.line.opacity(0.8), lineWidth: 1)
-        )
     }
 }
 

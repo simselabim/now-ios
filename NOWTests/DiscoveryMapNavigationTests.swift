@@ -100,6 +100,45 @@ final class DiscoveryMapNavigationTests: XCTestCase {
         XCTAssertNil(state.discoveryRadiusM)
     }
 
+    func testEmptyDiscoveryIsNormalStateWithoutUserFacingError() async throws {
+        let tokenStore = InMemoryAuthTokenStore()
+        await tokenStore.setAccessToken("test-token")
+        ReopenMatchURLProtocol.reset()
+        ReopenMatchURLProtocol.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/matches/active/detail"):
+                return Self.jsonResponse(for: request, body: #"{"match_item":null}"#)
+            case ("GET", "/discover/map"):
+                return Self.jsonResponse(
+                    for: request,
+                    body: #"{"radius_m":50000,"discovery_locked":false,"points":[]}"#
+                )
+            default:
+                throw URLError(.badURL)
+            }
+        }
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ReopenMatchURLProtocol.self]
+        let client = NOWAPIClient(
+            environment: APIEnvironment(baseURL: URL(string: "https://now.test")!),
+            session: URLSession(configuration: configuration),
+            tokenStore: tokenStore
+        )
+        let state = AppState(apiClient: client)
+        state.isOnline = true
+
+        state.refreshActiveMatch()
+        for _ in 0..<100 where state.isLoading || ReopenMatchURLProtocol.requestCount(path: "/discover/map") == 0 {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        XCTAssertTrue(state.isOnline)
+        XCTAssertTrue(state.mapPoints.isEmpty)
+        XCTAssertEqual(state.discoveryRadiusM, 50_000)
+        XCTAssertNil(state.errorMessage)
+    }
+
     func testMatchedPointReopensSameMatchOnlyOnceAfterRapidTaps() async throws {
         let matchID = UUID(uuidString: "33333333-3333-3333-3333-333333333333")!
         let otherUserID = UUID(uuidString: "44444444-4444-4444-4444-444444444444")!
@@ -348,11 +387,12 @@ extension DiscoveryMapNavigationTests {
         await store.load(around: CLLocationCoordinate2D(latitude: -8.6478, longitude: 115.1385))
 
         XCTAssertTrue(store.venues.isEmpty)
-        XCTAssertNil(store.errorMessage)
+        XCTAssertFalse(store.shouldOfferRetry)
+        XCTAssertTrue(store.diagnostics.isEmpty)
         XCTAssertFalse(store.isLoading)
     }
 
-    func testVenueResultsExposeAppleMapsFailure() async {
+    func testVenueFullFailureOffersQuietRetryAndCapturesDiagnostics() async {
         let store = NearbyVenueStore(
             searcher: StubVenueSearcher(result: .failure(URLError(.cannotConnectToHost)))
         )
@@ -360,10 +400,23 @@ extension DiscoveryMapNavigationTests {
         await store.load(around: CLLocationCoordinate2D(latitude: -8.6478, longitude: 115.1385))
 
         XCTAssertTrue(store.venues.isEmpty)
-        XCTAssertEqual(
-            store.errorMessage,
-            "Could not reach Apple Maps. Check your internet connection or tap refresh."
-        )
+        XCTAssertTrue(store.shouldOfferRetry)
+        XCTAssertEqual(store.diagnostics.count, VenueDiscoveryConfig.searches.count)
+        XCTAssertTrue(store.diagnostics.allSatisfy { $0.domain == NSURLErrorDomain })
+        XCTAssertTrue(store.diagnostics.allSatisfy { $0.code == URLError.cannotConnectToHost.rawValue })
+        XCTAssertFalse(store.isLoading)
+    }
+
+    func testVenuePartialSuccessShowsPlacesWithoutRetry() async {
+        let center = CLLocationCoordinate2D(latitude: -8.6478, longitude: 115.1385)
+        let venue = makeVenue(id: "partial-place", category: .cafe, latitude: center.latitude)
+        let store = NearbyVenueStore(searcher: PartialVenueSearcher(successfulQuery: "Cafe", venue: venue))
+
+        await store.load(around: center)
+
+        XCTAssertEqual(store.venues.map(\.id), [venue.id])
+        XCTAssertFalse(store.shouldOfferRetry)
+        XCTAssertEqual(store.diagnostics.count, VenueDiscoveryConfig.searches.count - 1)
         XCTAssertFalse(store.isLoading)
     }
 
@@ -378,12 +431,28 @@ extension DiscoveryMapNavigationTests {
         await store.reload(around: center)
 
         XCTAssertEqual(store.venues.map(\.id), [venue.id])
-        XCTAssertNotNil(store.errorMessage)
+        XCTAssertTrue(store.shouldOfferRetry)
+        XCTAssertFalse(store.diagnostics.isEmpty)
     }
 
-    func testVenueErrorPresenterDoesNotTreatEmptyResultsAsFailure() {
-        XCTAssertNil(VenueSearchErrorPresenter.message(for: []))
-        XCTAssertNil(VenueSearchErrorPresenter.message(for: [CancellationError()]))
+    func testVenueRetryWhileLoadingDoesNotStartDuplicateSearches() async throws {
+        let center = CLLocationCoordinate2D(latitude: -8.6478, longitude: 115.1385)
+        let searcher = SlowCountingVenueSearcher()
+        let store = NearbyVenueStore(searcher: searcher)
+
+        let initialLoad = Task {
+            await store.load(around: center)
+        }
+        for _ in 0..<100 where await searcher.count() == 0 {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+
+        await store.reload(around: center)
+        await initialLoad.value
+
+        let searchCount = await searcher.count()
+        XCTAssertEqual(searchCount, VenueDiscoveryConfig.searches.count)
+        XCTAssertFalse(store.isLoading)
     }
 
     private func makeVenue(
@@ -414,6 +483,22 @@ private struct StubVenueSearcher: VenueSearching {
     }
 }
 
+private struct PartialVenueSearcher: VenueSearching {
+    let successfulQuery: String
+    let venue: MeetingPlace
+
+    func search(
+        definition: VenueSearchDefinition,
+        region: MKCoordinateRegion
+    ) async throws -> [MeetingPlace] {
+        _ = region
+        if definition.query == successfulQuery {
+            return [venue]
+        }
+        throw URLError(.networkConnectionLost)
+    }
+}
+
 private final class MutableVenueSearcher: VenueSearching {
     var result: Result<[MeetingPlace], Error>
 
@@ -428,6 +513,25 @@ private final class MutableVenueSearcher: VenueSearching {
         _ = definition
         _ = region
         return try result.get()
+    }
+}
+
+private actor SlowCountingVenueSearcher: VenueSearching {
+    private var searchCount = 0
+
+    func search(
+        definition: VenueSearchDefinition,
+        region: MKCoordinateRegion
+    ) async throws -> [MeetingPlace] {
+        _ = definition
+        _ = region
+        searchCount += 1
+        try await Task.sleep(for: .milliseconds(20))
+        return []
+    }
+
+    func count() -> Int {
+        searchCount
     }
 }
 

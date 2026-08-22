@@ -824,8 +824,6 @@ final class AppState: ObservableObject {
         discoveryRadiusM = response.radiusM
         if response.discoveryLocked {
             errorMessage = "Discovery is locked while an active match is open."
-        } else if mappedPoints.isEmpty {
-            errorMessage = "No live nearby points yet. Keep both phones online and refresh."
         } else {
             errorMessage = nil
         }
