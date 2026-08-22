@@ -327,10 +327,19 @@ struct PlaceSearchField: View {
     @Binding private var selectedPlace: MeetingPlace?
     @StateObject private var search: PlaceSearchService
     @State private var mapPosition: MapCameraPosition
+    private let mapHeight: CGFloat
+    private let mapHorizontalOverflow: CGFloat
 
-    init(selectedPlace: Binding<MeetingPlace?>, regionCenter: CLLocationCoordinate2D?) {
+    init(
+        selectedPlace: Binding<MeetingPlace?>,
+        regionCenter: CLLocationCoordinate2D?,
+        mapHeight: CGFloat = 210,
+        mapHorizontalOverflow: CGFloat = 0
+    ) {
         _selectedPlace = selectedPlace
         _search = StateObject(wrappedValue: PlaceSearchService(regionCenter: regionCenter))
+        self.mapHeight = mapHeight
+        self.mapHorizontalOverflow = mapHorizontalOverflow
         _mapPosition = State(
             initialValue: regionCenter.map {
                 .region(
@@ -423,7 +432,8 @@ struct PlaceSearchField: View {
                         }
                     }
                 }
-                .frame(height: 210)
+                .frame(height: mapHeight)
+                .padding(.horizontal, -mapHorizontalOverflow)
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)

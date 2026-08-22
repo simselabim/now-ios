@@ -3,8 +3,10 @@ import SwiftUI
 
 struct ChatScreen: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.scenePhase) private var scenePhase
     @State private var meetingPlace: MeetingPlace?
     @State private var meetingTime = Date().addingTimeInterval(30 * 60)
+    @State private var loopViewer = MatchLoopViewerState()
 
     private var chatDayLabel: String {
         appState.activeMatch?.tomorrowExtension.status == .accepted ? "Until tomorrow" : "Today"
@@ -30,9 +32,6 @@ struct ChatScreen: View {
                         Text(appState.activeMatch?.profile.name ?? "Match")
                             .font(.headline.weight(.heavy))
                             .foregroundStyle(NOWColor.laBrown)
-                        Text("Temporary chat")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(NOWColor.inkSoft)
                     }
 
                     Spacer()
@@ -55,7 +54,9 @@ struct ChatScreen: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
-                        MatchChatTranscript()
+                        MatchChatTranscript { slot in
+                            loopViewer.open(slot)
+                        }
 
                         if ProductFeatureAvailability.tomorrowExtension,
                            let match = appState.activeMatch {
@@ -84,17 +85,64 @@ struct ChatScreen: View {
                 ChatMessageComposer()
             }
             .padding(14)
+
+            if let selection = loopViewer.selection,
+               let url = loopURL(for: selection.slot) {
+                ExpandedMatchLoopViewer(
+                    url: url,
+                    label: loopLabel(for: selection.slot),
+                    strokeColor: selection.slot == .mine ? NOWColor.laCoral : NOWColor.laOrange,
+                    playbackID: selection.playbackID
+                ) {
+                    loopViewer.close()
+                }
+                .zIndex(10)
+            }
         }
         .onAppear {
             if meetingPlace == nil {
                 meetingPlace = appState.preferredMeetingPlace
             }
         }
+        .onChange(of: appState.activeMatch?.id) { _, _ in
+            loopViewer.close()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase != .active {
+                loopViewer.close()
+            }
+        }
+        .onDisappear {
+            loopViewer.close()
+        }
+    }
+
+    private func loopURL(for slot: MatchLoopSlot) -> URL? {
+        switch slot {
+        case .mine:
+            appState.myFirstLoopURL
+        case .theirs:
+            appState.theirFirstLoopURL
+        }
+    }
+
+    private func loopLabel(for slot: MatchLoopSlot) -> String {
+        switch slot {
+        case .mine:
+            "Your loop"
+        case .theirs:
+            "\(appState.activeMatch?.profile.name ?? "Their") loop"
+        }
     }
 }
 
 struct MatchChatTranscript: View {
     @EnvironmentObject private var appState: AppState
+    var onLoopTap: ((MatchLoopSlot) -> Void)?
+
+    init(onLoopTap: ((MatchLoopSlot) -> Void)? = nil) {
+        self.onLoopTap = onLoopTap
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -102,12 +150,14 @@ struct MatchChatTranscript: View {
                 LoopSlot(
                     url: appState.myFirstLoopURL,
                     label: "You",
-                    sender: .me
+                    sender: .me,
+                    onTap: onLoopTap.map { callback in { callback(.mine) } }
                 )
                 LoopSlot(
                     url: appState.theirFirstLoopURL,
                     label: appState.activeMatch?.profile.name ?? "Them",
-                    sender: .them
+                    sender: .them,
+                    onTap: onLoopTap.map { callback in { callback(.theirs) } }
                 )
             }
             .frame(maxWidth: .infinity)
@@ -214,18 +264,20 @@ private struct LoopSlot: View {
     let url: URL?
     let label: String
     let sender: MessageSender
+    let onTap: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 7) {
             if let url {
-                CircularLoopPlayer(
-                    url: url,
-                    diameter: 132,
-                    strokeColor: strokeColor,
-                    lineWidth: 3,
-                    startsMuted: true,
-                    togglesAudioOnTap: true
-                )
+                if let onTap {
+                    Button(action: onTap) {
+                        loopPlayer(url: url, autoPlays: false, togglesAudioOnTap: false)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Open \(label) loop")
+                } else {
+                    loopPlayer(url: url, autoPlays: true, togglesAudioOnTap: true)
+                }
             } else {
                 ZStack {
                     Circle()
@@ -259,6 +311,90 @@ private struct LoopSlot: View {
     private var strokeColor: Color {
         sender == .me ? NOWColor.laCoral : NOWColor.laOrange
     }
+
+    private func loopPlayer(
+        url: URL,
+        autoPlays: Bool,
+        togglesAudioOnTap: Bool
+    ) -> some View {
+        CircularLoopPlayer(
+            url: url,
+            diameter: 132,
+            strokeColor: strokeColor,
+            lineWidth: 3,
+            startsMuted: true,
+            togglesAudioOnTap: togglesAudioOnTap,
+            autoPlays: autoPlays
+        )
+    }
+}
+
+enum MatchLoopSlot: Equatable {
+    case mine
+    case theirs
+}
+
+struct MatchLoopViewerState: Equatable {
+    struct Selection: Equatable {
+        let slot: MatchLoopSlot
+        let playbackID: Int
+    }
+
+    private(set) var selection: Selection?
+    private var nextPlaybackID = 0
+
+    mutating func open(_ slot: MatchLoopSlot) {
+        nextPlaybackID += 1
+        selection = Selection(slot: slot, playbackID: nextPlaybackID)
+    }
+
+    mutating func close() {
+        selection = nil
+    }
+}
+
+private struct ExpandedMatchLoopViewer: View {
+    let url: URL
+    let label: String
+    let strokeColor: Color
+    let playbackID: Int
+    let dismiss: () -> Void
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                Color.black.opacity(0.72)
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .onTapGesture(perform: dismiss)
+
+                VStack(spacing: 16) {
+                    CircularLoopPlayer(
+                        url: url,
+                        diameter: diameter(for: proxy.size),
+                        strokeColor: strokeColor,
+                        lineWidth: 5,
+                        startsMuted: false,
+                        togglesAudioOnTap: false,
+                        autoPlays: true
+                    )
+                    .id(playbackID)
+                    .contentShape(Circle())
+                    .onTapGesture {}
+
+                    Text(label)
+                        .font(.headline.weight(.heavy))
+                        .foregroundStyle(.white)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Expanded \(label)")
+            }
+        }
+    }
+
+    private func diameter(for size: CGSize) -> CGFloat {
+        min(420, max(240, min(size.width - 48, size.height - 180)))
+    }
 }
 
 private struct Bubble: View {
@@ -290,7 +426,12 @@ private struct MeetingProposalComposer: View {
                 .font(.headline.weight(.black))
                 .foregroundStyle(NOWColor.laBrown)
 
-            PlaceSearchField(selectedPlace: $place, regionCenter: regionCenter)
+            PlaceSearchField(
+                selectedPlace: $place,
+                regionCenter: regionCenter,
+                mapHeight: 300,
+                mapHorizontalOverflow: 10
+            )
 
             DatePicker(
                 "Date and time",
@@ -309,14 +450,14 @@ private struct MeetingProposalComposer: View {
                 .background(NOWColor.laCoral)
                 .clipShape(Capsule())
             }
-        .padding(12)
+        .padding(10)
         .background(NOWColor.surface)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(NOWColor.laBrown.opacity(0.22), lineWidth: 1)
         )
-        .frame(maxWidth: 320, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

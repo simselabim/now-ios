@@ -340,12 +340,19 @@ struct LoopVideoPlayer: View {
     @ObservedObject private var audioCoordinator: LoopAudioCoordinator
     @State private var isMuted: Bool
     private let togglesAudioOnTap: Bool
+    private let autoPlays: Bool
 
-    init(url: URL, startsMuted: Bool = false, togglesAudioOnTap: Bool = false) {
+    init(
+        url: URL,
+        startsMuted: Bool = false,
+        togglesAudioOnTap: Bool = false,
+        autoPlays: Bool = true
+    ) {
         _model = StateObject(wrappedValue: LoopingVideoPlayerModel(url: url))
         _audioCoordinator = ObservedObject(wrappedValue: .shared)
         _isMuted = State(initialValue: startsMuted)
         self.togglesAudioOnTap = togglesAudioOnTap
+        self.autoPlays = autoPlays
     }
 
     var body: some View {
@@ -353,7 +360,11 @@ struct LoopVideoPlayer: View {
             .background(Color.black)
             .onAppear {
                 model.setMuted(isMuted)
-                model.play()
+                if autoPlays {
+                    model.play()
+                } else {
+                    model.preparePreview()
+                }
             }
             .onChange(of: isMuted) { _, newValue in
                 model.setMuted(newValue)
@@ -409,9 +420,15 @@ struct CircularLoopPlayer: View {
     var lineWidth: CGFloat = 3
     var startsMuted = false
     var togglesAudioOnTap = false
+    var autoPlays = true
 
     var body: some View {
-        LoopVideoPlayer(url: url, startsMuted: startsMuted, togglesAudioOnTap: togglesAudioOnTap)
+        LoopVideoPlayer(
+            url: url,
+            startsMuted: startsMuted,
+            togglesAudioOnTap: togglesAudioOnTap,
+            autoPlays: autoPlays
+        )
             .frame(width: diameter, height: diameter)
             .clipShape(Circle())
             .overlay(
@@ -436,7 +453,13 @@ private final class LoopingVideoPlayerModel: ObservableObject {
     }
 
     func play() {
+        player.seek(to: .zero)
         player.play()
+    }
+
+    func preparePreview() {
+        player.pause()
+        player.seek(to: .zero)
     }
 
     func setMuted(_ isMuted: Bool) {

@@ -167,6 +167,40 @@ final class TodayIntentSelectionTests: XCTestCase {
 }
 
 final class MeetingModeChatTests: XCTestCase {
+    func testMatchLoopViewerOpensOnlyOneLoopAtATime() {
+        var state = MatchLoopViewerState()
+
+        state.open(.mine)
+        let firstPlaybackID = state.selection?.playbackID
+        XCTAssertEqual(state.selection?.slot, .mine)
+
+        state.open(.theirs)
+
+        XCTAssertEqual(state.selection?.slot, .theirs)
+        XCTAssertNotEqual(state.selection?.playbackID, firstPlaybackID)
+    }
+
+    func testMatchLoopViewerClosesWhenTappingOutsideVideo() {
+        var state = MatchLoopViewerState()
+        state.open(.mine)
+
+        state.close()
+
+        XCTAssertNil(state.selection)
+    }
+
+    func testReopeningSameLoopCreatesFreshPlaybackSession() {
+        var state = MatchLoopViewerState()
+        state.open(.mine)
+        let firstPlaybackID = state.selection?.playbackID
+        state.close()
+
+        state.open(.mine)
+
+        XCTAssertEqual(state.selection?.slot, .mine)
+        XCTAssertNotEqual(state.selection?.playbackID, firstPlaybackID)
+    }
+
     func testMessageTimelineDeduplicatesAndSortsChronologically() {
         let firstID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
         let secondID = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
