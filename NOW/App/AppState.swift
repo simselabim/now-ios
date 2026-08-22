@@ -32,6 +32,7 @@ final class AppState: ObservableObject {
     @Published var isProfileComplete = false
     @Published var isOnline = false
     @Published var isLoading = false
+    @Published private(set) var isCancellingMatch = false
     @Published var errorMessage: String?
     @Published var todayIntent = TodayIntent()
     @Published var mapPoints: [MapPoint] = []
@@ -675,9 +676,11 @@ final class AppState: ObservableObject {
     }
 
     func cancelMatch(reason: CancelReasonDTO = .changedMind) {
-        guard let match = activeMatch else { return }
+        guard let match = activeMatch, !isCancellingMatch else { return }
+        isCancellingMatch = true
 
         Task {
+            defer { self.isCancellingMatch = false }
             await runLoading {
                 _ = try await self.apiClient.cancelMatch(matchId: match.id, reason: reason)
                 self.clearActiveMatchState()

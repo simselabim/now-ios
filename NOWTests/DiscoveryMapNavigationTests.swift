@@ -256,6 +256,73 @@ final class DiscoveryMapNavigationTests: XCTestCase {
         XCTAssertEqual(ReopenMatchURLProtocol.requestCount(path: "/matches/\(matchID.uuidString)/reopen"), 1)
     }
 
+    func testCloseKindlySendsOnlyOneCancellationForRapidTaps() async throws {
+        let matchID = UUID(uuidString: "77777777-7777-7777-7777-777777777777")!
+        let otherUserID = UUID(uuidString: "88888888-8888-8888-8888-888888888888")!
+        let tokenStore = InMemoryAuthTokenStore()
+        await tokenStore.setAccessToken("test-token")
+        ReopenMatchURLProtocol.reset()
+        ReopenMatchURLProtocol.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("POST", "/matches/\(matchID.uuidString)/cancel"):
+                return Self.jsonResponse(
+                    for: request,
+                    body: """
+                    {
+                      "id": "\(matchID.uuidString)",
+                      "user_a_id": "99999999-9999-9999-9999-999999999999",
+                      "user_b_id": "\(otherUserID.uuidString)",
+                      "other_user_id": "\(otherUserID.uuidString)",
+                      "match_date": "2026-08-22",
+                      "status": "cancelled",
+                      "created_at": "2026-08-22T04:00:00Z",
+                      "closed_at": "2026-08-22T05:00:00Z",
+                      "extended_until": null,
+                      "extension_accepted_at": null
+                    }
+                    """
+                )
+            case ("GET", "/discover/map"):
+                return Self.jsonResponse(
+                    for: request,
+                    body: #"{"radius_m":50000,"discovery_locked":false,"points":[]}"#
+                )
+            default:
+                throw URLError(.badURL)
+            }
+        }
+
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ReopenMatchURLProtocol.self]
+        let client = NOWAPIClient(
+            environment: APIEnvironment(baseURL: URL(string: "https://now.test")!),
+            session: URLSession(configuration: configuration),
+            tokenStore: tokenStore
+        )
+        let state = AppState(apiClient: client)
+        state.activeMatch = Match(
+            id: matchID,
+            profile: makePoint(state: .interested).profile,
+            status: .active,
+            myFirstLoopSent: true,
+            theirFirstLoopReceived: true,
+            meetingStatus: .none
+        )
+
+        state.cancelMatch()
+        state.cancelMatch()
+
+        for _ in 0..<100 where state.isCancellingMatch {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        XCTAssertEqual(
+            ReopenMatchURLProtocol.requestCount(path: "/matches/\(matchID.uuidString)/cancel"),
+            1
+        )
+        XCTAssertNil(state.activeMatch)
+    }
+
     private func makePoint(
         state: MapPointState,
         alreadyMatched: Bool = false,

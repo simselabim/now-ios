@@ -336,6 +336,33 @@ final class MeetingModeChatTests: XCTestCase {
     func testCloseKindlyUsesNotRespondingReason() {
         XCTAssertEqual(CancelReasonDTO.notResponding.rawValue, "not_responding")
     }
+
+    func testMeetingModeCloseKindlyUsesSharedCancellationReasons() {
+        XCTAssertEqual(
+            MeetingModeCloseKindlyPolicy.cancelReason(hasConfirmedWeMet: false),
+            .changedMind
+        )
+        XCTAssertEqual(
+            MeetingModeCloseKindlyPolicy.cancelReason(hasConfirmedWeMet: true),
+            .notResponding
+        )
+    }
+
+    func testMeetingModeExposesReachableCloseKindlyButton() throws {
+        let repositoryURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let source = try String(
+            contentsOf: repositoryURL.appendingPathComponent(
+                "NOW/Features/MeetingMode/MeetingModeScreen.swift"
+            ),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(source.contains("Button(\"Close kindly\")"))
+        XCTAssertTrue(source.contains("meeting-mode-close-kindly"))
+        XCTAssertTrue(source.contains("appState.cancelMatch("))
+    }
 }
 
 final class MeetingProposalActionPolicyTests: XCTestCase {

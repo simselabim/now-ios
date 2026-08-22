@@ -253,9 +253,7 @@ struct MeetingModeScreen: View {
                         }
 
                         if appState.activeMatch?.hasConfirmedWeMet == true {
-                            WeMetConfirmedStatus {
-                                showCloseConfirmation = true
-                            }
+                            WeMetConfirmedStatus()
                         } else {
                             Button("We met ✓") {
                                 appState.weMet()
@@ -264,6 +262,15 @@ struct MeetingModeScreen: View {
                             .buttonStyle(PrimaryButtonStyle())
                             .frame(height: 48)
                         }
+
+                        Button("Close kindly") {
+                            showCloseConfirmation = true
+                        }
+                        .disabled(appState.isCancellingMatch || appState.isLoading)
+                        .buttonStyle(DangerButtonStyle())
+                        .frame(height: 46)
+                        .accessibilityIdentifier("meeting-mode-close-kindly")
+                        .accessibilityHint("Ends this match for both participants")
                     }
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
@@ -319,7 +326,11 @@ struct MeetingModeScreen: View {
         .alert("Close this match?", isPresented: $showCloseConfirmation) {
             Button("Keep waiting", role: .cancel) {}
             Button("Close kindly", role: .destructive) {
-                appState.cancelMatch(reason: .notResponding)
+                appState.cancelMatch(
+                    reason: MeetingModeCloseKindlyPolicy.cancelReason(
+                        hasConfirmedWeMet: appState.activeMatch?.hasConfirmedWeMet == true
+                    )
+                )
             }
         } message: {
             Text("This ends the match and releases both of you. Your meeting confirmation will not complete it.")
@@ -487,39 +498,36 @@ enum MeetingModeChatAnchor {
 }
 
 private struct WeMetConfirmedStatus: View {
-    let close: () -> Void
-
     var body: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 12) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.title2.weight(.black))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Confirmed")
-                        .font(.headline.weight(.black))
-                    Text("Waiting for the other person")
-                        .font(.caption.weight(.bold))
-                }
-                Spacer()
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.title2.weight(.black))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Confirmed")
+                    .font(.headline.weight(.black))
+                Text("Waiting for the other person")
+                    .font(.caption.weight(.bold))
             }
-            .foregroundStyle(NOWColor.laBrown)
-            .padding(.horizontal, 16)
-            .frame(maxWidth: .infinity)
-            .frame(height: 58)
-            .background(NOWColor.laGreen.opacity(0.28))
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(NOWColor.laGreen, lineWidth: 2)
-            )
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Meeting confirmed. Waiting for the other person.")
-
-            Button("Close kindly", action: close)
-                .buttonStyle(DangerButtonStyle())
-                .frame(height: 46)
-                .accessibilityHint("Ends this match for both participants")
+            Spacer()
         }
+        .foregroundStyle(NOWColor.laBrown)
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity)
+        .frame(height: 58)
+        .background(NOWColor.laGreen.opacity(0.28))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(NOWColor.laGreen, lineWidth: 2)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Meeting confirmed. Waiting for the other person.")
+    }
+}
+
+enum MeetingModeCloseKindlyPolicy {
+    static func cancelReason(hasConfirmedWeMet: Bool) -> CancelReasonDTO {
+        hasConfirmedWeMet ? .notResponding : .changedMind
     }
 }
 
