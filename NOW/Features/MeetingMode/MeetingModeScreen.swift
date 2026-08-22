@@ -263,7 +263,7 @@ struct MeetingModeScreen: View {
                             .frame(height: 48)
                         }
 
-                        Button("Close kindly") {
+                        Button("Close match") {
                             showCloseConfirmation = true
                         }
                         .disabled(appState.isCancellingMatch || appState.isLoading)
@@ -325,7 +325,7 @@ struct MeetingModeScreen: View {
         }
         .alert("Close this match?", isPresented: $showCloseConfirmation) {
             Button("Keep waiting", role: .cancel) {}
-            Button("Close kindly", role: .destructive) {
+            Button("Close match", role: .destructive) {
                 appState.cancelMatch()
             }
         } message: {

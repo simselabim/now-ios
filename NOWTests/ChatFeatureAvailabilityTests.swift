@@ -337,20 +337,34 @@ final class MeetingModeChatTests: XCTestCase {
         XCTAssertEqual(CancelReasonDTO.closedKindly.rawValue, "closed_kindly")
     }
 
-    func testMeetingModeExposesReachableCloseKindlyButton() throws {
+    func testMatchScreensExposeCloseMatchInsteadOfCloseKindly() throws {
         let repositoryURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-        let source = try String(
+        let sourcePaths = [
+            "NOW/Features/Loops/FirstLoopScreen.swift",
+            "NOW/Features/MeetingMode/MeetingModeScreen.swift",
+            "NOW/Features/MeetingProposal/MeetingProposalScreen.swift",
+        ]
+
+        for sourcePath in sourcePaths {
+            let source = try String(
+                contentsOf: repositoryURL.appendingPathComponent(sourcePath),
+                encoding: .utf8
+            )
+
+            XCTAssertTrue(source.contains("Button(\"Close match\")"), sourcePath)
+            XCTAssertFalse(source.contains("Button(\"Close kindly\")"), sourcePath)
+            XCTAssertTrue(source.contains("appState.cancelMatch("), sourcePath)
+        }
+
+        let meetingModeSource = try String(
             contentsOf: repositoryURL.appendingPathComponent(
                 "NOW/Features/MeetingMode/MeetingModeScreen.swift"
             ),
             encoding: .utf8
         )
-
-        XCTAssertTrue(source.contains("Button(\"Close kindly\")"))
-        XCTAssertTrue(source.contains("meeting-mode-close-kindly"))
-        XCTAssertTrue(source.contains("appState.cancelMatch("))
+        XCTAssertTrue(meetingModeSource.contains("meeting-mode-close-kindly"))
     }
 }
 

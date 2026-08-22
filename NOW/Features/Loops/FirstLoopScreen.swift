@@ -104,7 +104,7 @@ struct FirstLoopScreen: View {
                             .padding(.horizontal, 4)
                     }
 
-                    Button("Close kindly") {
+                    Button("Close match") {
                         appState.cancelMatch()
                     }
                     .font(.caption.weight(.heavy))

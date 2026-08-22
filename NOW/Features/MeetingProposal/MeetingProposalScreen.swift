@@ -131,7 +131,7 @@ struct MeetingProposalScreen: View {
                     .buttonStyle(SecondaryButtonStyle())
                 }
 
-                Button("Close kindly") {
+                Button("Close match") {
                     appState.cancelMatch()
                 }
                 .buttonStyle(DangerButtonStyle())
