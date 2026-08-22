@@ -958,7 +958,8 @@ final class AppState: ObservableObject {
                 sender: message.senderUserId == detail.matchItem.otherUserId ? .them : .me,
                 text: message.body,
                 createdAt: date(from: message.createdAt),
-                clientMessageId: message.clientMessageId ?? message.id
+                clientMessageId: message.clientMessageId ?? message.id,
+                sequence: message.sequence
             )
         }
         let myLoopURL = await playbackURL(for: myLoop)
@@ -1340,11 +1341,17 @@ final class AppState: ObservableObject {
                 "chat message ack message_id=\(response.message.id.uuidString, privacy: .public) client_message_id=\(clientMessageId.uuidString, privacy: .public) match_id=\(match.id.uuidString, privacy: .public) deduplicated=\(response.deduplicated ?? false)"
             )
             guard activeMatch?.id == match.id, messageMatchID == match.id else { return }
-            messages = MessageTimeline.updating(
-                messages,
-                clientMessageId: clientMessageId,
-                serverId: response.message.id,
-                deliveryState: .sent
+            let confirmedMessage = Message(
+                id: response.message.id,
+                sender: .me,
+                text: response.message.body,
+                createdAt: date(from: response.message.createdAt),
+                clientMessageId: response.message.clientMessageId ?? clientMessageId,
+                sequence: response.message.sequence
+            )
+            messages = MessageTimeline.reconciled(
+                local: messages,
+                authoritative: [confirmedMessage]
             )
         } catch {
             let errorMessage: String

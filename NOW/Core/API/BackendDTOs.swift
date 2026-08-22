@@ -499,6 +499,7 @@ struct SendMessageRequestDTO: Encodable {
 struct MessagesResponseDTO: Decodable {
     let chatUnlocked: Bool
     let messages: [MessageDTO]
+    let nextBeforeSequence: Int64?
 }
 
 struct SendMessageResponseDTO: Decodable {
@@ -510,6 +511,7 @@ struct MessageDTO: Codable, Identifiable, Equatable {
     let id: UUID
     let clientMessageId: UUID?
     let matchId: UUID
+    let sequence: Int64
     let senderUserId: UUID
     let body: String
     let moderationStatus: String

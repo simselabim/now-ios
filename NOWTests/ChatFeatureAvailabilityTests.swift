@@ -216,6 +216,87 @@ final class MeetingModeChatTests: XCTestCase {
         XCTAssertEqual(normalized.map(\.id), [firstID, secondID])
     }
 
+    func testServerSequenceOverridesTimestampsForCanonicalOrder() {
+        let firstID = UUID(uuidString: "55555555-5555-5555-5555-555555555555")!
+        let secondID = UUID(uuidString: "66666666-6666-6666-6666-666666666666")!
+        let sameDeviceTime = Date(timeIntervalSince1970: 1_700_000_005)
+        let messages = [
+            Message(
+                id: secondID,
+                sender: .them,
+                text: "Second",
+                createdAt: sameDeviceTime.addingTimeInterval(-60),
+                sequence: 2
+            ),
+            Message(
+                id: firstID,
+                sender: .me,
+                text: "First",
+                createdAt: sameDeviceTime,
+                sequence: 1
+            )
+        ]
+
+        XCTAssertEqual(MessageTimeline.normalized(messages).map(\.id), [firstID, secondID])
+    }
+
+    func testPendingMessageStaysAfterServerSequencedHistoryUntilAck() {
+        let pendingID = UUID(uuidString: "77777777-7777-7777-7777-777777777777")!
+        let confirmedID = UUID(uuidString: "88888888-8888-8888-8888-888888888888")!
+        let pending = Message(
+            id: pendingID,
+            sender: .me,
+            text: "Pending",
+            createdAt: Date(timeIntervalSince1970: 1_700_000_000),
+            clientMessageId: pendingID,
+            deliveryState: .sending
+        )
+        let confirmed = Message(
+            id: confirmedID,
+            sender: .them,
+            text: "Confirmed",
+            createdAt: Date(timeIntervalSince1970: 1_700_000_100),
+            sequence: 4
+        )
+
+        XCTAssertEqual(
+            MessageTimeline.normalized([pending, confirmed]).map(\.id),
+            [confirmedID, pendingID]
+        )
+    }
+
+    func testHistoryAndRealtimeMergeUsesServerSequenceAndDeduplicates() {
+        let firstClientID = UUID(uuidString: "99999999-9999-9999-9999-999999999999")!
+        let secondClientID = UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")!
+        let firstServerID = UUID(uuidString: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")!
+        let secondServerID = UUID(uuidString: "cccccccc-cccc-cccc-cccc-cccccccccccc")!
+        let sameTimestamp = Date(timeIntervalSince1970: 1_700_000_200)
+        let first = Message(
+            id: firstServerID,
+            sender: .me,
+            text: "First",
+            createdAt: sameTimestamp,
+            clientMessageId: firstClientID,
+            sequence: 41
+        )
+        let second = Message(
+            id: secondServerID,
+            sender: .them,
+            text: "Second",
+            createdAt: sameTimestamp,
+            clientMessageId: secondClientID,
+            sequence: 42
+        )
+
+        let merged = MessageTimeline.reconciled(
+            local: [second, second],
+            authoritative: [second, first]
+        )
+
+        XCTAssertEqual(merged.map(\.clientMessageId), [firstClientID, secondClientID])
+        XCTAssertEqual(merged.map(\.sequence), [41, 42])
+    }
+
     func testReconnectReplacesPendingMessageWithAuthoritativeAckWithoutDuplicate() {
         let clientID = UUID(uuidString: "33333333-3333-3333-3333-333333333333")!
         let serverID = UUID(uuidString: "44444444-4444-4444-4444-444444444444")!
@@ -232,7 +313,8 @@ final class MeetingModeChatTests: XCTestCase {
             sender: .me,
             text: "On my way",
             createdAt: Date(timeIntervalSince1970: 1_700_000_011),
-            clientMessageId: clientID
+            clientMessageId: clientID,
+            sequence: 12
         )
 
         let reconciled = MessageTimeline.reconciled(
@@ -243,6 +325,7 @@ final class MeetingModeChatTests: XCTestCase {
         XCTAssertEqual(reconciled.count, 1)
         XCTAssertEqual(reconciled[0].clientMessageId, clientID)
         XCTAssertEqual(reconciled[0].serverId, serverID)
+        XCTAssertEqual(reconciled[0].sequence, 12)
         XCTAssertEqual(reconciled[0].deliveryState, .sent)
     }
 

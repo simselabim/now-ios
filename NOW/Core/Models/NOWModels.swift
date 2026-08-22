@@ -194,6 +194,7 @@ enum MessageDeliveryState: Equatable {
 struct Message: Identifiable, Equatable {
     let clientMessageId: UUID
     var serverId: UUID?
+    let sequence: Int64?
     let sender: MessageSender
     let text: String
     let createdAt: Date?
@@ -207,10 +208,12 @@ struct Message: Identifiable, Equatable {
         text: String,
         createdAt: Date?,
         clientMessageId: UUID? = nil,
+        sequence: Int64? = nil,
         deliveryState: MessageDeliveryState = .sent
     ) {
         self.clientMessageId = clientMessageId ?? id
         self.serverId = deliveryState == .sent ? id : nil
+        self.sequence = sequence
         self.sender = sender
         self.text = text
         self.createdAt = createdAt
@@ -231,6 +234,23 @@ enum MessageTimeline {
         }
 
         return messagesByID.values.sorted { lhs, rhs in
+            let lhsIsPending = lhs.deliveryState != .sent
+            let rhsIsPending = rhs.deliveryState != .sent
+            if lhsIsPending != rhsIsPending {
+                return !lhsIsPending
+            }
+
+            switch (lhs.sequence, rhs.sequence) {
+            case let (.some(lhsSequence), .some(rhsSequence)) where lhsSequence != rhsSequence:
+                return lhsSequence < rhsSequence
+            case (.some, .none):
+                return true
+            case (.none, .some):
+                return false
+            default:
+                break
+            }
+
             switch (lhs.createdAt, rhs.createdAt) {
             case let (.some(lhsDate), .some(rhsDate)) where lhsDate != rhsDate:
                 return lhsDate < rhsDate
