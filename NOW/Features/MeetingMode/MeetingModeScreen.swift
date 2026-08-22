@@ -561,7 +561,7 @@ struct MeetingModeCameraPolicy {
     }
 }
 
-private struct PartnerLocationSummary: View {
+struct PartnerLocationSummary: View {
     let location: PartnerMeetingLocation?
     let errorMessage: String?
 
@@ -569,19 +569,14 @@ private struct PartnerLocationSummary: View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: location == nil ? "location.slash" : "location.circle.fill")
                 .foregroundStyle(NOWColor.laCoral)
-            VStack(alignment: .leading, spacing: 2) {
-                if let location {
-                    Text("Partner location · approximate")
-                        .font(.caption.weight(.heavy))
-                        .foregroundStyle(NOWColor.laBrown)
-                    Text("Shown within \(location.accuracyRadiusM) m for privacy")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(NOWColor.inkSoft)
-                } else {
-                    Text(errorMessage ?? "Waiting for your partner's live location…")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(NOWColor.inkSoft)
-                }
+            if location != nil {
+                Text("Partner location · approximate")
+                    .font(.caption.weight(.heavy))
+                    .foregroundStyle(NOWColor.laBrown)
+            } else {
+                Text(errorMessage ?? "Waiting for your partner's live location…")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(NOWColor.inkSoft)
             }
             Spacer(minLength: 0)
         }
