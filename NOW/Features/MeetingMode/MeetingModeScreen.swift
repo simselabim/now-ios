@@ -252,25 +252,7 @@ struct MeetingModeScreen: View {
                             }
                         }
 
-                        if appState.activeMatch?.hasConfirmedWeMet == true {
-                            WeMetConfirmedStatus()
-                        } else {
-                            Button("We met ✓") {
-                                appState.weMet()
-                            }
-                            .disabled(appState.isLoading)
-                            .buttonStyle(PrimaryButtonStyle())
-                            .frame(height: 48)
-                        }
-
-                        Button("Close match") {
-                            showCloseConfirmation = true
-                        }
-                        .disabled(appState.isCancellingMatch || appState.isLoading)
-                        .buttonStyle(DangerButtonStyle())
-                        .frame(height: 46)
-                        .accessibilityIdentifier("meeting-mode-close-kindly")
-                        .accessibilityHint("Ends this match for both participants")
+                        meetingActionRow
                     }
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
@@ -331,6 +313,42 @@ struct MeetingModeScreen: View {
         } message: {
             Text("This ends the match and releases both of you. Your meeting confirmation will not complete it.")
         }
+    }
+
+    private var meetingActionRow: some View {
+        GeometryReader { geometry in
+            let frames = MeetingModeActionLayout.buttonFrames(
+                availableWidth: geometry.size.width
+            )
+
+            HStack(spacing: MeetingModeActionLayout.horizontalSpacing) {
+                Group {
+                    if appState.activeMatch?.hasConfirmedWeMet == true {
+                        WeMetConfirmedStatus()
+                    } else {
+                        Button("We met ✓") {
+                            appState.weMet()
+                        }
+                        .disabled(appState.isLoading)
+                        .buttonStyle(PrimaryButtonStyle())
+                        .accessibilityIdentifier("meeting-mode-we-met")
+                    }
+                }
+                .frame(width: frames.leading.width)
+
+                Button("Close match") {
+                    showCloseConfirmation = true
+                }
+                .disabled(appState.isCancellingMatch || appState.isLoading)
+                .buttonStyle(DangerButtonStyle())
+                .frame(width: frames.trailing.width)
+                .accessibilityIdentifier("meeting-mode-close-kindly")
+                .accessibilityHint("Ends this match for both participants")
+            }
+            .accessibilityIdentifier("meeting-mode-action-row")
+        }
+        .frame(height: MeetingModeActionLayout.actionRowHeight)
+        .padding(.top, MeetingModeActionLayout.composerGap)
     }
 
     private func effectivePanelHeight(containerHeight: CGFloat) -> CGFloat {
@@ -491,6 +509,24 @@ struct MeetingModeScreen: View {
 
 enum MeetingModeChatAnchor {
     static let bottom = "meeting-mode-chat-bottom"
+}
+
+enum MeetingModeActionLayout {
+    static let horizontalSpacing: CGFloat = 10
+    static let actionRowHeight: CGFloat = 58
+    static let composerGap: CGFloat = 30
+
+    static func buttonFrames(availableWidth: CGFloat) -> (leading: CGRect, trailing: CGRect) {
+        let buttonWidth = max(0, (availableWidth - horizontalSpacing) / 2)
+        let leading = CGRect(x: 0, y: 0, width: buttonWidth, height: actionRowHeight)
+        let trailing = CGRect(
+            x: buttonWidth + horizontalSpacing,
+            y: 0,
+            width: buttonWidth,
+            height: actionRowHeight
+        )
+        return (leading, trailing)
+    }
 }
 
 private struct WeMetConfirmedStatus: View {

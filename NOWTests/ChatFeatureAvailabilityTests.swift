@@ -546,6 +546,31 @@ final class MeetingModeChatTests: XCTestCase {
     }
 }
 
+final class MeetingModeActionLayoutTests: XCTestCase {
+    func testActionButtonsSplitSmallAndLargePhoneWidthsWithoutOverlap() {
+        for availableWidth: CGFloat in [292, 402] {
+            let frames = MeetingModeActionLayout.buttonFrames(availableWidth: availableWidth)
+
+            XCTAssertEqual(frames.leading.width, frames.trailing.width, accuracy: 0.001)
+            XCTAssertEqual(frames.leading.minX, 0, accuracy: 0.001)
+            XCTAssertEqual(
+                frames.trailing.minX - frames.leading.maxX,
+                MeetingModeActionLayout.horizontalSpacing,
+                accuracy: 0.001
+            )
+            XCTAssertEqual(frames.trailing.maxX, availableWidth, accuracy: 0.001)
+            XCTAssertFalse(frames.leading.intersects(frames.trailing))
+        }
+    }
+
+    func testComposerGapIsAtLeastHalfTheActionRowHeight() {
+        XCTAssertGreaterThanOrEqual(
+            MeetingModeActionLayout.composerGap,
+            MeetingModeActionLayout.actionRowHeight / 2
+        )
+    }
+}
+
 final class MeetingProposalActionPolicyTests: XCTestCase {
     private let aliceID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
     private let bobID = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
