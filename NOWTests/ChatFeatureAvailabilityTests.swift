@@ -586,6 +586,42 @@ final class MeetingModeActionLayoutTests: XCTestCase {
     }
 }
 
+final class LoopPlaybackAudioStateTests: XCTestCase {
+    func testMuteControlStateMatchesPlayerAudioAndVoiceOverAction() {
+        var state = LoopPlaybackAudioState(isMuted: false)
+
+        XCTAssertFalse(state.isMuted)
+        XCTAssertEqual(state.systemImageName, "speaker.wave.2.fill")
+        XCTAssertEqual(state.accessibilityActionLabel, "Mute loop")
+
+        state.mute()
+
+        XCTAssertTrue(state.isMuted)
+        XCTAssertEqual(state.systemImageName, "speaker.slash.fill")
+        XCTAssertEqual(state.accessibilityActionLabel, "Unmute loop")
+
+        state.unmute()
+
+        XCTAssertFalse(state.isMuted)
+        XCTAssertEqual(state.accessibilityActionLabel, "Mute loop")
+    }
+
+    func testFirstLoopScreenWiresTheExplicitMuteControl() throws {
+        let repositoryURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let source = try String(
+            contentsOf: repositoryURL.appendingPathComponent(
+                "NOW/Features/Loops/FirstLoopScreen.swift"
+            ),
+            encoding: .utf8
+        )
+
+        XCTAssertTrue(source.contains("showsMuteControl: true"))
+        XCTAssertTrue(source.contains("first-loop-mute-control"))
+    }
+}
+
 final class MeetingProposalActionPolicyTests: XCTestCase {
     private let aliceID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
     private let bobID = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!

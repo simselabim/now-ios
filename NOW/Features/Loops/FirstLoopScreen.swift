@@ -73,12 +73,13 @@ struct FirstLoopScreen: View {
                             .stroke(NOWColor.surface.opacity(0.22), lineWidth: 1)
                     )
 
-                    if let url = appState.theirFirstLoopURL {
+                    if let url = appState.theirFirstLoopURL, !showVideoCapture {
                         CircularLoopPlayer(
                             url: url,
                             diameter: 180,
                             strokeColor: NOWColor.surface.opacity(0.72),
-                            lineWidth: 3
+                            lineWidth: 3,
+                            showsMuteControl: true
                         )
                         .frame(maxWidth: .infinity)
                     }
@@ -338,20 +339,23 @@ struct LoopVideoPlayer: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var model: LoopingVideoPlayerModel
     @ObservedObject private var audioCoordinator: LoopAudioCoordinator
-    @State private var isMuted: Bool
+    @State private var audioState: LoopPlaybackAudioState
     private let togglesAudioOnTap: Bool
+    private let showsMuteControl: Bool
     private let autoPlays: Bool
 
     init(
         url: URL,
         startsMuted: Bool = false,
         togglesAudioOnTap: Bool = false,
+        showsMuteControl: Bool = false,
         autoPlays: Bool = true
     ) {
         _model = StateObject(wrappedValue: LoopingVideoPlayerModel(url: url))
         _audioCoordinator = ObservedObject(wrappedValue: .shared)
-        _isMuted = State(initialValue: startsMuted)
+        _audioState = State(initialValue: LoopPlaybackAudioState(isMuted: startsMuted))
         self.togglesAudioOnTap = togglesAudioOnTap
+        self.showsMuteControl = showsMuteControl
         self.autoPlays = autoPlays
     }
 
@@ -359,19 +363,19 @@ struct LoopVideoPlayer: View {
         LoopPlayerSurface(player: model.player)
             .background(Color.black)
             .onAppear {
-                model.setMuted(isMuted)
+                model.setMuted(audioState.isMuted)
                 if autoPlays {
                     model.play()
                 } else {
                     model.preparePreview()
                 }
             }
-            .onChange(of: isMuted) { _, newValue in
+            .onChange(of: audioState.isMuted) { _, newValue in
                 model.setMuted(newValue)
             }
             .onChange(of: audioCoordinator.activePlayerID) { _, activePlayerID in
-                if activePlayerID != model.id, !isMuted {
-                    isMuted = true
+                if activePlayerID != model.id, !audioState.isMuted {
+                    audioState.mute()
                 }
             }
             .onChange(of: scenePhase) { _, newPhase in
@@ -385,16 +389,24 @@ struct LoopVideoPlayer: View {
             }
             .onTapGesture {
                 guard togglesAudioOnTap else { return }
-                if isMuted {
-                    audioCoordinator.activate(model.id)
-                    isMuted = false
-                } else {
-                    muteAndDeactivate()
-                }
+                toggleAudio()
             }
             .overlay(alignment: .bottomTrailing) {
-                if togglesAudioOnTap {
-                    Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                if showsMuteControl {
+                    Button(action: toggleAudio) {
+                        Image(systemName: audioState.systemImageName)
+                            .font(.subheadline.weight(.black))
+                            .foregroundStyle(NOWColor.surface)
+                            .frame(width: 44, height: 44)
+                            .background(NOWColor.ink.opacity(0.78))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(audioState.accessibilityActionLabel)
+                    .accessibilityIdentifier("first-loop-mute-control")
+                    .padding(8)
+                } else if togglesAudioOnTap {
+                    Image(systemName: audioState.systemImageName)
                         .font(.caption.weight(.black))
                         .foregroundStyle(NOWColor.surface)
                         .padding(8)
@@ -404,12 +416,41 @@ struct LoopVideoPlayer: View {
                         .allowsHitTesting(false)
                 }
             }
-            .accessibilityLabel(isMuted ? "Play loop with sound" : "Mute loop")
+            .accessibilityLabel(audioState.isMuted ? "Play loop with sound" : "Mute loop")
+    }
+
+    private func toggleAudio() {
+        if audioState.isMuted {
+            audioCoordinator.activate(model.id)
+            audioState.unmute()
+        } else {
+            muteAndDeactivate()
+        }
     }
 
     private func muteAndDeactivate() {
-        isMuted = true
+        audioState.mute()
         audioCoordinator.deactivate(model.id)
+    }
+}
+
+struct LoopPlaybackAudioState: Equatable {
+    private(set) var isMuted: Bool
+
+    var systemImageName: String {
+        isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill"
+    }
+
+    var accessibilityActionLabel: String {
+        isMuted ? "Unmute loop" : "Mute loop"
+    }
+
+    mutating func mute() {
+        isMuted = true
+    }
+
+    mutating func unmute() {
+        isMuted = false
     }
 }
 
@@ -420,6 +461,7 @@ struct CircularLoopPlayer: View {
     var lineWidth: CGFloat = 3
     var startsMuted = false
     var togglesAudioOnTap = false
+    var showsMuteControl = false
     var autoPlays = true
 
     var body: some View {
@@ -427,6 +469,7 @@ struct CircularLoopPlayer: View {
             url: url,
             startsMuted: startsMuted,
             togglesAudioOnTap: togglesAudioOnTap,
+            showsMuteControl: showsMuteControl,
             autoPlays: autoPlays
         )
             .frame(width: diameter, height: diameter)
