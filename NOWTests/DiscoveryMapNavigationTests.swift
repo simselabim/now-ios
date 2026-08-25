@@ -28,6 +28,24 @@ final class DiscoveryMapNavigationTests: XCTestCase {
         XCTAssertEqual(state.discoveryMapRegion?.span.longitudeDelta, region.span.longitudeDelta)
     }
 
+    func testProfileBackButtonRemainsWiredOutsideTheScrollableContent() throws {
+        let repositoryURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let source = try String(
+            contentsOf: repositoryURL.appendingPathComponent(
+                "NOW/Features/ProfilePreview/ProfilePreviewScreen.swift"
+            ),
+            encoding: .utf8
+        )
+
+        let headerIndex = try XCTUnwrap(source.range(of: "profileHeader(point)")?.lowerBound)
+        let scrollIndex = try XCTUnwrap(source.range(of: "ScrollView {")?.lowerBound)
+        XCTAssertLessThan(headerIndex, scrollIndex)
+        XCTAssertTrue(source.contains("appState.closeProfilePreview()"))
+        XCTAssertTrue(source.contains("profile-preview-back"))
+    }
+
     func testMapPointEqualityDetectsViewedStateChange() {
         XCTAssertNotEqual(makePoint(state: .unseen), makePoint(state: .viewed))
     }
