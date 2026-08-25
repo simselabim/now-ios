@@ -869,7 +869,17 @@ final class AppState: ObservableObject {
         let response = try await apiClient.discoverMap()
         guard isOnline, discoveryEpoch == requestEpoch else { return }
 
-        let mappedPoints = response.points.map(mapPoint)
+        let existingStates = Dictionary(
+            uniqueKeysWithValues: mapPoints.map { ($0.id, $0.state) }
+        )
+        let mappedPoints = response.points.map(mapPoint).map { point in
+            var reconciledPoint = point
+            reconciledPoint.state = MapPointStateReconciliation.refreshedState(
+                serverState: point.state,
+                currentState: existingStates[point.id]
+            )
+            return reconciledPoint
+        }
         mapPoints = mappedPoints
         discoveryRadiusM = response.radiusM
         if response.discoveryLocked {
@@ -895,8 +905,12 @@ final class AppState: ObservableObject {
                 return
             }
 
-            self.selectedPoint = self.mapPoint(response.point, profile: response.profile)
-            self.updatePoint(point.id, state: .viewed)
+            let openedPoint = self.mapPoint(response.point, profile: response.profile)
+            self.selectedPoint = openedPoint
+            self.updatePoint(
+                point.id,
+                state: MapPointStateReconciliation.openedState(openedPoint.state)
+            )
         }
     }
 
@@ -1842,5 +1856,22 @@ final class AppState: ObservableObject {
             return nil
         }
         return Calendar.current.dateComponents([.year], from: date, to: Date()).year
+    }
+}
+
+enum MapPointStateReconciliation {
+    static func openedState(_ serverState: MapPointState) -> MapPointState {
+        serverState == .unseen ? .viewed : serverState
+    }
+
+    static func refreshedState(
+        serverState: MapPointState,
+        currentState: MapPointState?
+    ) -> MapPointState {
+        if currentState == .interested,
+           serverState == .unseen || serverState == .viewed {
+            return .interested
+        }
+        return serverState
     }
 }

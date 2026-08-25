@@ -32,6 +32,31 @@ final class DiscoveryMapNavigationTests: XCTestCase {
         XCTAssertNotEqual(makePoint(state: .unseen), makePoint(state: .viewed))
     }
 
+    func testSuccessfulSayHiStaysInterestedAcrossProfileAndMapRefresh() {
+        var mapState = MapPointStateReconciliation.openedState(.unseen)
+        XCTAssertEqual(mapState, .viewed)
+
+        mapState = .interested
+        let reopenedProfileState = MapPointStateReconciliation.openedState(.interested)
+        XCTAssertEqual(reopenedProfileState, .interested)
+
+        mapState = MapPointStateReconciliation.refreshedState(
+            serverState: .viewed,
+            currentState: mapState
+        )
+        XCTAssertEqual(mapState, .interested)
+    }
+
+    func testFailedSayHiDoesNotCreateInterestedMapState() {
+        XCTAssertEqual(
+            MapPointStateReconciliation.refreshedState(
+                serverState: .viewed,
+                currentState: .viewed
+            ),
+            .viewed
+        )
+    }
+
     func testGoOfflineImmediatelyLeavesMapAndIgnoresLateDiscoveryResponse() async throws {
         let tokenStore = InMemoryAuthTokenStore()
         await tokenStore.setAccessToken("test-token")
