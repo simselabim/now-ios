@@ -4,6 +4,7 @@ import UIKit
 
 struct MeetingModeScreen: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.scenePhase) private var scenePhase
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var walkingRoute: MKRoute?
     @State private var isLoadingRoute = false
@@ -18,6 +19,7 @@ struct MeetingModeScreen: View {
     @State private var panelHeightBeforeCollapse: CGFloat?
     @State private var isKeyboardVisible = false
     @State private var showCloseConfirmation = false
+    @State private var loopViewer = MatchLoopViewerState()
 
     private var mapPresentation: MeetingModeMapPresentation {
         MeetingModeMapPresentation(
@@ -221,7 +223,9 @@ struct MeetingModeScreen: View {
 
                         ScrollViewReader { proxy in
                             ScrollView {
-                                MatchChatTranscript()
+                                MatchChatTranscript { slot in
+                                    loopViewer.open(slot)
+                                }
                                     .padding(.vertical, 4)
                                 Color.clear
                                     .frame(height: 1)
@@ -276,6 +280,19 @@ struct MeetingModeScreen: View {
                     newContainerHeight: newHeight
                 )
             }
+
+            if let selection = loopViewer.selection,
+               let url = loopURL(for: selection.slot) {
+                ExpandedMatchLoopViewer(
+                    url: url,
+                    label: loopLabel(for: selection.slot),
+                    strokeColor: selection.slot == .mine ? NOWColor.laCoral : NOWColor.laOrange,
+                    playbackID: selection.playbackID
+                ) {
+                    loopViewer.close()
+                }
+                .zIndex(20)
+            }
             }
         }
         .task(id: routeTaskID) {
@@ -305,6 +322,17 @@ struct MeetingModeScreen: View {
                 isKeyboardVisible = false
             }
         }
+        .onChange(of: appState.activeMatch?.id) { _, _ in
+            loopViewer.close()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase != .active {
+                loopViewer.close()
+            }
+        }
+        .onDisappear {
+            loopViewer.close()
+        }
         .alert("Close this match?", isPresented: $showCloseConfirmation) {
             Button("Keep waiting", role: .cancel) {}
             Button("Close match", role: .destructive) {
@@ -312,6 +340,24 @@ struct MeetingModeScreen: View {
             }
         } message: {
             Text("This ends the match and releases both of you. Your meeting confirmation will not complete it.")
+        }
+    }
+
+    private func loopURL(for slot: MatchLoopSlot) -> URL? {
+        switch slot {
+        case .mine:
+            appState.myFirstLoopURL
+        case .theirs:
+            appState.theirFirstLoopURL
+        }
+    }
+
+    private func loopLabel(for slot: MatchLoopSlot) -> String {
+        switch slot {
+        case .mine:
+            "Your loop"
+        case .theirs:
+            "\(appState.activeMatch?.profile.name ?? "Their") loop"
         }
     }
 

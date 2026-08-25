@@ -138,9 +138,9 @@ struct ChatScreen: View {
 
 struct MatchChatTranscript: View {
     @EnvironmentObject private var appState: AppState
-    var onLoopTap: ((MatchLoopSlot) -> Void)?
+    let onLoopTap: (MatchLoopSlot) -> Void
 
-    init(onLoopTap: ((MatchLoopSlot) -> Void)? = nil) {
+    init(onLoopTap: @escaping (MatchLoopSlot) -> Void) {
         self.onLoopTap = onLoopTap
     }
 
@@ -151,13 +151,13 @@ struct MatchChatTranscript: View {
                     url: appState.myFirstLoopURL,
                     label: "You",
                     sender: .me,
-                    onTap: onLoopTap.map { callback in { callback(.mine) } }
+                    onTap: { onLoopTap(.mine) }
                 )
                 LoopSlot(
                     url: appState.theirFirstLoopURL,
                     label: appState.activeMatch?.profile.name ?? "Them",
                     sender: .them,
-                    onTap: onLoopTap.map { callback in { callback(.theirs) } }
+                    onTap: { onLoopTap(.theirs) }
                 )
             }
             .frame(maxWidth: .infinity)
@@ -244,20 +244,16 @@ private struct LoopSlot: View {
     let url: URL?
     let label: String
     let sender: MessageSender
-    let onTap: (() -> Void)?
+    let onTap: () -> Void
 
     var body: some View {
         VStack(spacing: 7) {
             if let url {
-                if let onTap {
-                    Button(action: onTap) {
-                        loopPlayer(url: url, autoPlays: false, togglesAudioOnTap: false)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Open \(label) loop")
-                } else {
-                    loopPlayer(url: url, autoPlays: true, togglesAudioOnTap: true)
+                Button(action: onTap) {
+                    loopPlayer(url: url)
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Open \(label) loop")
             } else {
                 ZStack {
                     Circle()
@@ -292,19 +288,15 @@ private struct LoopSlot: View {
         sender == .me ? NOWColor.laCoral : NOWColor.laOrange
     }
 
-    private func loopPlayer(
-        url: URL,
-        autoPlays: Bool,
-        togglesAudioOnTap: Bool
-    ) -> some View {
+    private func loopPlayer(url: URL) -> some View {
         CircularLoopPlayer(
             url: url,
             diameter: 132,
             strokeColor: strokeColor,
             lineWidth: 3,
             startsMuted: true,
-            togglesAudioOnTap: togglesAudioOnTap,
-            autoPlays: autoPlays
+            togglesAudioOnTap: false,
+            autoPlays: false
         )
     }
 }
@@ -333,7 +325,7 @@ struct MatchLoopViewerState: Equatable {
     }
 }
 
-private struct ExpandedMatchLoopViewer: View {
+struct ExpandedMatchLoopViewer: View {
     let url: URL
     let label: String
     let strokeColor: Color

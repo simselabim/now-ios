@@ -201,6 +201,21 @@ final class MeetingModeChatTests: XCTestCase {
         XCTAssertNotEqual(state.selection?.playbackID, firstPlaybackID)
     }
 
+    func testMeetingModeLoopViewerSupportsBothCirclesSwitchingAndExitCleanup() {
+        var state = MatchLoopViewerState()
+
+        state.open(.mine)
+        XCTAssertEqual(state.selection?.slot, .mine)
+
+        let myPlaybackID = state.selection?.playbackID
+        state.open(.theirs)
+        XCTAssertEqual(state.selection?.slot, .theirs)
+        XCTAssertNotEqual(state.selection?.playbackID, myPlaybackID)
+
+        state.close()
+        XCTAssertNil(state.selection)
+    }
+
     func testMessageTimelineDeduplicatesAndSortsChronologically() {
         let firstID = UUID(uuidString: "11111111-1111-1111-1111-111111111111")!
         let secondID = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
