@@ -307,18 +307,13 @@ private struct LiveDiscoveryMap: View {
 
     var body: some View {
         Map(position: $cameraPosition, interactionModes: [.pan, .zoom, .rotate]) {
-            if let userCoordinate {
-                Annotation("You", coordinate: userCoordinate, anchor: .center) {
-                    LAUserLocationMarker()
-                }
-            }
-
             ForEach(venues) { venue in
-                Annotation(venue.name, coordinate: venue.coordinate, anchor: .bottom) {
+                let isSelected = venue.id == selectedVenueID
+                Annotation(isSelected ? venue.name : "", coordinate: venue.coordinate, anchor: .center) {
                     Button {
                         onVenueTap(venue)
                     } label: {
-                        LAVenueMarker(category: venue.category, isSelected: venue.id == selectedVenueID)
+                        LAVenueMarker(category: venue.category, isSelected: isSelected)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(
@@ -341,6 +336,12 @@ private struct LiveDiscoveryMap: View {
                     .buttonStyle(.plain)
                     .disabled(activeMatchProfileId != nil && point.profile.id != activeMatchProfileId)
                     .accessibilityLabel("\(point.profile.name), \(point.profile.distance)")
+                }
+            }
+
+            if let userCoordinate {
+                Annotation("You", coordinate: userCoordinate, anchor: .center) {
+                    LAUserLocationMarker()
                 }
             }
         }
@@ -529,19 +530,41 @@ final class NearbyVenueStore: ObservableObject {
     }
 }
 
+enum DiscoveryVenueMarkerVisualStyle {
+    static let diameter: CGFloat = 24
+    static let selectedDiameter: CGFloat = 30
+    static let personDiameter: CGFloat = 46
+    static let lineWidth: CGFloat = 1.5
+    static let selectedLineWidth: CGFloat = 2.5
+}
+
 private struct LAVenueMarker: View {
     let category: MeetingPlaceCategory
     let isSelected: Bool
 
     var body: some View {
         Image(systemName: category.symbolName)
-            .font(.caption.weight(.black))
-            .foregroundStyle(.white)
-            .frame(width: isSelected ? 40 : 34, height: isSelected ? 40 : 34)
-            .background(isSelected ? NOWColor.laOrange : NOWColor.laCoral)
+            .font(.system(size: isSelected ? 12 : 10, weight: .bold))
+            .foregroundStyle(isSelected ? NOWColor.laBrown : NOWColor.laBrownSoft.opacity(0.78))
+            .frame(
+                width: isSelected
+                    ? DiscoveryVenueMarkerVisualStyle.selectedDiameter
+                    : DiscoveryVenueMarkerVisualStyle.diameter,
+                height: isSelected
+                    ? DiscoveryVenueMarkerVisualStyle.selectedDiameter
+                    : DiscoveryVenueMarkerVisualStyle.diameter
+            )
+            .background(isSelected ? NOWColor.surface.opacity(0.96) : NOWColor.line.opacity(0.88))
             .clipShape(Circle())
-            .overlay(Circle().stroke(.white, lineWidth: isSelected ? 3 : 2))
-            .shadow(color: NOWColor.ink.opacity(0.22), radius: 5, y: 3)
+            .overlay(
+                Circle().stroke(
+                    NOWColor.laBrownSoft.opacity(isSelected ? 0.82 : 0.45),
+                    lineWidth: isSelected
+                        ? DiscoveryVenueMarkerVisualStyle.selectedLineWidth
+                        : DiscoveryVenueMarkerVisualStyle.lineWidth
+                )
+            )
+            .shadow(color: NOWColor.ink.opacity(isSelected ? 0.18 : 0.08), radius: isSelected ? 4 : 2, y: 2)
     }
 }
 
@@ -652,13 +675,19 @@ private struct LAMapPersonMarker: View {
             ZStack {
                 Circle()
                     .fill(markerFill)
-                    .frame(width: 46, height: 46)
+                    .frame(
+                        width: DiscoveryVenueMarkerVisualStyle.personDiameter,
+                        height: DiscoveryVenueMarkerVisualStyle.personDiameter
+                    )
                     .overlay(Circle().stroke(markerStroke, lineWidth: 3))
                     .shadow(color: NOWColor.ink.opacity(0.18), radius: 10, x: 0, y: 6)
 
                 if point.profile.mainPhotoURL != nil {
                     ProfilePhoto(profile: point.profile)
-                        .frame(width: 46, height: 46)
+                        .frame(
+                            width: DiscoveryVenueMarkerVisualStyle.personDiameter,
+                            height: DiscoveryVenueMarkerVisualStyle.personDiameter
+                        )
                         .clipShape(Circle())
                         .overlay(Circle().stroke(markerStroke, lineWidth: 3))
                         .shadow(color: NOWColor.ink.opacity(0.18), radius: 10, x: 0, y: 6)

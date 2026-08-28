@@ -6,6 +6,21 @@ import XCTest
 
 @MainActor
 final class DiscoveryMapNavigationTests: XCTestCase {
+    func testMeetingPlaceMarkersStayVisuallySecondaryToPeople() {
+        XCTAssertLessThan(
+            DiscoveryVenueMarkerVisualStyle.diameter,
+            DiscoveryVenueMarkerVisualStyle.personDiameter * 0.7
+        )
+        XCTAssertLessThan(
+            DiscoveryVenueMarkerVisualStyle.selectedDiameter,
+            DiscoveryVenueMarkerVisualStyle.personDiameter
+        )
+        XCTAssertGreaterThan(
+            DiscoveryVenueMarkerVisualStyle.selectedDiameter,
+            DiscoveryVenueMarkerVisualStyle.diameter
+        )
+    }
+
     func testClosingProfilePreservesMapPointAndViewport() {
         let state = AppState()
         let point = makePoint(state: .viewed)
