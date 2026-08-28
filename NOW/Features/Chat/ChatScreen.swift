@@ -1,5 +1,6 @@
 import CoreLocation
 import SwiftUI
+import UIKit
 
 struct ChatScreen: View {
     @EnvironmentObject private var appState: AppState
@@ -249,11 +250,16 @@ private struct LoopSlot: View {
     var body: some View {
         VStack(spacing: 7) {
             if let url {
-                Button(action: onTap) {
+                ZStack {
                     loopPlayer(url: url)
+
+                    CircularLoopTapControl(
+                        accessibilityLabel: "Open \(label) loop",
+                        action: onTap
+                    )
+                    .frame(width: 132, height: 132)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Open \(label) loop")
+                .frame(width: 132, height: 132)
             } else {
                 ZStack {
                     Circle()
@@ -281,7 +287,6 @@ private struct LoopSlot: View {
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
-        .accessibilityElement(children: .combine)
     }
 
     private var strokeColor: Color {
@@ -299,6 +304,57 @@ private struct LoopSlot: View {
             autoPlays: false
         )
         .allowsHitTesting(false)
+    }
+}
+
+struct CircularLoopTapControl: UIViewRepresentable {
+    let accessibilityLabel: String
+    let action: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(action: action)
+    }
+
+    func makeUIView(context: Context) -> CircularLoopTapUIView {
+        let control = CircularLoopTapUIView()
+        control.backgroundColor = .clear
+        control.isAccessibilityElement = true
+        control.accessibilityTraits = .button
+        control.accessibilityLabel = accessibilityLabel
+        control.addTarget(
+            context.coordinator,
+            action: #selector(Coordinator.activate),
+            for: .touchUpInside
+        )
+        return control
+    }
+
+    func updateUIView(_ control: CircularLoopTapUIView, context: Context) {
+        context.coordinator.action = action
+        control.accessibilityLabel = accessibilityLabel
+    }
+
+    final class Coordinator: NSObject {
+        var action: () -> Void
+
+        init(action: @escaping () -> Void) {
+            self.action = action
+        }
+
+        @objc func activate() {
+            action()
+        }
+    }
+}
+
+final class CircularLoopTapUIView: UIControl {
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        guard super.point(inside: point, with: event) else { return false }
+        let radius = min(bounds.width, bounds.height) / 2
+        let center = CGPoint(x: bounds.midX, y: bounds.midY)
+        let dx = point.x - center.x
+        let dy = point.y - center.y
+        return dx * dx + dy * dy <= radius * radius
     }
 }
 

@@ -1,4 +1,6 @@
 import CoreLocation
+import SwiftUI
+import UIKit
 import XCTest
 @testable import NOW
 
@@ -166,8 +168,9 @@ final class TodayIntentSelectionTests: XCTestCase {
     }
 }
 
+@MainActor
 final class MeetingModeChatTests: XCTestCase {
-    func testLoopThumbnailLetsOuterButtonReceiveTap() throws {
+    func testLoopThumbnailUsesDedicatedCircularControlAbovePlayer() throws {
         let repositoryURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
@@ -179,8 +182,50 @@ final class MeetingModeChatTests: XCTestCase {
         let loopSlotEnd = try XCTUnwrap(source.range(of: "enum MatchLoopSlot")?.lowerBound)
         let loopSlotSource = source[loopSlotStart..<loopSlotEnd]
 
-        XCTAssertTrue(loopSlotSource.contains("Button(action: onTap)"))
+        XCTAssertTrue(loopSlotSource.contains("CircularLoopTapControl("))
         XCTAssertTrue(loopSlotSource.contains(".allowsHitTesting(false)"))
+        XCTAssertFalse(loopSlotSource.contains("Button(action: onTap)"))
+    }
+
+    func testCircularLoopControlForwardsNativeTouchUpInside() throws {
+        var tapCount = 0
+        let controller = UIHostingController(
+            rootView: CircularLoopTapControl(
+                accessibilityLabel: "Open loop",
+                action: { tapCount += 1 }
+            )
+            .frame(width: 132, height: 132)
+        )
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 132, height: 132))
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        controller.view.frame = window.bounds
+        controller.view.layoutIfNeeded()
+
+        let control = try XCTUnwrap(findCircularLoopControl(in: controller.view))
+        control.sendActions(for: .touchUpInside)
+
+        XCTAssertEqual(tapCount, 1)
+        XCTAssertTrue(control.point(inside: CGPoint(x: 66, y: 66), with: nil))
+        XCTAssertFalse(control.point(inside: CGPoint(x: 0, y: 0), with: nil))
+        window.isHidden = true
+    }
+
+    func testExpandedLoopAutoplaysAndBackdropDismisses() throws {
+        let repositoryURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let source = try String(
+            contentsOf: repositoryURL.appendingPathComponent("NOW/Features/Chat/ChatScreen.swift"),
+            encoding: .utf8
+        )
+        let viewerStart = try XCTUnwrap(source.range(of: "struct ExpandedMatchLoopViewer")?.lowerBound)
+        let viewerEnd = try XCTUnwrap(source.range(of: "private struct Bubble")?.lowerBound)
+        let viewerSource = source[viewerStart..<viewerEnd]
+
+        XCTAssertTrue(viewerSource.contains("autoPlays: true"))
+        XCTAssertTrue(viewerSource.contains(".onTapGesture(perform: dismiss)"))
+        XCTAssertTrue(viewerSource.contains(".onTapGesture {}"))
     }
 
     func testMatchLoopViewerOpensOnlyOneLoopAtATime() {
@@ -574,6 +619,18 @@ final class MeetingModeChatTests: XCTestCase {
             encoding: .utf8
         )
         XCTAssertTrue(meetingModeSource.contains("meeting-mode-close-kindly"))
+    }
+
+    private func findCircularLoopControl(in view: UIView) -> CircularLoopTapUIView? {
+        if let control = view as? CircularLoopTapUIView {
+            return control
+        }
+        for subview in view.subviews {
+            if let control = findCircularLoopControl(in: subview) {
+                return control
+            }
+        }
+        return nil
     }
 }
 
