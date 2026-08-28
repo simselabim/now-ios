@@ -298,6 +298,7 @@ private struct LoopSlot: View {
             togglesAudioOnTap: false,
             autoPlays: false
         )
+        .allowsHitTesting(false)
     }
 }
 

@@ -167,6 +167,22 @@ final class TodayIntentSelectionTests: XCTestCase {
 }
 
 final class MeetingModeChatTests: XCTestCase {
+    func testLoopThumbnailLetsOuterButtonReceiveTap() throws {
+        let repositoryURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let source = try String(
+            contentsOf: repositoryURL.appendingPathComponent("NOW/Features/Chat/ChatScreen.swift"),
+            encoding: .utf8
+        )
+        let loopSlotStart = try XCTUnwrap(source.range(of: "private struct LoopSlot")?.lowerBound)
+        let loopSlotEnd = try XCTUnwrap(source.range(of: "enum MatchLoopSlot")?.lowerBound)
+        let loopSlotSource = source[loopSlotStart..<loopSlotEnd]
+
+        XCTAssertTrue(loopSlotSource.contains("Button(action: onTap)"))
+        XCTAssertTrue(loopSlotSource.contains(".allowsHitTesting(false)"))
+    }
+
     func testMatchLoopViewerOpensOnlyOneLoopAtATime() {
         var state = MatchLoopViewerState()
 
